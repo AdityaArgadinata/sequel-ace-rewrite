@@ -10,7 +10,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"golang.org/x/crypto/ssh"
 	"net"
+	"sequel-rewrite/internal/tunnel"
 	"strconv"
 	"strings"
 	"sync"
@@ -26,12 +28,13 @@ const (
 )
 
 type Connection struct {
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	User     string `json:"user"`
-	Password string `json:"password"`
-	TLS      bool   `json:"tls"`
-	CAPEM    string `json:"caPEM"`
+	Host     string          `json:"host"`
+	Port     int             `json:"port"`
+	User     string          `json:"user"`
+	Password string          `json:"password"`
+	TLS      bool            `json:"tls"`
+	CAPEM    string          `json:"caPEM"`
+	SSH      *tunnel.Options `json:"ssh"`
 }
 
 type Cell struct {
@@ -70,6 +73,7 @@ type Session struct {
 	db     *sql.DB
 	conn   *sql.Conn
 	failed bool
+	tunnel *ssh.Client
 }
 
 func config(c Connection) (*mysql.Config, error) {
@@ -138,6 +142,22 @@ func (s *Session) Connect(c Connection) error {
 	if err != nil {
 		return err
 	}
+	if c.SSH != nil {
+		client, err := tunnel.Open(ctx, *c.SSH)
+		if err != nil {
+			return err
+		}
+		s.tunnel = client
+		defer func() {
+			if s.conn == nil {
+				client.Close()
+				s.tunnel = nil
+			}
+		}()
+		cfg.DialFunc = func(ctx context.Context, _, address string) (net.Conn, error) {
+			return tunnel.Dial(ctx, client, address)
+		}
+	}
 	connector, err := mysql.NewConnector(cfg)
 	if err != nil {
 		return err
@@ -170,6 +190,10 @@ func (s *Session) Cancel() {
 }
 
 func (s *Session) close() {
+	if s.tunnel != nil {
+		s.tunnel.Close()
+		s.tunnel = nil
+	}
 	if s.conn != nil {
 		s.conn.Close()
 		s.conn = nil
@@ -255,6 +279,10 @@ func (s *Session) Query(statement string) (Result, error) {
 // Stream calls emit synchronously while reading rows, without any UI dependency.
 // The callback must not wait for another operation on this session.
 func (s *Session) Stream(statement string, emit func(Batch)) (Result, error) {
+	return s.execute(statement, nil, emit)
+}
+
+func (s *Session) execute(statement string, args []any, emit func(Batch)) (Result, error) {
 	ctx, done, err := s.begin()
 	if err != nil {
 		return Result{}, err
@@ -267,7 +295,7 @@ func (s *Session) Stream(statement string, emit func(Batch)) (Result, error) {
 		return Result{}, errors.New("enter one SQL statement")
 	}
 	start := time.Now()
-	rows, err := s.conn.QueryContext(ctx, statement)
+	rows, err := s.conn.QueryContext(ctx, statement, args...)
 	if err != nil {
 		return Result{}, s.queryError(err)
 	}

@@ -13,7 +13,7 @@ Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/action
 | 0 — Fondasi dan CI | Selesai | Tidak ada |
 | 1 — Alur query pertama | Implementasi dan CI selesai | Smoke test GUI Windows dan Ubuntu |
 | 1A — Kesetaraan GUI Sequel Ace | Sedang dikerjakan; layout awal selesai | Referensi lengkap, detail visual/interaksi, overlay, dan GUI Windows/Linux |
-| 2 — Penggunaan harian | Sedang dikerjakan | Profil koneksi selesai; credential store, SSH, multi-tab, history, pagination/filter belum |
+| 2 — Penggunaan harian | Implementasi selesai; validasi berlangsung | CI terbaru dan GUI Windows/Linux; batas fitur didokumentasikan |
 | 3 — Pengubahan data | Belum dimulai | Editor baris, transaksi UI, dan penanganan konflik |
 | 4 — Struktur dan pertukaran data | Belum dimulai | Metadata struktur, import/export, dan migrasi |
 | 5 — Beta Windows/Linux | Belum dimulai | Paket distribusi dan verifikasi rilis |
@@ -31,8 +31,8 @@ dapat dilakukan dari laptop Mac.
   fitur, SQL, dan kasus pengujian; aplikasi macOS yang ada tetap terpisah.
 - Target GUI sesuai permintaan pengguna: sama persis dengan Sequel Ace asli
   pada area aplikasi yang dibangun ulang. GUI sekarang masih prototipe fungsional
-  dan belum memenuhi target visual tersebut. Milestone 1A menjadi prioritas
-  yang sedang dikerjakan sebelum melanjutkan fitur milestone 2.
+  dan belum memenuhi target visual tersebut. Milestone 1A tetap terbuka; atas instruksi berikutnya, implementasi milestone 2
+  dilanjutkan tanpa mengklaim kesetaraan visual sudah selesai.
 - Stack awal: Go untuk mesin database, Wails untuk desktop, serta React dan
   TypeScript untuk UI. Versi dependensi dipilih dan dikunci saat inisialisasi.
 - Target awal: macOS pada arsitektur laptop pengembang, Windows x64, dan
@@ -157,16 +157,46 @@ sebelum dibandingkan langsung pada OS tujuan.
   kosong, serta batal hapus. Penghapusan berhasil diuji melalui unit test store.
   Test profil, build, dan vet lulus pada macOS/Windows/Ubuntu di CI;
   regresi MySQL 8.4/MariaDB 11.4 juga lulus. GUI Windows/Linux belum diuji langsung.
-- [ ] Simpan rahasia melalui credential store masing-masing OS; jika tidak
+- [x] Simpan rahasia melalui credential store masing-masing OS; jika tidak
   tersedia, minta password saat koneksi tanpa menyimpannya sebagai plaintext.
-- [ ] Tambahkan SSH tunnel dengan validasi host key dan autentikasi key/password.
-- [ ] Tambahkan beberapa tab query dengan kepemilikan sesi dan cleanup yang jelas.
-- [ ] Tambahkan history lokal; hindari pencatatan password/token dan sediakan
+- [x] Tambahkan SSH tunnel dengan validasi host key dan autentikasi key/password.
+- [x] Tambahkan beberapa tab query dengan kepemilikan sesi dan cleanup yang jelas.
+- [x] Tambahkan history lokal; hindari pencatatan password/token dan sediakan
   penghapusan history karena teks SQL dapat mengandung data sensitif.
-- [ ] Tambahkan browser isi tabel dengan pagination, sorting, dan filter.
-- [ ] Quote identifier dengan benar dan gunakan parameter untuk nilai filter.
-- [ ] Tangani disconnect dan reconnect tanpa mengulang query pengubah data
+- [x] Tambahkan browser isi tabel dengan pagination, sorting, dan filter.
+- [x] Quote identifier dengan benar dan gunakan parameter untuk nilai filter.
+- [x] Tangani disconnect dan reconnect tanpa mengulang query pengubah data
   secara otomatis atau menganggap sesi lama masih berlaku.
+
+Implementasi milestone 2 (2026-10-21):
+
+- Credential bundle (password database/SSH dan key passphrase) hanya masuk vault
+  OS atas pilihan pengguna; terikat fingerprint profil agar perubahan host/user
+  tidak memakai password lama. Load/forget tersedia eksplisit. Tidak ada fallback
+  plaintext. Native Keychain dummy round-trip/delete lulus; error vault diuji.
+- SSH password dan private key terenkripsi teruji pada server loopback, termasuk
+  forwarding MySQL dengan TLS. `known_hosts` wajib valid; host asing dan password
+  salah ditolak. Tidak ada trust-on-first-use otomatis, agent, atau keyboard-interactive.
+- Maksimum 16 tab dengan koneksi terpisah. Variabel, database aktif, temporary
+  table dan transaksi tidak bercampur. Tutup tab membuang sesi; cancel di satu
+  tab tidak memutus tab lain. Credential workspace hanya disimpan di memori
+  hingga semua tab ditutup; tab baru membuka koneksi baru secara eksplisit.
+- History opt-in menyimpan 100 metadata eksekusi terakhir di `history.json`:
+  waktu, jenis statement dari allowlist, jumlah baris, durasi dan status. Teks SQL,
+  nilai filter, nama koneksi/database dan pesan error tidak disimpan. Karena itu
+  history tidak menyediakan replay SQL. Clear/retensi/file rusak diuji otomatis.
+- Content read-only mendukung halaman 25/50/100/200 baris, sorting satu kolom,
+  filter perbandingan/contains/NULL. Identifier di-quote dan nilai di-bind;
+  `%`, `_`, `!` diperlakukan literal untuk contains. Pagination offset dapat
+  bergeser saat data berubah; pilih kolom unik untuk urutan stabil.
+- GUI Mac fixture TLS: halaman 50 + 46 baris, sort ID, filter `50%_!`, dua tab
+  dengan database/variabel/editor terpisah, serta panel history metadata lulus.
+  Test unit/integration/race lokal, TLS, Go vet dan frontend build lulus.
+
+- [ ] Verifikasi CI terbaru pada macOS/Windows/Ubuntu, termasuk native vault
+  Windows Credential Manager dan Linux Secret Service.
+- [ ] Manual QA GUI milestone 2 di Windows dan Ubuntu: profil/password, SSH,
+  tab, history, pagination/filter, cancel dan penutupan aplikasi.
 
 **Selesai jika:** profil, credential store, SSH, tab, dan pagination dapat
 dipakai berulang tanpa kebocoran koneksi. Pengujian otomatis lulus dan fitur

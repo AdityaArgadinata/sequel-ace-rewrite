@@ -596,3 +596,24 @@ td.null,.empty-value {
 .splitter-y { cursor:row-resize; }
 .splitter:hover,.splitter:focus-visible { background:var(--accent); }
 .splitter:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+
+.desktop-root { height:100%; display:flex; flex-direction:column; min-height:0; }
+.desktop-root > .app-shell { flex:1; min-height:0; }
+.tab-pane { flex:1; min-height:0; }
+.tab-pane[hidden] { display:none; }
+.query-tabs { display:flex; align-items:center; gap:8px; padding:4px 8px; background:var(--toolbar); border-bottom:1px solid var(--border); }
+.query-tabs [role=tablist] { display:flex; flex:1; overflow:auto; gap:4px; }
+.query-tab { display:flex; flex-shrink:0; border:1px solid var(--border); border-radius:4px; overflow:hidden; }
+.query-tab button { border:0; padding:4px 8px; background:var(--surface); }
+.query-tab [aria-selected=true] { background:var(--selection); }
+.content-filter { display:flex; flex-wrap:wrap; gap:6px; padding:8px; background:var(--surface); }
+.content-filter select { width:auto; max-width:180px; }
+.content-filter input:not([type=checkbox]) { width:140px; min-width:60px; }
+.results-footer select { width:auto; }
+.history-panel { flex:0 1 220px; overflow:auto; padding:10px; border-bottom:1px solid var(--border); background:var(--surface); }
+.history-panel p,.history-panel li { font-size:11px; }
+.credential-actions { display:flex; gap:8px; margin-top:10px; }
+.credential-actions button { font-size:11px; }
+.remember-passwords { display:block; margin-top:12px; font-size:11px; }
+.ssh-settings h3 { font-size:12px; border-top:1px solid var(--border); padding-top:12px; }
+.connection-tabs button[aria-pressed=true] { background:#80808070; }

@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sequel-rewrite/internal/tunnel"
 	"strings"
 	"sync"
 	"testing"
@@ -203,5 +204,26 @@ func TestConcurrentCreatesAndDeterministicList(t *testing.T) {
 	entries, _ := os.ReadDir(dir)
 	if len(entries) != 20 {
 		t.Fatal("temporary files left behind")
+	}
+}
+
+func TestSSHProfileRoundTrip(t *testing.T) {
+	store := NewStore(t.TempDir())
+	p := fixture()
+	p.SSH = &tunnel.Settings{Host: "bastion.example", Port: 22, User: "alice", KeyFile: "/fixture/id", KnownHosts: "/fixture/known_hosts"}
+	saved, err := store.Save(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := store.Get(saved.ID)
+	if err != nil || !reflect.DeepEqual(loaded, saved) {
+		t.Fatal("SSH profile did not roundtrip")
+	}
+	saved.SSH.Port = 0
+	if _, err = store.Save(saved); err == nil {
+		t.Fatal("invalid SSH setting saved")
+	}
+	if _, err = store.Get("../escape"); err == nil {
+		t.Fatal("invalid ID read")
 	}
 }

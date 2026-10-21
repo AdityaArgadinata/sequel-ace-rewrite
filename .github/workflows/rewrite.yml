@@ -36,7 +36,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install Linux desktop dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config gnome-keyring dbus-x11
       - name: Install pinned Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.0
       - name: Install frontend dependencies
@@ -72,6 +72,28 @@ jobs:
             go test ./...
             go vet ./...
           fi
+      - name: Test native Windows credential vault
+        if: runner.os == 'Windows'
+        env:
+          SEQUEL_TEST_KEYRING: '1'
+        run: go test ./internal/credentials -run TestNativeVault -v -count=1
+      - name: Test isolated macOS credential vault
+        if: runner.os == 'macOS'
+        run: |
+          original_keychain="$(security default-keychain -d user | tr -d '\"' | sed 's/^ *//')"
+          qa_keychain="$RUNNER_TEMP/rewrite-qa.keychain-db"
+          trap 'security default-keychain -d user -s "$original_keychain"; security delete-keychain "$qa_keychain"' EXIT
+          security create-keychain -p rewrite-ci-only "$qa_keychain"
+          security unlock-keychain -p rewrite-ci-only "$qa_keychain"
+          security default-keychain -d user -s "$qa_keychain"
+          SEQUEL_TEST_KEYRING=1 go test ./internal/credentials -run TestNativeVault -v -count=1
+      - name: Test isolated Linux credential vault
+        if: runner.os == 'Linux'
+        run: |
+          dbus-run-session -- bash -e -c '
+            printf %s rewrite-ci-only | gnome-keyring-daemon --unlock --components=secrets
+            SEQUEL_TEST_KEYRING=1 go test ./internal/credentials -run TestNativeVault -v -count=1
+          '
       - name: Build desktop application
         run: |
           if [ "$RUNNER_OS" = Linux ]; then
@@ -134,4 +156,4 @@ jobs:
         env:
           SEQUEL_TEST_PORT: '3306'
           SEQUEL_TEST_PASSWORD: rewrite-ci-only
-        run: go test -race ./internal/database -v -count=1 -timeout=90s
+        run: go test -race ./internal/database ./internal/workspace ./internal/tunnel -v -count=1 -timeout=180s

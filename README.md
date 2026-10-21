@@ -38,7 +38,7 @@ wails dev
 
 Isi host, port, user, dan password, lalu klik **Hubungkan**. TLS terverifikasi
 aktif secara default; tempel sertifikat PEM pada CA khusus jika diperlukan.
-Password hanya digunakan dalam memori dan dikosongkan dari form setelah submit.
+Password dikosongkan dari form setelah submit. Penyimpanan rahasia bersifat opt-in melalui vault OS, terpisah dari profil JSON.
 Browser Vite saja tidak memiliki backend Wails; gunakan jendela desktop.
 Untuk build produksi jalankan `wails build`, lalu buka `.app` di `build/bin/`.
 
@@ -129,7 +129,7 @@ atau tester. Tidak perlu membeli laptop lain untuk memulai pengembangan.
 
 ## Batas alur query awal
 
-- Satu sesi/query pada satu waktu. Tidak ada retry atau reconnect otomatis.
+- Satu sesi/query per tab, maksimum 16 tab dengan koneksi terpisah. Tidak ada retry atau reconnect otomatis.
 - Batas waktu koneksi 10 detik; operasi 60 detik.
 - Hasil maksimal 500 baris dan 4 MiB isi sel (bukan batas ukuran JSON keseluruhan).
   Nilai dikirim sebagai string; binary sebagai hex dan NULL ditandai terpisah.
@@ -153,7 +153,7 @@ atau tester. Tidak perlu membeli laptop lain untuk memulai pengembangan.
 - Metadata tidak dimuat ulang setelah query agar ROW_COUNT()/diagnostik sesi tidak
   terganggu. Klik **Segarkan daftar** setelah USE/DDL manual jika perlu; tindakan
   ini menjalankan query metadata sehingga dapat mengubah diagnostik sesi.
-- SSH, credential store, multi-tab, dan import/export belum tersedia.
+- Import/export dan pengubahan baris melalui grid belum tersedia.
 
 ## Integration test pada server disposable
 
@@ -197,7 +197,7 @@ tidak wajib untuk koneksi sekali pakai. Profil dimuat ulang saat aplikasi dibuka
 
 Hanya nama, host, port, user, TLS, dan sertifikat CA yang disimpan. Model profil
 terpisah dari model koneksi dan tidak mempunyai field password. Private key tidak
-diterima dalam input CA. Password belum disimpan di credential store OS.
+diterima dalam input CA. Password dapat disimpan secara eksplisit di credential store OS; lihat bagian penggunaan harian.
 
 Lokasi file JSON versi 1 (satu file per ID profil):
 
@@ -240,3 +240,59 @@ lengkap, dan GUI Windows/Linux belum tervalidasi.
 [CI layout awal dan artifact desktop](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39545854229)
 lulus untuk commit `ff149bd` pada ketiga OS dan kedua database. Milestone 1A
 tetap sedang dikerjakan karena kesetaraan visual/interaksi belum selesai.
+
+## Penggunaan harian — milestone 2
+
+- **Password:** isi nama profil dan centang **Save passwords in OS credential
+  store** untuk menyimpan saat save/connect. **Use saved passwords** memuatnya;
+  **Forget saved passwords** menghapusnya. Bundle terikat konfigurasi profil:
+  setelah profil berubah, password perlu disimpan ulang. Tidak ada fallback file
+  plaintext. Jika vault tidak tersedia/ditolak, nonaktifkan save dan masukkan
+  password manual. Hapus profil meminta pembersihan vault terlebih dahulu; jika
+  gagal, profil dipertahankan agar credential tidak ditinggalkan diam-diam.
+- **Vault OS:** Keychain di macOS, Credential Manager di Windows, Secret Service
+  melalui D-Bus di Linux (misalnya GNOME Keyring yang sedang terbuka), memakai
+  [go-keyring v0.2.6](https://github.com/zalando/go-keyring).
+- **SSH:** pilih SSH lalu isi host/port/user SSH dan password atau path absolut
+  private key. Key terenkripsi memakai Passphrase. Host database ditafsirkan dari
+  server SSH. Known Hosts kosong memakai `~/.ssh/known_hosts`. Host asing/berubah
+  ditolak: verifikasi identitasnya melalui cara tepercaya sebelum memperbarui
+  file itu. Tidak ada trust otomatis, SSH agent atau keyboard-interactive. TLS
+  MySQL tetap memverifikasi nama Host database, bukan alamat server SSH.
+- **Tab:** **＋** membuka koneksi baru ke server workspace yang sama. Tiap tab
+  memiliki editor/hasil/database aktif terpisah. Menutup tab membuang koneksi dan
+  transaksi belum commit. Setelah cancel/putus, tutup tab lalu buka tab baru atau
+  hubungkan ulang via form. Tidak ada replay SQL atau pemulihan sesi otomatis.
+  Credential workspace hanya ditahan di memori hingga semua tab ditutup.
+- **Content:** pilih database/tabel, sort dan filter/operator/nilai, lalu **Apply**.
+  Nilai filter memakai parameter; contains memperlakukan `%`, `_`, `!` sebagai
+  teks. Halaman 25–200 baris memakai Previous/Next/Reload. Perubahan filter/sort
+  perlu Apply sebelum pindah halaman. Pilih kolom unik untuk urutan stabil;
+  perubahan data bersamaan tetap dapat menggeser pagination offset. Batas 4 MiB
+  tetap berlaku dan dapat memutus sesi jika halaman terlalu besar.
+- **History:** centang **Record history (metadata only)** per tab. Panel History
+  memuat 100 eksekusi terakhir, dengan Clear history. Hanya waktu, jenis statement
+  dari allowlist, jumlah baris, durasi dan status yang disimpan. SQL, nilai,
+  identifier database/koneksi dan error tidak disimpan; history tidak mendukung
+  replay SQL. `history.json` berada di folder konfigurasi SequelRewrite, dengan
+  permission 0600 pada POSIX.
+
+Verifikasi lokal: unit/race/integration MySQL 5.7.44, TLS, SSH forwarding,
+password/key terenkripsi, penolakan host asing/password salah, isolasi tab,
+rollback saat tutup tab dan cancel terisolasi lulus. Native Keychain diuji dengan
+credential dummy yang dibersihkan setelah test. GUI Mac fixture memverifikasi
+Content, halaman 50+46 baris, sorting/filter, dua tab terpisah dan history metadata.
+CI menguji build tiga OS dan vault native masing-masing. Manual QA GUI Windows/
+Linux tetap diperlukan sebelum milestone 2 dinyatakan tervalidasi sepenuhnya.
+
+Pemeriksaan tambahan (hanya server/vault disposable):
+
+```sh
+npm --prefix frontend test
+SEQUEL_TEST_PORT=13367 go test -race ./internal/database ./internal/workspace ./internal/tunnel -count=1 -timeout=180s
+SEQUEL_TEST_KEYRING=1 go test ./internal/credentials -run TestNativeVault -v -count=1
+```
+
+Fixture MySQL memerlukan `max_allowed_packet` setidaknya 8 MiB untuk test baris
+besar. Native vault test hanya menyimpan credential dummy ber-ID acak. Test SSH
+membuat listener loopback sementara; file key/known_hosts dibersihkan setelah test.

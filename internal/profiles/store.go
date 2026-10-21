@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sequel-rewrite/internal/tunnel"
 	"sort"
 	"strings"
 	"sync"
@@ -20,13 +21,14 @@ import (
 
 // Keep this separate from database.Connection so passwords cannot be serialized.
 type Profile struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Host  string `json:"host"`
-	Port  int    `json:"port"`
-	User  string `json:"user"`
-	TLS   bool   `json:"tls"`
-	CAPEM string `json:"caPEM"`
+	ID    string           `json:"id"`
+	Name  string           `json:"name"`
+	Host  string           `json:"host"`
+	Port  int              `json:"port"`
+	User  string           `json:"user"`
+	TLS   bool             `json:"tls"`
+	CAPEM string           `json:"caPEM"`
+	SSH   *tunnel.Settings `json:"ssh,omitempty"`
 }
 
 type document struct {
@@ -60,6 +62,11 @@ func validID(id string) bool {
 }
 
 func validate(p Profile) error {
+	if p.SSH != nil {
+		if err := tunnel.Validate(*p.SSH); err != nil {
+			return err
+		}
+	}
 	if strings.TrimSpace(p.Name) == "" || len(p.Name) > 100 || strings.TrimSpace(p.Host) == "" || p.User == "" || p.Port < 1 || p.Port > 65535 {
 		return errors.New("profile requires a name (up to 100 bytes), host, user, and port (1–65535)")
 	}
@@ -229,4 +236,17 @@ func (s *Store) Delete(id string) error {
 		return err
 	}
 	return os.Remove(path)
+}
+
+func (s *Store) Get(id string) (Profile, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !validID(id) {
+		return Profile{}, errors.New("invalid profile ID")
+	}
+	dir, err := s.directory()
+	if err != nil {
+		return Profile{}, err
+	}
+	return read(filepath.Join(dir, id+".json"), id)
 }

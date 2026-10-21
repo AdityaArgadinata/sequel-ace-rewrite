@@ -43,14 +43,17 @@ Status: first layout implementation; **not pixel-identical or accepted as comple
   spacing still require measured comparison.
 - Rewrite's default window is 1200×760; observed native connection reference was
   approximately 1200×710. Size/scale must be standardized for golden comparison.
-- Only Query is functional among the main view buttons. Structure, Content,
-  Relations, Triggers, Table Info, history, Users and Console remain disabled.
-- Socket/SSH, favorite colors, preselected database, configurable time zone,
+- Query and read-only Content are functional. Structure, Relations, Triggers,
+  Table Info, table history, Users and Console remain unavailable. Query history
+  metadata has its own toolbar control; this differs from the original Console.
+- Socket, favorite colors, preselected database, configurable time zone,
   LOCAL_DATA_INFILE and cleartext plugin settings are not implemented and disabled.
-- Profile save is explicit, password storage is unavailable, and CA uses a PEM
-  text area. These differ from the native app's full connection controls.
+- Profile save is explicit, credential-vault save/load/forget are explicit, and CA
+  uses a PEM text area. SSH uses key/known_hosts path fields. These differ from the
+  native app's full connection controls.
 - Result grid is read-only. It does not yet implement native row selection,
-  cell editing, context menus, column resizing, filter UI or pagination.
+  cell editing, context menus or column resizing. Content has pagination, sorting
+  and filters, but exact native visual/interactions have not been compared.
 - Editor uses a plain textarea; no syntax highlighting/autocomplete. Line numbers
   synchronize with the textarea scroll position. Cmd/Ctrl+Enter
   runs one statement; original shortcut parity has not been established.
