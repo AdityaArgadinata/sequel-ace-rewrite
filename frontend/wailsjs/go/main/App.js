@@ -18,8 +18,16 @@ export function Databases() {
   return window['go']['main']['App']['Databases']();
 }
 
+export function DeleteProfile(arg1) {
+  return window['go']['main']['App']['DeleteProfile'](arg1);
+}
+
 export function Disconnect() {
   return window['go']['main']['App']['Disconnect']();
+}
+
+export function ListProfiles() {
+  return window['go']['main']['App']['ListProfiles']();
 }
 
 export function Platform() {
@@ -28,6 +36,10 @@ export function Platform() {
 
 export function Query(arg1) {
   return window['go']['main']['App']['Query'](arg1);
+}
+
+export function SaveProfile(arg1) {
+  return window['go']['main']['App']['SaveProfile'](arg1);
 }
 
 export function StreamQuery(arg1, arg2) {

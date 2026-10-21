@@ -153,7 +153,7 @@ atau tester. Tidak perlu membeli laptop lain untuk memulai pengembangan.
 - Metadata tidak dimuat ulang setelah query agar ROW_COUNT()/diagnostik sesi tidak
   terganggu. Klik **Segarkan daftar** setelah USE/DDL manual jika perlu; tindakan
   ini menjalankan query metadata sehingga dapat mengubah diagnostik sesi.
-- SSH, profil tersimpan, multi-tab, dan import/export belum tersedia.
+- SSH, credential store, multi-tab, dan import/export belum tersedia.
 
 ## Integration test pada server disposable
 
@@ -187,3 +187,36 @@ tidak perlu memasang Go atau Node.
 Ini artifact pengujian, belum installer rilis bertanda tangan. Build/test CI tidak
 membuktikan interaksi GUI pada Windows/Linux; catat hasil uji startup, koneksi,
 query, cancel, clipboard, dan tampilan pada OS tujuan sebelum beta.
+
+## Profil koneksi
+
+Form koneksi menyediakan **Simpan profil**, **Simpan perubahan**, dan **Hapus
+profil** dengan konfirmasi. Memilih **Koneksi baru** menyiapkan form kosong;
+memilih profil mengisi host/port/user/TLS/CA dan mengosongkan password. Nama profil
+tidak wajib untuk koneksi sekali pakai. Profil dimuat ulang saat aplikasi dibuka.
+
+Hanya nama, host, port, user, TLS, dan sertifikat CA yang disimpan. Model profil
+terpisah dari model koneksi dan tidak mempunyai field password. Private key tidak
+diterima dalam input CA. Password belum disimpan di credential store OS.
+
+Lokasi file JSON versi 1 (satu file per ID profil):
+
+- macOS: `~/Library/Application Support/SequelRewrite/profiles/`
+- Windows: `%AppData%\SequelRewrite\profiles\`
+- Linux: `$XDG_CONFIG_HOME/SequelRewrite/profiles/`, atau
+  `~/.config/SequelRewrite/profiles/` jika XDG_CONFIG_HOME tidak diisi.
+
+Penulisan memakai file sementara di direktori yang sama lalu rename, sehingga
+error tidak menghapus file lama. Pada POSIX, file dibuat dengan mode 0600 dan
+folder baru 0700; Windows memakai ACL direktori konfigurasi pengguna. File rusak,
+versi tak dikenal, atau symlink dilaporkan dan tidak ditimpa/dihapus melalui UI.
+Koneksi tanpa profil tetap tersedia bila penyimpanan tidak dapat dibaca.
+Mengedit profil yang sama dari dua proses mengikuti penulisan terakhir; penggabungan
+perubahan antarproses belum tersedia.
+
+Verifikasi lokal 2026-10-21: unit test dengan race detector mencakup CRUD, muat
+ulang, password tidak terserialisasi, data rusak/versi asing, traversal ID, CA yang
+berisi private key, write failure, dan penyimpanan bersamaan. Smoke test desktop
+Mac mencakup simpan, ubah, restart/pilih ulang dengan password kosong, dan batal
+hapus. Test store memverifikasi penghapusan berhasil. Profil QA sementara sudah
+dibersihkan. Build frontend, Go vet, dan paket desktop macOS lulus.

@@ -1,16 +1,11 @@
-import {FormEvent, useState} from 'react';
+import {useState} from 'react';
 import {Cancel, Connect, Connected, Databases, Disconnect, Query, StreamQuery, Tables, UseDatabase} from '../wailsjs/go/main/App';
 import {database} from '../wailsjs/go/models';
 import {EventsOn} from '../wailsjs/runtime/runtime';
 import './App.css';
+import ConnectionForm from './ConnectionForm';
 
 export default function App() {
-    const [host, setHost] = useState('127.0.0.1');
-    const [port, setPort] = useState('3306');
-    const [user, setUser] = useState('root');
-    const [password, setPassword] = useState('');
-    const [tls, setTLS] = useState(true);
-    const [caPEM, setCA] = useState('');
     const [connected, setConnected] = useState(false);
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState('Hubungkan server untuk memulai.');
@@ -43,13 +38,10 @@ export default function App() {
         }
     }
 
-    async function connect(event: FormEvent) {
-        event.preventDefault();
-        const secret = password;
-        setPassword('');
+    async function connect(connection: database.Connection) {
         setResult(null);
         await operation(async () => {
-            await Connect(new database.Connection({host, port: Number(port), user, password: secret, tls, caPEM}));
+            await Connect(connection);
             const list = await Databases();
             setDatabases(list.rows.map(row => row[0].value));
             setMessage('Terhubung. Pilih database atau jalankan satu statement SQL.');
@@ -119,21 +111,7 @@ export default function App() {
     return (
         <main>
             <header><div><p className="eyebrow">MYSQL / MARIADB · DESKTOP</p><h1>Sequel Rewrite</h1></div><span className="badge">{connected ? 'Terhubung' : 'Offline'}</span></header>
-            {!connected && <form onSubmit={connect} className="connection">
-                <fieldset disabled={busy}>
-                    <legend>Koneksi server</legend>
-                    <div className="fields">
-                        <label>Host<input required value={host} onChange={e => setHost(e.target.value)} autoComplete="off" /></label>
-                        <label>Port<input required type="number" min="1" max="65535" value={port} onChange={e => setPort(e.target.value)} /></label>
-                        <label>User<input required value={user} onChange={e => setUser(e.target.value)} autoComplete="off" /></label>
-                        <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="off" /></label>
-                    </div>
-                    <label className="check"><input type="checkbox" checked={tls} onChange={e => setTLS(e.target.checked)} /> TLS dengan verifikasi sertifikat</label>
-                    {tls && <details><summary>CA khusus (opsional)</summary><label>Sertifikat CA PEM<textarea rows={4} value={caPEM} onChange={e => setCA(e.target.value)} spellCheck={false} /></label></details>}
-                    {!tls && <p className="notice">TLS nonaktif: koneksi tidak dienkripsi. Gunakan hanya pada lingkungan lokal yang dipercaya.</p>}
-                    <button type="submit">Hubungkan</button><span className="muted"> Password tidak disimpan ke file.</span>
-                </fieldset>
-            </form>}
+            {!connected && <ConnectionForm busy={busy} onConnect={connect} />}
             <div className="workspace">
                 <aside><h2>Database</h2>
                     <select aria-label="Database browser" value={selectedDB} disabled={!connected || busy} onChange={e => void chooseDatabase(e.target.value)}>

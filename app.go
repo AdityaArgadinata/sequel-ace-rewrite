@@ -5,17 +5,23 @@ import (
 	"errors"
 	"runtime"
 	"sequel-rewrite/internal/database"
+	"sequel-rewrite/internal/profiles"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App exposes desktop operations. Database logic belongs in internal/database.
 type App struct {
-	session database.Session
-	ctx     context.Context
+	session  database.Session
+	ctx      context.Context
+	profiles *profiles.Store
 }
 
-func NewApp() *App { return &App{} }
+func NewApp() *App { return &App{profiles: profiles.NewStore("")} }
+
+func (a *App) ListProfiles() ([]profiles.Profile, error)                { return a.profiles.List() }
+func (a *App) SaveProfile(p profiles.Profile) (profiles.Profile, error) { return a.profiles.Save(p) }
+func (a *App) DeleteProfile(id string) error                            { return a.profiles.Delete(id) }
 
 // Platform verifies the UI can reach the Go backend in the packaged application.
 func (a *App) Platform() string { return runtime.GOOS + "/" + runtime.GOARCH }

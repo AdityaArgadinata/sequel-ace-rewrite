@@ -6,6 +6,20 @@ Repo: https://github.com/AdityaArgadinata/sequel-ace-rewrite.
 Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39542207475
 (commit kode `2a36ee6`, 2026-10-21).
 
+## Ringkasan progres — 2026-10-21
+
+| Milestone | Status | Sisa pekerjaan |
+| --- | --- | --- |
+| 0 — Fondasi dan CI | Selesai | Tidak ada |
+| 1 — Alur query pertama | Implementasi dan CI selesai | Smoke test GUI Windows dan Ubuntu |
+| 2 — Penggunaan harian | Sedang dikerjakan | Profil koneksi selesai; credential store, SSH, multi-tab, history, pagination/filter belum |
+| 3 — Pengubahan data | Belum dimulai | Editor baris, transaksi UI, dan penanganan konflik |
+| 4 — Struktur dan pertukaran data | Belum dimulai | Metadata struktur, import/export, dan migrasi |
+| 5 — Beta Windows/Linux | Belum dimulai | Paket distribusi dan verifikasi rilis |
+
+Build/test CI sudah lulus pada ketiga OS. Ini belum membuktikan interaksi GUI
+Windows/Linux; milestone 1 tetap terbuka sampai smoke test berikut dicatat.
+
 ## Tujuan dan keputusan awal
 
 Membangun aplikasi desktop pengelola MySQL/MariaDB yang dapat digunakan di
@@ -64,6 +78,13 @@ tersedia; status uji GUI keduanya dicatat terpisah dari keberhasilan build.
   pada MySQL 5.7.44 lokal terisolasi, termasuk TLS dan race detector;
   integration test dengan race detector juga lulus pada MySQL 8.4/MariaDB 11.4 di CI.
 
+- [x] Smoke test GUI macOS arm64: koneksi TLS, pilih database/tabel, hasil query,
+  streaming, cancel, dan reconnect setelah cancel.
+- [ ] Smoke test GUI Windows x64: startup → koneksi → database/tabel → query →
+  hasil bertahap → cancel → reconnect; catat versi Windows dan hasilnya.
+- [ ] Smoke test GUI Ubuntu 24.04 x64: startup → koneksi → database/tabel → query →
+  hasil bertahap → cancel → reconnect; catat lingkungan desktop dan hasilnya.
+
 **Selesai jika:** alur connect → pilih database/tabel → query → hasil → cancel
 berjalan di Mac, build tiga OS hijau, dan integration test MySQL/MariaDB lulus.
 Lakukan smoke test GUI pertama pada Windows dan Ubuntu melalui VM, remote
@@ -71,7 +92,11 @@ desktop, atau tester; catat OS/arsitektur dan hasilnya.
 
 ## Milestone 2 — Penggunaan harian
 
-- [ ] Simpan, ubah, dan hapus profil koneksi tanpa password di file konfigurasi.
+- [x] Simpan, ubah, dan hapus profil koneksi tanpa password di file konfigurasi.
+  Unit test CRUD/restart, file rusak, validasi CA, write failure, dan race detector
+  lulus lokal. Smoke test GUI macOS: simpan, ubah, pilih setelah restart, password
+  kosong, serta batal hapus. Penghapusan berhasil diuji melalui unit test store.
+  CI perubahan profil pada Windows/Linux sedang menunggu hasil.
 - [ ] Simpan rahasia melalui credential store masing-masing OS; jika tidak
   tersedia, minta password saat koneksi tanpa menyimpannya sebagai plaintext.
 - [ ] Tambahkan SSH tunnel dengan validasi host key dan autentikasi key/password.
