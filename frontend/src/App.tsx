@@ -5,8 +5,11 @@ import {EventsOn} from '../wailsjs/runtime/runtime';
 import './App.css';
 import ConnectionForm from './ConnectionForm';
 import ToolbarIcon from './ToolbarIcon';
+import Splitter from './Splitter';
 
 export default function App() {
+    const [sidebarWidth, setSidebarWidth] = useState(17);
+    const [editorHeight, setEditorHeight] = useState(32);
     const lineNumbers = useRef<HTMLDivElement>(null);
     const [connected, setConnected] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -127,16 +130,18 @@ export default function App() {
                 <button className="toolbar-item" disabled title="User Manager is not available yet"><ToolbarIcon name="users"/><span>Users</span></button>
                 <button className="toolbar-item" disabled title="Console is not available yet"><ToolbarIcon name="console"/><span>Console</span></button>
             </header>
-            {!connected ? <ConnectionForm busy={busy} onConnect={connect} /> : <div className="workspace">
-                <aside className="tables-sidebar" aria-label="Tables">
+            {!connected ? <ConnectionForm busy={busy} onConnect={connect} sidebarWidth={sidebarWidth} onSidebarResize={setSidebarWidth} /> : <div className="workspace">
+                <aside id="tables-panel" className="tables-sidebar" aria-label="Tables" style={{flexBasis: `${sidebarWidth}%`}}>
                     <input className="table-search" type="search" aria-label="Filter tables" placeholder="Filter" value={tableFilter} onChange={e => setTableFilter(e.target.value)} />
                     <h2>TABLES</h2>
                     <div className="table-list">{tables.filter(name => name.toLowerCase().includes(tableFilter.toLowerCase())).map(name => <button key={name} className={`table-name ${selectedTable === name ? 'selected' : ''}`} disabled={busy} onClick={() => { setSelectedTable(name); setSQL(`SELECT * FROM \`${selectedDB.replaceAll('`', '``')}\`.\`${name.replaceAll('`', '``')}\` LIMIT 100;`); }}><ToolbarIcon name="content"/><span>{name}</span></button>)}</div>
                     <div className="sidebar-bottom"><button disabled aria-label="Add table unavailable">＋</button><button title="Refresh databases and tables" aria-label="Refresh databases and tables" disabled={busy} onClick={() => void refreshSchema()}>↻</button><button title="Disconnect" disabled={busy} onClick={() => void operation(async () => { await Disconnect(); setResult(null); setMessage('Koneksi ditutup.'); })}>Disconnect</button></div>
                 </aside>
+                <Splitter label="Tables sidebar width" controls="tables-panel" axis="x" value={sidebarWidth} min={15} max={35} onChange={setSidebarWidth} />
                 <section className="query-workspace" aria-label="Query">
                     <div className="query-heading"><span>Query</span><span>One SQL statement</span></div>
-                    <div className="sql-editor"><div ref={lineNumbers} className="line-numbers" aria-hidden="true">{sql.split('\n').map((_, i) => <div key={i}>{i+1}</div>)}</div><textarea id="sql" wrap="off" onScroll={e => { if (lineNumbers.current) lineNumbers.current.scrollTop = e.currentTarget.scrollTop; }} aria-label="SQL query" value={sql} onChange={e => setSQL(e.target.value)} spellCheck={false} disabled={busy} onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); if (!busy && sql.trim()) void run(); } }} /></div>
+                    <div id="editor-panel" className="sql-editor" style={{flexBasis: `${editorHeight}%`}}><div ref={lineNumbers} className="line-numbers" aria-hidden="true">{sql.split('\n').map((_, i) => <div key={i}>{i+1}</div>)}</div><textarea id="sql" wrap="off" onScroll={e => { if (lineNumbers.current) lineNumbers.current.scrollTop = e.currentTarget.scrollTop; }} aria-label="SQL query" value={sql} onChange={e => setSQL(e.target.value)} spellCheck={false} disabled={busy} onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); if (!busy && sql.trim()) void run(); } }} /></div>
+                    <Splitter label="SQL editor height" controls="editor-panel" axis="y" value={editorHeight} min={20} max={65} onChange={setEditorHeight} />
                     <div className="query-actions"><span>{result ? `${result.rows.length} rows` : 'No query executed'}{result?.truncated ? ' · Truncated' : ''}</span><div>{busy && <button aria-label="Cancel query" onClick={() => { void Cancel().catch(error => setMessage(String(error))); }}>Cancel</button>}<button className="primary" disabled={busy || !sql.trim()} onClick={() => void run()}>Run Query <span className="shortcut">⌘/Ctrl ↵</span></button></div></div>
                     <div className="results" aria-label="Query results">{result && result.columns.length ? <table><thead><tr><th className="row-index" aria-label="Row number" />{result.columns.map((column, i) => <th key={i} title={column.type}>{column.name}</th>)}</tr></thead><tbody>{result.rows.map((row, r) => <tr key={r}><td className="row-index">{r+1}</td>{row.map((value, c) => <td key={c} className={value.null ? 'null' : ''} title={value.null ? 'NULL' : value.value}>{value.null ? 'NULL' : value.value === '' ? <span className="empty-value">(empty)</span> : value.value}</td>)}</tr>)}</tbody></table> : <div className="result-empty">{busy ? 'Running query…' : result ? 'Statement completed without a result set.' : 'Run a query to display results.'}</div>}</div>
                     <div className="results-footer"><span>{result ? `${result.rows.length} rows loaded` : '0 rows'}{result ? (busy ? ' · running' : ` · ${result.durationMS} ms`) : ''}</span><span>Read-only result grid</span></div>

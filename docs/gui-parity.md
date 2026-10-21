@@ -54,8 +54,9 @@ Status: first layout implementation; **not pixel-identical or accepted as comple
 - Editor uses a plain textarea; no syntax highlighting/autocomplete. Line numbers
   synchronize with the textarea scroll position. Cmd/Ctrl+Enter
   runs one statement; original shortcut parity has not been established.
-- Sidebar splitter, native menu parity, full keyboard navigation and accessibility
-  validation, and Windows/Linux GUI comparison remain open.
+- Sidebar/editor splitters are implemented with pointer and keyboard controls.
+  Native splitter measurements, column resizing, native menu parity, full keyboard
+  navigation/accessibility validation, and Windows/Linux GUI comparison remain open.
 
 Functional tests and build success are separate from visual parity. Keep the
 remaining checks in milestone 1A open until measured comparison and OS testing.
@@ -74,3 +75,19 @@ CI for code commit `ff149bd` passed desktop build/test/vet on macOS 15, Windows
 Server 2022, and Ubuntu 24.04, plus MySQL 8.4/MariaDB 11.4 integration tests.
 Run: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39545854229.
 This proves build/test compatibility, not Windows/Linux visual parity.
+
+## Panel resizing follow-up
+
+Sidebar width (15–35%, initially 17%) is shared between Favorites and Tables
+within the current app session. Editor height (20–65%, initially 32%) has its
+own separator. Arrow keys move one percentage point; Home/End reach the limits.
+Both expose labeled, focusable separators with orientation and current values.
+Pointer capture keeps dragging active outside the divider and clears on cancel.
+Sizes are not persisted. Exact native dimensions/interactions are still unverified.
+
+Two Node tests cover pointer scaling/clamping and keyboard axes/bounds. They run
+in the desktop CI jobs before the frontend build. Local frontend, Go race/vet,
+and packaged Mac build pass. Mac Favorites separator smoke test confirmed
+17→18% with Right, 35% with End, 15% with Home, and 15→25% by dragging.
+Connected Tables/editor and minimum-window interaction still need manual QA;
+no database server or Windows/Linux GUI was used for this follow-up.

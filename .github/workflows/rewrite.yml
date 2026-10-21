@@ -61,7 +61,7 @@ jobs:
             wails generate module
           fi
       - name: Typecheck and build frontend
-        run: npm run build
+        run: npm test && npm run build
         working-directory: frontend
       - name: Test and vet Go
         run: |

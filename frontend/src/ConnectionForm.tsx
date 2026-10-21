@@ -2,10 +2,11 @@ import {FormEvent, useEffect, useState} from 'react';
 import {DeleteProfile, ListProfiles, SaveProfile} from '../wailsjs/go/main/App';
 import {database, profiles} from '../wailsjs/go/models';
 import ToolbarIcon from './ToolbarIcon';
+import Splitter from './Splitter';
 
-type Props = {busy: boolean; onConnect: (connection: database.Connection) => Promise<void>};
+type Props = {busy: boolean; onConnect: (connection: database.Connection) => Promise<void>; sidebarWidth: number; onSidebarResize: (value: number) => void};
 
-export default function ConnectionForm({busy, onConnect}: Props) {
+export default function ConnectionForm({busy, onConnect, sidebarWidth, onSidebarResize}: Props) {
     const [saved, setSaved] = useState<profiles.Profile[]>([]);
     const [selected, setSelected] = useState('');
     const [name, setName] = useState('');
@@ -74,7 +75,7 @@ export default function ConnectionForm({busy, onConnect}: Props) {
     }
 
     return <div className="connection-layout">
-        <aside className="favorites-sidebar" aria-label="Favorites">
+        <aside id="favorites-panel" className="favorites-sidebar" aria-label="Favorites" style={{flexBasis: `${sidebarWidth}%`}}>
             <button className={`favorite quick ${!selected ? 'selected' : ''}`} disabled={busy || saving} onClick={() => choose('')}><span className="quick-symbol">ϟ</span> QUICK CONNECT</button>
             <h2>FAVORITES</h2>
             <div className="favorites-list" role="list" aria-label="Saved connections">
@@ -86,6 +87,7 @@ export default function ConnectionForm({busy, onConnect}: Props) {
                 <button aria-label="Delete favorite" title="Delete favorite" disabled={busy || saving || !selected || !!storageError} onClick={() => setConfirmDelete(true)}>−</button>
             </div>
         </aside>
+        <Splitter label="Favorites sidebar width" controls="favorites-panel" axis="x" value={sidebarWidth} min={15} max={35} onChange={onSidebarResize} />
         <section className="connection-pane">
             <h1>Enter connection details below, or choose a favorite</h1>
             <form onSubmit={connect} className="connection-form">

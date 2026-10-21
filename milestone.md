@@ -122,6 +122,13 @@ belum identik dengan aplikasi asli. Referensi dan perbedaan dicatat di
 - [x] Pasang editor SQL, tabel hasil, streaming, cancel, dan status sesi yang sudah
   berfungsi ke layout baru; smoke test fixture Mac memverifikasi hasil, streaming,
   shortcut Cmd+Enter, dan cancel kembali ke favorites.
+- [x] Tambahkan splitter sidebar Favorites/Tables dan tinggi editor SQL dengan
+  drag, tombol panah, Home/End, batas ukuran, serta atribut aksesibilitas.
+  Test otomatis perhitungan ukuran/keyboard dan build desktop Mac lulus.
+  Smoke test Mac memverifikasi drag sidebar 15% → 25%, panah 17% → 18%,
+  Home 15%, dan End 35%. Ini belum membuktikan kesetaraan splitter asli.
+- [ ] Uji splitter editor dan sidebar Tables pada sesi database aktif serta
+  jendela minimum; verifikasi interaksi di Windows/Linux.
 - [ ] Ikuti alur keyboard, pemilihan tabel/baris, resizing panel/kolom, serta
   menu konteks aplikasi asli untuk fitur yang sudah diimplementasikan.
 - [ ] Bandingkan screenshot berdampingan atau dengan overlay pada ukuran/skala
@@ -236,3 +243,14 @@ session `.spf`, dukungan distro/arsitektur tambahan, dan database selain
 MySQL/MariaDB diprioritaskan berdasarkan kebutuhan nyata setelah beta.
 
 Tidak ada estimasi tanggal sebelum milestone 1 memberi bukti kelayakan teknis.
+
+## Catatan pengerjaan terbaru — splitter panel
+
+Milestone 1A berlanjut: lebar sidebar dipakai bersama layar koneksi/workspace
+selama aplikasi terbuka; tinggi editor dapat diatur terpisah. Ukuran disimpan
+sebagai persentase agar mengikuti jendela, belum dipersistenkan antar-restart.
+`npm test` (2 test), `npm run build`, `go test -race ./...`, `go vet ./...`,
+dan build desktop darwin/arm64 lulus lokal. Test integrasi database dilewati
+karena server fixture tidak dinyalakan pada sesi ini. CI tiga OS yang tercantum
+di bagian atas masih merujuk implementasi sebelumnya; belum menjadi bukti
+untuk perubahan splitter ini. Pemeriksaan GUI Windows/Linux tetap terbuka.
