@@ -220,3 +220,8 @@ berisi private key, write failure, dan penyimpanan bersamaan. Smoke test desktop
 Mac mencakup simpan, ubah, restart/pilih ulang dengan password kosong, dan batal
 hapus. Test store memverifikasi penghapusan berhasil. Profil QA sementara sudah
 dibersihkan. Build frontend, Go vet, dan paket desktop macOS lulus.
+
+CI fitur profil pada commit `500495d` lulus di macOS 15, Windows Server 2022,
+dan Ubuntu 24.04, termasuk test CRUD/persistensi. Regresi database juga lulus.
+[Run CI fitur profil dan artifact](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39543659071).
+Manual QA GUI Windows/Linux tetap belum dilakukan.

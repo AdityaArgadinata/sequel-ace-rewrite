@@ -3,8 +3,8 @@
 Status: milestone 0 selesai. Implementasi milestone 1 dan CI sudah lulus;
 manual QA GUI Windows/Linux masih terbuka sebelum milestone 1 dinyatakan selesai.
 Repo: https://github.com/AdityaArgadinata/sequel-ace-rewrite.
-Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39542207475
-(commit kode `2a36ee6`, 2026-10-21).
+Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39543659071
+(commit kode `500495d`, 2026-10-21).
 
 ## Ringkasan progres — 2026-10-21
 
@@ -96,7 +96,8 @@ desktop, atau tester; catat OS/arsitektur dan hasilnya.
   Unit test CRUD/restart, file rusak, validasi CA, write failure, dan race detector
   lulus lokal. Smoke test GUI macOS: simpan, ubah, pilih setelah restart, password
   kosong, serta batal hapus. Penghapusan berhasil diuji melalui unit test store.
-  CI perubahan profil pada Windows/Linux sedang menunggu hasil.
+  Test profil, build, dan vet lulus pada macOS/Windows/Ubuntu di CI;
+  regresi MySQL 8.4/MariaDB 11.4 juga lulus. GUI Windows/Linux belum diuji langsung.
 - [ ] Simpan rahasia melalui credential store masing-masing OS; jika tidak
   tersedia, minta password saat koneksi tanpa menyimpannya sebagai plaintext.
 - [ ] Tambahkan SSH tunnel dengan validasi host key dan autentikasi key/password.
