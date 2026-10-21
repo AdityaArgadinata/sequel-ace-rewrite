@@ -1,14 +1,14 @@
 export namespace database {
-	
+
 	export class Cell {
 	    value: string;
 	    null: boolean;
 	    binary: boolean;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new Cell(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.value = source["value"];
@@ -19,11 +19,11 @@ export namespace database {
 	export class Column {
 	    name: string;
 	    type: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new Column(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -37,11 +37,11 @@ export namespace database {
 	    password: string;
 	    tls: boolean;
 	    caPEM: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new Connection(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.host = source["host"];
@@ -57,11 +57,11 @@ export namespace database {
 	    rows: Cell[][];
 	    truncated: boolean;
 	    durationMS: number;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new Result(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.columns = this.convertValues(source["columns"], Column);
@@ -69,7 +69,7 @@ export namespace database {
 	        this.truncated = source["truncated"];
 	        this.durationMS = source["durationMS"];
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -90,4 +90,3 @@ export namespace database {
 	}
 
 }
-
