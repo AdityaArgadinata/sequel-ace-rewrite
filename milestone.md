@@ -284,3 +284,9 @@ dan build desktop darwin/arm64 lulus lokal. Test integrasi database dilewati
 karena server fixture tidak dinyalakan pada sesi ini. CI tiga OS yang tercantum
 di bagian atas masih merujuk implementasi sebelumnya; belum menjadi bukti
 untuk perubahan splitter ini. Pemeriksaan GUI Windows/Linux tetap terbuka.
+
+CI milestone 2 awal (`5ea16c4`, run 39548873775): desktop build/test dan vault
+native lulus di macOS, Windows dan Ubuntu; MariaDB 11.4 lulus. MySQL 8.4
+menemukan cancel pada baris buffered yang masih dapat dilaporkan sukses.
+Pemeriksaan context setelah pembacaan/emit diperbaiki; regresi database lokal
+lulus tiga kali. Verifikasi run gabungan setelah perbaikan tetap diperlukan.

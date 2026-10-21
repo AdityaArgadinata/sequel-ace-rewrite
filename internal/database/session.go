@@ -318,6 +318,10 @@ func (s *Session) execute(statement string, args []any, emit func(Batch)) (Resul
 	}
 	var bytes int
 	for rows.Next() {
+		// Drivers can still yield buffered rows after cancellation.
+		if err := ctx.Err(); err != nil {
+			return Result{}, s.queryError(err)
+		}
 		if len(result.Rows) == MaxRows {
 			result.Truncated = true
 			break
@@ -345,6 +349,9 @@ func (s *Session) execute(statement string, args []any, emit func(Batch)) (Resul
 		batchBytes += rowBytes
 		if len(result.Rows) == 1 || len(result.Rows)-sent >= 50 || batchBytes >= 64*1024 || time.Since(lastFlush) >= 100*time.Millisecond {
 			flush()
+			if err := ctx.Err(); err != nil {
+				return Result{}, s.queryError(err)
+			}
 		}
 	}
 	if err = rows.Err(); err != nil {
@@ -371,6 +378,9 @@ func (s *Session) execute(statement string, args []any, emit func(Batch)) (Resul
 	}
 	result.DurationMS = time.Since(start).Milliseconds()
 	flush()
+	if err := ctx.Err(); err != nil && !result.Truncated {
+		return Result{}, s.queryError(err)
+	}
 	return result, nil
 }
 
