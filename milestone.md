@@ -1,0 +1,156 @@
+# Milestone Rewrite Sequel Ace dengan Go
+
+Status: milestone 1 sedang dikerjakan; validasi CI milestone 0 masih terbuka. Repo tujuan: `AdityaArgadinata/sequel-ace-rewrite`; source berada di root repo. Build dan smoke test macOS sudah
+lulus; CI serta manual QA Windows/Linux belum dijalankan.
+
+## Tujuan dan keputusan awal
+
+Membangun aplikasi desktop pengelola MySQL/MariaDB yang dapat digunakan di
+Windows dan Linux. macOS tetap didukung agar pengembangan dan pengujian harian
+dapat dilakukan dari laptop Mac.
+
+- Implementasi dilakukan di repo baru. Repo ini menjadi referensi perilaku,
+  fitur, SQL, dan kasus pengujian; aplikasi macOS yang ada tetap terpisah.
+- Stack awal: Go untuk mesin database, Wails untuk desktop, serta React dan
+  TypeScript untuk UI. Versi dependensi dipilih dan dikunci saat inisialisasi.
+- Target awal: macOS pada arsitektur laptop pengembang, Windows x64, dan
+  Ubuntu 24.04 LTS x64. Distro dan arsitektur lain belum termasuk dukungan awal.
+- Fokus awal hanya MySQL/MariaDB. PostgreSQL dan kesetaraan seluruh fitur
+  Sequel Ace berada di luar cakupan rilis pertama.
+- Tentukan versi minimum MySQL/MariaDB yang didukung pada milestone 0;
+  dukungan Sequel Ace saat ini menjadi referensi, bukan klaim kompatibilitas baru.
+- Pertahankan atribusi dan pemberitahuan lisensi untuk materi yang digunakan
+  kembali; periksa lisensi dependensi dan aset sebelum didistribusikan.
+
+## Milestone 0 — Fondasi proyek dan CI tiga OS
+
+- [x] Buat repo baru dengan Go, Wails, React, dan TypeScript.
+- [x] Pisahkan UI, adapter desktop, dan logika database di `internal/database`.
+- [x] Dokumentasikan versi toolchain, dependensi OS, target arsitektur, dan
+  matriks versi server yang akan diuji.
+- [x] Buat jendela aplikasi minimal yang berjalan di Mac. Build produksi dan
+  tombol bridge Go terverifikasi pada darwin/arm64.
+- [x] Siapkan workflow GitHub Actions untuk test dan build pada macOS, Windows,
+  dan Ubuntu (belum dipush/dijalankan).
+- [ ] Unggah hasil build tiap OS sebagai artifact CI yang bisa diunduh.
+- [x] Dokumentasikan cara menjalankan aplikasi dan membaca hasil CI dari Mac.
+
+**Selesai jika:** checkout baru bisa dibangun dengan instruksi yang tersedia,
+CI ketiga OS hijau, dan aplikasi dapat dibuka di Mac. Artifact Windows/Linux
+tersedia; status uji GUI keduanya dicatat terpisah dari keberhasilan build.
+
+## Milestone 1 — Alur query pertama
+
+- [x] Koneksi MySQL melalui TCP, dengan timeout dan TLS yang memverifikasi
+  sertifikat secara default; dukung CA khusus.
+- [x] Pilih database dan tampilkan daftar tabel.
+- [x] Sediakan editor untuk menjalankan satu statement SQL.
+- [x] Tampilkan kolom, hasil query, durasi, jumlah baris yang dimuat, serta error.
+- [x] Batasi hasil menjadi 500 baris / 4 MiB isi sel dan tampilkan status terpotong.
+- [x] Kirim hasil bertahap ke UI: baris pertama segera, lalu batch hingga 50
+  baris / pemicu 64 KiB atau 100 ms saat pembacaan berlangsung. ID query dan
+  offset mencegah pencampuran event; snapshot akhir menjadi acuan.
+- [x] Sediakan cancel dan jelaskan keadaan sesi setelah pembatalan/koneksi putus.
+- [x] Pastikan satu tab query menggunakan sesi yang jelas untuk `USE`, variabel
+  session, temporary table, dan transaksi; jangan berganti koneksi pool diam-diam.
+- [x] Pertahankan nilai `NULL`, integer besar, `DECIMAL`, binary, dan tanggal
+  tanpa kehilangan presisi saat melintasi batas Go–TypeScript.
+- [x] Siapkan integration test dan workflow Linux CI untuk MySQL 8.4/MariaDB 11.4
+  (belum dijalankan di GitHub).
+- [x] Uji alur koneksi, query, error, cancel, dan batas hasil secara otomatis
+  pada MySQL 5.7.44 lokal terisolasi, termasuk TLS dan race detector.
+
+**Selesai jika:** alur connect → pilih database/tabel → query → hasil → cancel
+berjalan di Mac, build tiga OS hijau, dan integration test MySQL/MariaDB lulus.
+Lakukan smoke test GUI pertama pada Windows dan Ubuntu melalui VM, remote
+desktop, atau tester; catat OS/arsitektur dan hasilnya.
+
+## Milestone 2 — Penggunaan harian
+
+- [ ] Simpan, ubah, dan hapus profil koneksi tanpa password di file konfigurasi.
+- [ ] Simpan rahasia melalui credential store masing-masing OS; jika tidak
+  tersedia, minta password saat koneksi tanpa menyimpannya sebagai plaintext.
+- [ ] Tambahkan SSH tunnel dengan validasi host key dan autentikasi key/password.
+- [ ] Tambahkan beberapa tab query dengan kepemilikan sesi dan cleanup yang jelas.
+- [ ] Tambahkan history lokal; hindari pencatatan password/token dan sediakan
+  penghapusan history karena teks SQL dapat mengandung data sensitif.
+- [ ] Tambahkan browser isi tabel dengan pagination, sorting, dan filter.
+- [ ] Quote identifier dengan benar dan gunakan parameter untuk nilai filter.
+- [ ] Tangani disconnect dan reconnect tanpa mengulang query pengubah data
+  secara otomatis atau menganggap sesi lama masih berlaku.
+
+**Selesai jika:** profil, credential store, SSH, tab, dan pagination dapat
+dipakai berulang tanpa kebocoran koneksi. Pengujian otomatis lulus dan fitur
+khusus OS sudah dicoba pada Windows serta Ubuntu.
+
+## Milestone 3 — Pengubahan data yang aman
+
+- [ ] Tambahkan insert, edit, dan delete pada browser tabel.
+- [ ] Batasi edit/delete awal pada tabel dengan primary key, termasuk composite key.
+- [ ] Jadikan hasil yang identitas barisnya ambigu sebagai read-only.
+- [ ] Gunakan parameter untuk nilai dan validasi/quote identifier.
+- [ ] Sediakan konfirmasi delete dan tampilkan hasil jumlah baris terpengaruh.
+- [ ] Deteksi data berubah sejak dimuat sebelum menimpa/menghapusnya; uji dengan
+  dua sesi yang mengubah baris sama.
+- [ ] Sediakan begin/commit/rollback pada sesi query, dengan status transaksi
+  terlihat dan penanganan disconnect yang tidak mengklaim rollback/commit sukses.
+- [ ] Tambahkan integration test untuk composite key, `NULL`, karakter khusus,
+  konflik perubahan, rollback, dan kegagalan koneksi saat write.
+
+**Selesai jika:** insert/edit/delete memengaruhi baris yang dimaksud, konflik
+ditampilkan, dan kegagalan tidak menyebabkan pengulangan write tanpa persetujuan.
+Uji manual alur perubahan data terhadap server pengujian pada ketiga OS.
+
+## Milestone 4 — Struktur dan pertukaran data
+
+- [ ] Tampilkan struktur kolom, index, primary key, dan foreign key.
+- [ ] Tambahkan export CSV secara streaming dengan penanganan tipe dan encoding.
+- [ ] Tambahkan import CSV dengan preview pemetaan kolom dan laporan kegagalan;
+  jelaskan jika operasi hanya selesai sebagian.
+- [ ] Jika dibutuhkan untuk migrasi, tambahkan importer favorites Sequel Ace
+  menggunakan fixture format lama; password Keychain tidak dianggap ikut pindah.
+- [ ] Tentukan dukungan eksekusi script sebelum menambah multi-statement:
+  parser harus menangani komentar, string, dan delimiter, bukan split `;` sederhana.
+
+**Selesai jika:** fitur yang dipilih lulus pengujian round-trip dan data besar
+tanpa memuat seluruh dataset ke memori. Fitur yang ditunda dicatat eksplisit.
+
+## Milestone 5 — Beta Windows dan Linux
+
+- [ ] Siapkan paket distribusi dan petunjuk pemasangan untuk Windows x64 dan
+  Ubuntu 24.04 x64, termasuk kebutuhan WebView/runtime.
+- [ ] Uji pemasangan pada lingkungan bersih tanpa toolchain pengembang.
+- [ ] Uji startup, koneksi TLS/SSH, credential store, file dialog, clipboard,
+  shortcut, scaling tampilan, cancel, dan penutupan aplikasi pada OS tujuan.
+- [ ] Jalankan regresi MySQL/MariaDB sesuai matriks versi yang didukung.
+- [ ] Periksa bahwa log dan artifact diagnostik tidak membocorkan rahasia.
+- [ ] Catat versi OS, arsitektur, versi aplikasi, pemeriksa, dan hasil manual QA.
+- [ ] Dokumentasikan batas dukungan, masalah yang diketahui, serta keputusan
+  code signing dan cara distribusi sebelum menerbitkan beta.
+
+**Selesai jika:** artifact telah dicoba langsung pada Windows dan Ubuntu,
+tidak ada masalah kritis pada alur utama atau perubahan data, dan batas
+kompatibilitas dijelaskan pada catatan rilis.
+
+## Strategi pengujian dari Mac
+
+| Lapisan | Tempat | Bukti yang diperlukan |
+| --- | --- | --- |
+| Pengembangan dan GUI harian | Mac lokal | Alur utama dapat dijalankan |
+| Unit test Go dan pemeriksaan frontend | CI ketiga OS | Hasil test dan build |
+| Integration test database | Linux CI dengan server pengujian | Hasil MySQL/MariaDB sesuai matriks |
+| Adapter dan dependensi khusus OS | Runner OS terkait | Test otomatis yang relevan |
+| GUI dan paket distribusi | Windows/Ubuntu melalui VM, remote desktop, atau tester | Catatan smoke test/manual QA |
+
+Build berhasil tidak sama dengan GUI berhasil. Otomasi browser frontend juga
+tidak membuktikan integrasi WebView dan desktop. Jika akses Windows/Ubuntu belum
+tersedia, pengembangan tetap berjalan, tetapi milestone yang mensyaratkan
+manual QA belum dinyatakan selesai dan dukungan OS belum dianggap tervalidasi.
+
+## Fitur setelah fondasi stabil
+
+AWS IAM, Vault, MCP server, editor schema, import/export SQL penuh, migrasi
+session `.spf`, dukungan distro/arsitektur tambahan, dan database selain
+MySQL/MariaDB diprioritaskan berdasarkan kebutuhan nyata setelah beta.
+
+Tidak ada estimasi tanggal sebelum milestone 1 memberi bukti kelayakan teknis.

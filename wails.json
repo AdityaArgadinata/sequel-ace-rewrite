@@ -1,0 +1,13 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "sequel-rewrite",
+  "outputfilename": "sequel-rewrite",
+  "frontend:install": "npm ci",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "Aditya Argadinata",
+    "email": "93075183+AdityaArgadinata@users.noreply.github.com"
+  }
+}
