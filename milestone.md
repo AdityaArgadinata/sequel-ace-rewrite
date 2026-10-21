@@ -3,8 +3,8 @@
 Status: milestone 0 selesai. Implementasi milestone 1 dan CI sudah lulus;
 manual QA GUI Windows/Linux masih terbuka sebelum milestone 1 dinyatakan selesai.
 Repo: https://github.com/AdityaArgadinata/sequel-ace-rewrite.
-Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39545854229
-(commit kode `ff149bd`, 2026-10-21).
+Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39549139051
+(commit kode `62c4750`, 2026-10-21).
 
 ## Ringkasan progres — 2026-10-21
 
@@ -13,7 +13,7 @@ Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/action
 | 0 — Fondasi dan CI | Selesai | Tidak ada |
 | 1 — Alur query pertama | Implementasi dan CI selesai | Smoke test GUI Windows dan Ubuntu |
 | 1A — Kesetaraan GUI Sequel Ace | Sedang dikerjakan; layout awal selesai | Referensi lengkap, detail visual/interaksi, overlay, dan GUI Windows/Linux |
-| 2 — Penggunaan harian | Implementasi selesai; validasi berlangsung | CI terbaru dan GUI Windows/Linux; batas fitur didokumentasikan |
+| 2 — Penggunaan harian | Implementasi dan CI selesai | Manual QA GUI Windows/Linux; batas fitur didokumentasikan |
 | 3 — Pengubahan data | Belum dimulai | Editor baris, transaksi UI, dan penanganan konflik |
 | 4 — Struktur dan pertukaran data | Belum dimulai | Metadata struktur, import/export, dan migrasi |
 | 5 — Beta Windows/Linux | Belum dimulai | Paket distribusi dan verifikasi rilis |
@@ -193,8 +193,9 @@ Implementasi milestone 2 (2026-10-21):
   dengan database/variabel/editor terpisah, serta panel history metadata lulus.
   Test unit/integration/race lokal, TLS, Go vet dan frontend build lulus.
 
-- [ ] Verifikasi CI terbaru pada macOS/Windows/Ubuntu, termasuk native vault
-  Windows Credential Manager dan Linux Secret Service.
+- [x] Verifikasi CI terbaru pada macOS/Windows/Ubuntu, termasuk native vault
+  Windows Credential Manager dan Linux Secret Service. Run `39549139051`,
+  commit `62c4750`: kelima job lulus; artifact desktop tiga OS tersedia.
 - [ ] Manual QA GUI milestone 2 di Windows dan Ubuntu: profil/password, SSH,
   tab, history, pagination/filter, cancel dan penutupan aplikasi.
 
@@ -289,4 +290,12 @@ CI milestone 2 awal (`5ea16c4`, run 39548873775): desktop build/test dan vault
 native lulus di macOS, Windows dan Ubuntu; MariaDB 11.4 lulus. MySQL 8.4
 menemukan cancel pada baris buffered yang masih dapat dilaporkan sukses.
 Pemeriksaan context setelah pembacaan/emit diperbaiki; regresi database lokal
-lulus tiga kali. Verifikasi run gabungan setelah perbaikan tetap diperlukan.
+lulus tiga kali. Run gabungan setelah perbaikan (`62c4750`, run 39549139051) lulus pada
+kelima job, termasuk MySQL 8.4 dan vault native ketiga OS.
+
+Status akhir milestone 2: implementasi dan pengujian otomatis selesai, termasuk
+CI build/test/vet tiga OS, vault native tiga OS, integration MySQL 8.4/MariaDB
+11.4, serta fixture Mac MySQL 5.7.44/TLS/SSH. Manual QA GUI Windows/Ubuntu
+belum tersedia; kriteria selesai penuh milestone 2 tetap terbuka untuk butir itu.
+Panduan handoff: `docs/milestone-2-qa.md`. Build Mac lokal sudah diperbarui;
+schema/history/credential dummy dan server fixture sudah dibersihkan.

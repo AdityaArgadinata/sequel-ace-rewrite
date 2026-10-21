@@ -296,3 +296,9 @@ SEQUEL_TEST_KEYRING=1 go test ./internal/credentials -run TestNativeVault -v -co
 Fixture MySQL memerlukan `max_allowed_packet` setidaknya 8 MiB untuk test baris
 besar. Native vault test hanya menyimpan credential dummy ber-ID acak. Test SSH
 membuat listener loopback sementara; file key/known_hosts dibersihkan setelah test.
+
+CI milestone 2 pada commit `62c4750` lulus untuk build/test/vet desktop macOS,
+Windows dan Ubuntu, test vault native masing-masing OS, serta integration MySQL
+8.4/MariaDB 11.4 (SSH forwarding, isolasi tab, filter/pagination dan cancel).
+[Run dan artifact milestone 2](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39549139051).
+[Checklist manual QA yang masih terbuka](docs/milestone-2-qa.md).
