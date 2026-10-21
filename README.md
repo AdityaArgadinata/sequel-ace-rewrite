@@ -104,15 +104,26 @@ Smoke test streaming tambahan: query lambat menampilkan 9 baris saat masih
 berjalan; cancel membersihkan hasil parsial. Setelah reconnect, query cepat
 selesai dengan 41 baris tanpa duplikasi.
 
-MySQL 5.7 dipakai karena tersedia lokal; ini belum membuktikan kompatibilitas
-MySQL 8.4/MariaDB 11.4. Workflow integration CI keduanya sudah disiapkan, belum
-dijalankan. Uji TLS positif di CI memerlukan fixture sertifikat tersendiri;
-saat ini hanya diuji lokal dengan `SEQUEL_TEST_CA_FILE`.
+CI terverifikasi 2026-10-21 pada commit kode `2a36ee6`:
+
+| Job | Hasil |
+| --- | --- |
+| Desktop macOS 15 | Test, vet, build, dan artifact lulus |
+| Desktop Windows Server 2022 x64 | Test, vet, build .exe, dan artifact lulus |
+| Desktop Ubuntu 24.04 x64 | Test, vet, build, dan artifact lulus |
+| MySQL 8.4 | Integration test dengan race detector lulus |
+| MariaDB 11.4 | Integration test dengan race detector lulus |
+
+[Run CI dan artifact](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39542207475).
+Workflow diperiksa dengan actionlint. Checkout bersih juga diuji lokal, termasuk
+cross-build Windows x64. `.gitattributes` menjaga LF agar pemeriksaan format Go
+konsisten pada checkout Windows. Uji TLS positif masih hanya diuji lokal dengan
+`SEQUEL_TEST_CA_FILE`; CI database dasar memakai koneksi fixture tanpa TLS.
 
 CLI/cache sementara sesi ini berada di `/private/tmp/sequel-rewrite-*`;
 untuk sesi berikutnya pasang CLI sesuai langkah di atas.
 
-CI Windows/Linux dan manual QA OS tujuan masih harus dijalankan. Sebelum beta,
+Manual QA GUI Windows/Linux masih harus dijalankan. Sebelum beta,
 jalankan smoke test GUI pada Windows dan Ubuntu melalui VM, remote desktop,
 atau tester. Tidak perlu membeli laptop lain untuk memulai pengembangan.
 
@@ -161,3 +172,18 @@ harus gagal, sedangkan koneksi dengan CA harus berhasil. Fixture TLS tidak boleh
 memakai CA yang sudah dipercaya sistem, agar pemeriksaan negatif tetap bermakna.
 Test integrasi dasar memakai koneksi tanpa TLS ke server disposable localhost;
 GUI tetap menyalakan TLS secara default.
+
+## Mencoba artifact desktop
+
+Buka run CI di atas, lalu unduh artifact OS yang diinginkan. Pengguna artifact
+tidak perlu memasang Go atau Node.
+
+- Windows: ekstrak artifact `sequel-rewrite-windows-2022` dan jalankan
+  `sequel-rewrite.exe`. WebView2 Runtime tetap diperlukan.
+- Ubuntu 24.04 x64: ekstrak ZIP artifact, lalu ekstrak `sequel-rewrite-linux.tar.gz`.
+  Pastikan runtime GTK 3 dan WebKitGTK 4.1 tersedia, lalu jalankan `./sequel-rewrite`.
+- macOS: ekstrak ZIP artifact, lalu ZIP bundle di dalamnya untuk mendapatkan `.app`.
+
+Ini artifact pengujian, belum installer rilis bertanda tangan. Build/test CI tidak
+membuktikan interaksi GUI pada Windows/Linux; catat hasil uji startup, koneksi,
+query, cancel, clipboard, dan tampilan pada OS tujuan sebelum beta.

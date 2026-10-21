@@ -1,7 +1,10 @@
 # Milestone Rewrite Sequel Ace dengan Go
 
-Status: milestone 1 sedang dikerjakan; validasi CI milestone 0 masih terbuka. Repo tujuan: `AdityaArgadinata/sequel-ace-rewrite`; source berada di root repo. Build dan smoke test macOS sudah
-lulus; CI serta manual QA Windows/Linux belum dijalankan.
+Status: milestone 0 selesai. Implementasi milestone 1 dan CI sudah lulus;
+manual QA GUI Windows/Linux masih terbuka sebelum milestone 1 dinyatakan selesai.
+Repo: https://github.com/AdityaArgadinata/sequel-ace-rewrite.
+Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39542207475
+(commit kode `2a36ee6`, 2026-10-21).
 
 ## Tujuan dan keputusan awal
 
@@ -17,8 +20,8 @@ dapat dilakukan dari laptop Mac.
   Ubuntu 24.04 LTS x64. Distro dan arsitektur lain belum termasuk dukungan awal.
 - Fokus awal hanya MySQL/MariaDB. PostgreSQL dan kesetaraan seluruh fitur
   Sequel Ace berada di luar cakupan rilis pertama.
-- Tentukan versi minimum MySQL/MariaDB yang didukung pada milestone 0;
-  dukungan Sequel Ace saat ini menjadi referensi, bukan klaim kompatibilitas baru.
+- Matriks server awal: MySQL 8.4 dan MariaDB 11.4 (integration test CI lulus).
+  MySQL 5.7.44 juga diuji lokal; dukungan versi lain belum diklaim.
 - Pertahankan atribusi dan pemberitahuan lisensi untuk materi yang digunakan
   kembali; periksa lisensi dependensi dan aset sebelum didistribusikan.
 
@@ -31,8 +34,8 @@ dapat dilakukan dari laptop Mac.
 - [x] Buat jendela aplikasi minimal yang berjalan di Mac. Build produksi dan
   tombol bridge Go terverifikasi pada darwin/arm64.
 - [x] Siapkan workflow GitHub Actions untuk test dan build pada macOS, Windows,
-  dan Ubuntu (belum dipush/dijalankan).
-- [ ] Unggah hasil build tiap OS sebagai artifact CI yang bisa diunduh.
+  dan Ubuntu (lulus pada ketiga OS).
+- [x] Unggah hasil build tiap OS sebagai artifact CI yang bisa diunduh.
 - [x] Dokumentasikan cara menjalankan aplikasi dan membaca hasil CI dari Mac.
 
 **Selesai jika:** checkout baru bisa dibangun dengan instruksi yang tersedia,
@@ -56,9 +59,10 @@ tersedia; status uji GUI keduanya dicatat terpisah dari keberhasilan build.
 - [x] Pertahankan nilai `NULL`, integer besar, `DECIMAL`, binary, dan tanggal
   tanpa kehilangan presisi saat melintasi batas Go–TypeScript.
 - [x] Siapkan integration test dan workflow Linux CI untuk MySQL 8.4/MariaDB 11.4
-  (belum dijalankan di GitHub).
+  (MySQL 8.4 dan MariaDB 11.4 lulus di GitHub Actions).
 - [x] Uji alur koneksi, query, error, cancel, dan batas hasil secara otomatis
-  pada MySQL 5.7.44 lokal terisolasi, termasuk TLS dan race detector.
+  pada MySQL 5.7.44 lokal terisolasi, termasuk TLS dan race detector;
+  integration test dengan race detector juga lulus pada MySQL 8.4/MariaDB 11.4 di CI.
 
 **Selesai jika:** alur connect → pilih database/tabel → query → hasil → cancel
 berjalan di Mac, build tiga OS hijau, dan integration test MySQL/MariaDB lulus.
