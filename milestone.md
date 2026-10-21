@@ -3,8 +3,8 @@
 Status: milestone 0 selesai. Implementasi milestone 1 dan CI sudah lulus;
 manual QA GUI Windows/Linux masih terbuka sebelum milestone 1 dinyatakan selesai.
 Repo: https://github.com/AdityaArgadinata/sequel-ace-rewrite.
-Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39543659071
-(commit kode `500495d`, 2026-10-21).
+Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39545854229
+(commit kode `ff149bd`, 2026-10-21).
 
 ## Ringkasan progres — 2026-10-21
 
@@ -130,8 +130,10 @@ belum identik dengan aplikasi asli. Referensi dan perbedaan dicatat di
 - [ ] Verifikasi tampilan dan interaksi pada Windows dan Ubuntu; catat perbedaan
   title bar/bingkai jendela, rendering font, dan dialog bawaan OS yang tidak dapat
   identik. Perbedaan tersebut harus terdokumentasi dan disetujui pengguna.
-- [ ] Jalankan regresi koneksi, profil, query, streaming, dan cancel serta build/test
-  tiga OS setelah penggantian UI.
+- [x] Jalankan regresi koneksi, profil, query, streaming, dan cancel pada fixture
+  desktop Mac serta build/test tiga OS setelah penggantian UI. CI `ff149bd`
+  lulus di macOS/Windows/Ubuntu; integration test MySQL 8.4/MariaDB 11.4 lulus.
+  Ini tidak mencentang pemeriksaan visual GUI Windows/Linux di atas.
 
 **Selesai jika:** area aplikasi yang diimplementasikan cocok dengan referensi
 Sequel Ace asli dan alurnya terverifikasi. Setiap selisih visual/interaksi harus

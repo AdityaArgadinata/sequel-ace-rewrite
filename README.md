@@ -236,3 +236,7 @@ dan batasnya; hasil ini **belum sama persis**. Smoke test Mac dengan data sintet
 memverifikasi favorites, koneksi TLS, pemilih database/tabel, query dan NULL/DECIMAL,
 streaming, shortcut run, serta cancel. Light mode, overlay piksel, shortcut/menu
 lengkap, dan GUI Windows/Linux belum tervalidasi.
+
+[CI layout awal dan artifact desktop](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39545854229)
+lulus untuk commit `ff149bd` pada ketiga OS dan kedua database. Milestone 1A
+tetap sedang dikerjakan karena kesetaraan visual/interaksi belum selesai.

@@ -69,3 +69,8 @@ cancel returning to favorites with partial rows cleared. Backend test/race/vet
 and TypeScript/production desktop build passed locally. Temporary profile/schema
 were removed and the disposable server stopped. Native user's database connections
 were not queried or edited; only the new reference connection window was closed.
+
+CI for code commit `ff149bd` passed desktop build/test/vet on macOS 15, Windows
+Server 2022, and Ubuntu 24.04, plus MySQL 8.4/MariaDB 11.4 integration tests.
+Run: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39545854229.
+This proves build/test compatibility, not Windows/Linux visual parity.
