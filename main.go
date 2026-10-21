@@ -19,8 +19,8 @@ func main() {
 	// Create application with options
 	err := wails.Run(&options.App{
 		Title:      "Sequel Rewrite",
-		Width:      1024,
-		Height:     768,
+		Width:      1200,
+		Height:     760,
 		MinWidth:   800,
 		MinHeight:  600,
 		OnShutdown: app.shutdown,
@@ -28,7 +28,7 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
+		BackgroundColour: &options.RGBA{R: 37, G: 42, B: 43, A: 1},
 		Bind: []interface{}{
 			app,
 		},

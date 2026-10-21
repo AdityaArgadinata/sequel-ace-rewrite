@@ -225,3 +225,14 @@ CI fitur profil pada commit `500495d` lulus di macOS 15, Windows Server 2022,
 dan Ubuntu 24.04, termasuk test CRUD/persistensi. Regresi database juga lulus.
 [Run CI fitur profil dan artifact](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39543659071).
 Manual QA GUI Windows/Linux tetap belum dilakukan.
+
+## GUI menuju Sequel Ace asli
+
+Milestone 1A sedang dikerjakan. Layout awal mengikuti layar koneksi Sequel Ace:
+sidebar favorites, toolbar ikon, form vertikal, serta workspace Query dengan
+sidebar tabel dan grid hasil. Fitur yang belum tersedia tampil disabled. SSL tetap
+aktif secara default. [Referensi dan perbedaan](docs/gui-parity.md) mencatat scope
+dan batasnya; hasil ini **belum sama persis**. Smoke test Mac dengan data sintetis
+memverifikasi favorites, koneksi TLS, pemilih database/tabel, query dan NULL/DECIMAL,
+streaming, shortcut run, serta cancel. Light mode, overlay piksel, shortcut/menu
+lengkap, dan GUI Windows/Linux belum tervalidasi.

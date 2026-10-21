@@ -12,6 +12,7 @@ Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/action
 | --- | --- | --- |
 | 0 — Fondasi dan CI | Selesai | Tidak ada |
 | 1 — Alur query pertama | Implementasi dan CI selesai | Smoke test GUI Windows dan Ubuntu |
+| 1A — Kesetaraan GUI Sequel Ace | Sedang dikerjakan; layout awal selesai | Referensi lengkap, detail visual/interaksi, overlay, dan GUI Windows/Linux |
 | 2 — Penggunaan harian | Sedang dikerjakan | Profil koneksi selesai; credential store, SSH, multi-tab, history, pagination/filter belum |
 | 3 — Pengubahan data | Belum dimulai | Editor baris, transaksi UI, dan penanganan konflik |
 | 4 — Struktur dan pertukaran data | Belum dimulai | Metadata struktur, import/export, dan migrasi |
@@ -28,6 +29,10 @@ dapat dilakukan dari laptop Mac.
 
 - Implementasi dilakukan di repo baru. Repo ini menjadi referensi perilaku,
   fitur, SQL, dan kasus pengujian; aplikasi macOS yang ada tetap terpisah.
+- Target GUI sesuai permintaan pengguna: sama persis dengan Sequel Ace asli
+  pada area aplikasi yang dibangun ulang. GUI sekarang masih prototipe fungsional
+  dan belum memenuhi target visual tersebut. Milestone 1A menjadi prioritas
+  yang sedang dikerjakan sebelum melanjutkan fitur milestone 2.
 - Stack awal: Go untuk mesin database, Wails untuk desktop, serta React dan
   TypeScript untuk UI. Versi dependensi dipilih dan dikunci saat inisialisasi.
 - Target awal: macOS pada arsitektur laptop pengembang, Windows x64, dan
@@ -89,6 +94,51 @@ tersedia; status uji GUI keduanya dicatat terpisah dari keberhasilan build.
 berjalan di Mac, build tiga OS hijau, dan integration test MySQL/MariaDB lulus.
 Lakukan smoke test GUI pertama pada Windows dan Ubuntu melalui VM, remote
 desktop, atau tester; catat OS/arsitektur dan hasilnya.
+
+## Milestone 1A — Kesetaraan GUI dengan Sequel Ace asli
+
+Status: sedang dikerjakan. Layout awal layar koneksi dan Query sudah dibangun,
+belum identik dengan aplikasi asli. Referensi dan perbedaan dicatat di
+`docs/gui-parity.md`; penomoran milestone lain tetap.
+
+- [x] Inspeksi layar koneksi Sequel Ace 5.0.9 dan XIB source `a82ae6c30`;
+  catat susunan toolbar/workspace awal tanpa memublikasikan data pengguna.
+
+- [ ] Jalankan Sequel Ace asli dari versi/commit referensi yang dicatat dan ambil
+  screenshot layar koneksi, Content, Structure, dan Query pada ukuran jendela
+  serta skala tampilan yang sama. Catat referensi light/dark yang tersedia.
+- [ ] Inventarisasi layout dan interaksi: sidebar favorites/koneksi, pemilih
+  database, daftar tabel, toolbar, tab tampilan, editor SQL, hasil query, filter,
+  status bar, panel detail, menu konteks, dan shortcut.
+- [x] Bangun layout awal layar koneksi vertikal dan sidebar favorites berdasarkan
+  referensi; profil, simpan/pilih ulang, dan koneksi TLS teruji di desktop Mac.
+  Kesetaraan detail visual tetap mengikuti checklist di bawah.
+- [x] Bangun kerangka workspace utama: posisi sidebar, toolbar, tab Content,
+  Structure, Query, dan tampilan lain yang ada pada referensi. Tab yang fiturnya
+  belum dibangun harus terlihat tidak tersedia, bukan berpura-pura berfungsi.
+- [ ] Samakan warna, ukuran/proporsi, jarak, tipografi, ikon, border, selection,
+  hover, focus, dan keadaan disabled dengan aplikasi asli; periksa lisensi aset
+  sebelum digunakan kembali.
+- [x] Pasang editor SQL, tabel hasil, streaming, cancel, dan status sesi yang sudah
+  berfungsi ke layout baru; smoke test fixture Mac memverifikasi hasil, streaming,
+  shortcut Cmd+Enter, dan cancel kembali ke favorites.
+- [ ] Ikuti alur keyboard, pemilihan tabel/baris, resizing panel/kolom, serta
+  menu konteks aplikasi asli untuk fitur yang sudah diimplementasikan.
+- [ ] Bandingkan screenshot berdampingan atau dengan overlay pada ukuran/skala
+  sama, termasuk keadaan kosong, loading, error, terhubung, dan hasil query.
+  Catat selisih dan perbaiki sebelum mencentang kesetaraan visual.
+- [ ] Verifikasi tampilan dan interaksi pada Windows dan Ubuntu; catat perbedaan
+  title bar/bingkai jendela, rendering font, dan dialog bawaan OS yang tidak dapat
+  identik. Perbedaan tersebut harus terdokumentasi dan disetujui pengguna.
+- [ ] Jalankan regresi koneksi, profil, query, streaming, dan cancel serta build/test
+  tiga OS setelah penggantian UI.
+
+**Selesai jika:** area aplikasi yang diimplementasikan cocok dengan referensi
+Sequel Ace asli dan alurnya terverifikasi. Setiap selisih visual/interaksi harus
+dicatat, bukan dianggap selesai hanya karena fitur bekerja. Milestone ini tidak
+mengklaim seluruh fitur Sequel Ace sudah tersedia; fitur yang belum dibangun tetap
+mengikuti checklist milestone terkait. GUI Windows/Linux belum dianggap identik
+sebelum dibandingkan langsung pada OS tujuan.
 
 ## Milestone 2 — Penggunaan harian
 
