@@ -51,9 +51,9 @@ Status: first layout implementation; **not pixel-identical or accepted as comple
 - Profile save is explicit, credential-vault save/load/forget are explicit, and CA
   uses a PEM text area. SSH uses key/known_hosts path fields. These differ from the
   native app's full connection controls.
-- Arbitrary Query results remain read-only. Content supports row-number selection
+- Arbitrary Query results remain read-only. Content supports row selection
   and a separate insert/edit form with delete confirmation on eligible tables.
-  Native cell editing, context menus and column resizing are not implemented.
+  Native cell editing is not implemented. Grid copy menus and column resizing are implemented as described below.
   Content pagination, sorting, filters and row forms have not been compared for
   exact native visual/interaction parity.
 - Editor uses a plain textarea; no syntax highlighting/autocomplete. Line numbers
@@ -96,3 +96,36 @@ and packaged Mac build pass. Mac Favorites separator smoke test confirmed
 17→18% with Right, 35% with End, 15% with Home, and 15→25% by dragging.
 Connected Tables/editor and minimum-window interaction still need manual QA;
 no database server or Windows/Linux GUI was used for this follow-up.
+
+## Grid and Structure follow-up — 2026-10-22
+
+Inspected the installed 5.0.9 binary using an isolated temporary bundle with a
+separate bundle identifier and executable name. This kept the reference free
+of user favorites. Only temporary packaging/signing was changed. A disposable
+`sequel_parity_fixture.sample_records` table supplied three rows including NULL,
+empty text and DECIMAL values. Dark Connection, Content, Structure and Query
+were inspected; these are observations, not a committed golden screenshot set.
+
+Native observations: unified toolbar about 52 logical px high, sidebar about
+200–214 px, table filter at the top, 22 px striped grid rows, no extra numbered
+column in Content, and Columns above Indexes in Structure. The native Query
+editor starts below the toolbar and has a favorites/history/run action strip.
+The rewrite's title bar, additional transaction strip, Query heading/editor,
+metadata header names, field actions and connection settings still differ.
+
+Implemented shared Query/Content/Structure grid row selection with click,
+Up/Down/Home/End, bounded 48–800 px column resizing by pointer and keyboard,
+and a copy-cell/copy-row menu. Empty strings render as empty cells; NULL remains
+explicit. Grids retain their column widths rather than stretching to fill the
+pane, and unused space has alternating rows. Structure defaults to stacked
+Columns/Indexes with an adjustable splitter; Foreign keys and CREATE statement
+remain accessible separately. This is closer to the native arrangement, not
+full native schema editing or exact column-header parity.
+
+Four Node tests and TypeScript/Vite production build passed. Packaged macOS
+arm64 build passed. Desktop smoke test with verified TLS confirmed three fixture
+rows, click + Down selecting the second row, context-menu copy of DECIMAL
+`123.4500`, and pasting the exact value back into the editor. Structure loaded four columns and the PRIMARY index; its splitter responded
+to Down (60→61%). Pointer resizing, clipboard failure, and Windows/Linux GUI
+were not manually verified in this pass. Go unit tests also passed; server
+integration suites requiring environment variables were skipped. No raw user query/data was used in the comparison.

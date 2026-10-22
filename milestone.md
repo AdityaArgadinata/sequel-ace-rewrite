@@ -129,6 +129,14 @@ belum identik dengan aplikasi asli. Referensi dan perbedaan dicatat di
   Home 15%, dan End 35%. Ini belum membuktikan kesetaraan splitter asli.
 - [ ] Uji splitter editor dan sidebar Tables pada sesi database aktif serta
   jendela minimum; verifikasi interaksi di Windows/Linux.
+- [x] Tambahkan interaksi grid bersama: klik/panah/Home/End untuk baris,
+  resize kolom dengan pointer/keyboard (48–800 px), dan menu salin sel/baris.
+  Empat test frontend, build produksi dan desktop Mac lulus; smoke test Mac
+  memverifikasi klik/panah dan salin DECIMAL `123.4500` tetap utuh.
+  Kesamaan dengan seluruh interaksi asli dan QA resize manual belum terbukti.
+- [x] Susun Columns dan Indexes Structure secara bertumpuk dengan splitter;
+  Foreign keys dan CREATE statement tetap tersedia. Build TypeScript/Mac lulus;
+  detail kolom native dan pemeriksaan visual panel masih terbuka.
 - [ ] Ikuti alur keyboard, pemilihan tabel/baris, resizing panel/kolom, serta
   menu konteks aplikasi asli untuk fitur yang sudah diimplementasikan.
 - [ ] Bandingkan screenshot berdampingan atau dengan overlay pada ukuran/skala

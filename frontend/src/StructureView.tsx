@@ -2,11 +2,15 @@ import {useEffect, useState} from 'react';
 import {Structure} from '../wailsjs/go/main/App';
 import {database} from '../wailsjs/go/models';
 import ResultGrid from './ResultGrid';
+import Splitter from './Splitter';
+import {useId} from 'react';
 
 type Props = {tab: string; databaseName: string; table: string; busy: boolean; operation: (work: () => Promise<void>) => Promise<void>};
 export default function StructureView({tab, databaseName, table, busy, operation}: Props) {
     const [structure, setStructure] = useState<database.Structure | null>(null);
     const [section, setSection] = useState<'columns' | 'indexes' | 'foreignKeys' | 'definition'>('columns');
+    const [height, setHeight] = useState(60);
+    const columnsID = useId();
     const [error, setError] = useState('');
     async function load() {
         setStructure(null); setError('');
@@ -19,9 +23,9 @@ export default function StructureView({tab, databaseName, table, busy, operation
     const result = structure?.[section] ?? null;
     return <section className="query-workspace" aria-label="Table structure">
         <div className="query-heading"><strong>{databaseName}.{table}</strong><span>Read-only structure</span><button disabled={busy} onClick={() => void load()}>Reload structure</button></div>
-        <div className="structure-sections" role="group" aria-label="Structure sections">{(['columns','indexes','foreignKeys','definition'] as const).map((name, i) => <button key={name} disabled={busy} aria-pressed={section === name} onClick={() => setSection(name)}>{['Columns','Indexes / Primary key','Foreign keys','CREATE statement'][i]}</button>)}</div>
+        <div className="structure-sections" role="group" aria-label="Structure sections">{(['columns','foreignKeys','definition'] as const).map((name, i) => <button key={name} disabled={busy} aria-pressed={section === name} onClick={() => setSection(name)}>{['Columns & Indexes','Foreign keys','CREATE statement'][i]}</button>)}</div>
         {error && <p role="alert" className="notice">{error}</p>}
-        {section === 'definition' ? <pre className="create-statement" tabIndex={0} aria-label="CREATE statement">{structure?.definition.rows[0]?.[1]?.value ?? (busy ? 'Loading…' : 'No definition available.')}</pre> : <ResultGrid result={result} busy={busy} />}
+        {section === 'columns' ? <div className="structure-stack"><div id={columnsID} className="structure-columns" style={{flexBasis:`${height}%`}}><ResultGrid result={structure?.columns ?? null} busy={busy} /></div><Splitter label="Columns panel height" controls={columnsID} axis="y" value={height} min={25} max={80} onChange={setHeight} /><div className="structure-indexes"><div className="query-heading"><strong>INDEXES</strong><span>Read-only</span></div><ResultGrid result={structure?.indexes ?? null} busy={busy} /></div></div> : section === 'definition' ? <pre className="create-statement" tabIndex={0} aria-label="CREATE statement">{structure?.definition.rows[0]?.[1]?.value ?? (busy ? 'Loading…' : 'No definition available.')}</pre> : <ResultGrid result={result} busy={busy} />}
         <div className="results-footer"><span>{result?.rows.length ?? 0} metadata rows</span><span>{section === 'indexes' ? 'NON_UNIQUE = 0 means unique. Functional index expressions appear in CREATE statement.' : 'Metadata reflects the current server; reload after schema changes.'}</span></div>
     </section>;
 }
