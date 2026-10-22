@@ -172,22 +172,30 @@ func (s *Session) Connect(c Connection) error {
 	conn, err := db.Conn(connectCtx)
 	if err != nil {
 		db.Close()
-		return err
+		return connectionError("handshake/authentication", err)
 	}
 	if err = conn.PingContext(connectCtx); err != nil {
 		conn.Close()
 		db.Close()
-		return err
+		return connectionError("connection check", err)
 	}
 	var autocommit int
 	if err = conn.QueryRowContext(connectCtx, "SELECT @@session.autocommit").Scan(&autocommit); err != nil {
 		conn.Close()
 		db.Close()
-		return err
+		return connectionError("session initialization", err)
 	}
 	s.txUnverified = autocommit != 1
 	s.db, s.conn = db, conn
 	return nil
+}
+
+// Keep the underlying error available without including connection credentials.
+func connectionError(stage string, err error) error {
+	if errors.Is(err, mysql.ErrInvalidConn) || errors.Is(err, driver.ErrBadConn) {
+		return fmt.Errorf("MySQL %s failed: server or tunnel closed the connection, or sent an incomplete response. Check the MySQL host/port, SSH forwarding destination (if used), and server logs; no active session was created: %w", stage, err)
+	}
+	return fmt.Errorf("MySQL %s failed: %w", stage, err)
 }
 
 func (s *Session) Cancel() {
