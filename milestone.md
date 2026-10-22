@@ -123,6 +123,12 @@ belum identik dengan aplikasi asli. Referensi dan perbedaan dicatat di
   jendela menjadi 1200×710. Toolbar Mac 52 px menyatu dengan title bar;
   render awal dan aksesibilitas kontrol diverifikasi pada salinan build.
   Tab sesi diposisikan di bawah toolbar; belum diuji pada sesi aktif.
+- [x] Terapkan palet semantic AppKit Aqua/Dark Aqua untuk surface, teks,
+  separator, stripe, selection aktif/nonaktif, dan focus ring; konfirmasi font
+  sistem 13 pt/label kecil 11 pt. Grid angka rata kanan tanpa konversi nilai.
+  Ikon SVG sendiri mengikuti nama simbol toolbar di source; bukan salinan
+  artwork Apple. Render dark koneksi, 4 test frontend, unit Go, dan build Mac
+  lulus. Rincian warna, provenance, lisensi dan batas ada di docs/gui-parity.md.
 - [ ] Samakan warna, ukuran/proporsi, jarak, tipografi, ikon, border, selection,
   hover, focus, dan keadaan disabled dengan aplikasi asli; periksa lisensi aset
   sebelum digunakan kembali.
@@ -443,3 +449,14 @@ credential dipindah ke bagian Password storage yang dapat dibuka. Frontend
 4 test, typecheck/build produksi, Go unit test dan build desktop Mac lulus.
 Pemeriksaan final grouping credential, light theme, workspace terhubung dan
 Windows/Linux masih terbuka. Ini bukan penutupan milestone 1A.
+
+### Warna, tipografi, ikon dan selection dari source
+
+Palet Aqua/Dark Aqua dibaca langsung dari AppKit tanpa mengubah pengaturan OS.
+Grid membedakan selection aktif/nonaktif dan tidak memakai hover sebagai
+selection. Border separator dan focus ring mengikuti nilai semantic. Ikon
+Structure/Relations/Triggers/Users diperbarui sesuai konsep simbol source.
+Build Mac lokal terbaru tersedia. Butir kesetaraan penuh tetap terbuka:
+source-list vibrancy, bentuk glyph persis, light render, focus/selection grid
+aktif dan overlay belum terverifikasi; aksesibilitas gagal saat uji focus ring.
+Tidak mengklaim kesamaan penuh atau QA Windows/Linux selesai.

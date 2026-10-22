@@ -152,3 +152,52 @@ native window buttons after focusing the WebView. Final credential grouping
 was typechecked/built but not re-inspected in the GUI. Connected tab positioning,
 minimum size, light appearance, and Windows/Linux rendering still need manual QA.
 No original asset was copied; drawn SVG icons remain approximations.
+
+## Semantic palette, icons and selection — 2026-10-22
+
+Read the view-mode symbol mapping from `SPDatabaseDocument+ViewMode.swift`:
+Structure `scale.3d`, Content `text.justify`, Query `terminal`, Info `info.circle`,
+Relations `arrow.2.squarepath`, Triggers `bolt.circle`; Users uses `person.3`
+in `SPDatabaseDocument.m`. Portable SVG drawings now follow those concepts.
+They are original drawings, not exported Apple SF Symbols; exact glyph parity
+is not claimed. The repository LICENSE was reviewed; no original asset or
+Apple symbol artwork was copied into the rewrite.
+
+`UserDefaultsExtension.swift` defaults to NSFont.systemFontSize; a read-only
+AppKit probe confirmed 13 pt system and 11 pt small-system fonts on the reference
+Mac. The Swift probe could not compile because the installed CLT compiler/SDK
+versions differ. The same read-only values were obtained through AppKit's
+Objective-C runtime from Python ctypes, without changing OS appearance/settings.
+
+Resolved standalone Aqua/Dark Aqua values (sRGB; alpha retained for text/rings):
+
+| Semantic role | Aqua | Dark Aqua |
+| --- | --- | --- |
+| Window / surface | #ececec | #323232 |
+| Text background | #ffffff | #1e1e1e |
+| Label | black / .847 | white / .847 |
+| Secondary label | black / .498 | white / .549 |
+| Separator | black / .098 | white / .098 |
+| Grid line | #e6e6e6 | #1a1a1a |
+| Active row | #0064e1 | #0059d1 |
+| Inactive row | #dcdcdc | #464646 |
+| Selected foreground | #ffffff | #ffffff |
+| Alternating row | #f4f5f5 | #292929 (white/.047 over #1e1e1e) |
+| Focus ring | rgb(0,103,244) / .498 | rgb(26,169,255) / .498 |
+
+CSS now uses these values for grids, form surfaces/text, separators, selection,
+context menus and focus rings. Sidebar vibrancy and field bezel borders remain
+opaque approximations; live AppKit materials, accent settings, wallpaper and
+OS versions can alter the native appearance. Native browser select/button
+bevels also remain platform dependent. The Mac screenshot verified the dark
+connection form and toolbar rendering, not an overlay match with the original.
+
+Grid focus selects blue/white; inactive selection is gray; hover preserves row
+stripes. Numeric column types align right without parsing or converting cell
+values. Cell text, including DECIMAL, remains unchanged. Selection/focus styling
+was implemented but not manually exercised on a connected grid in this pass;
+the CUA AX bridge failed during the focus-ring check. Light values were resolved
+from AppKit but a light GUI render was not captured. Four frontend tests,
+TypeScript/Vite production build, Go unit tests and packaged Mac build passed.
+Server integration suites were skipped without fixture environment variables.
+Windows/Linux GUI and same-scale overlays remain open.

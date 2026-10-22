@@ -709,3 +709,27 @@ td.null,.empty-value {
 .credential-store summary { color:var(--muted); cursor:pointer; }
 .credential-store .remember-passwords { font-size:11px; }
 .credential-store[open] { padding:7px; border:1px solid var(--border); border-radius:4px; }
+
+/* NSTableView uses semantic row selection, not hover as selection. */
+.results { background-position:0 28px; }
+.results th { border-color:var(--separator); background:var(--surface); font-size:12px; }
+.results td { border-color:var(--grid-border); background:var(--field); }
+.results tr:nth-child(even) td { background:var(--stripe); }
+.results tr:hover:not(.selected-row) td { background:var(--field); }
+.results tr:nth-child(even):hover:not(.selected-row) td { background:var(--stripe); }
+.results tr.selected-row td { background:var(--selection); color:var(--text); }
+.results:focus-within tr.selected-row td { background:var(--active-selection); color:var(--selection-text); }
+.results td.numeric { text-align:right; font-variant-numeric:tabular-nums; }
+.results td.null { color:var(--muted); }
+.results:focus-within tr.selected-row td.null { color:var(--selection-text); }
+.results:focus-visible { outline:2px solid var(--focus); outline-offset:-2px; }
+.main-toolbar,.query-tabs,.query-heading,.structure-sections,.results-footer,.status-bar,.sidebar-bottom { border-color:var(--separator); }
+.favorites-sidebar,.tables-sidebar { border-right-color:var(--separator); }
+.favorite:focus-visible,.table-name:focus-visible { outline:2px solid var(--focus); outline-offset:-2px; }
+.favorite.selected:focus-visible,.table-name.selected:focus-visible { background:var(--active-selection); color:var(--selection-text); }
+.column-resizer:focus-visible,.splitter:focus-visible { outline-color:var(--focus); }
+.grid-context-menu { border-color:var(--separator); padding:4px; box-shadow:0 4px 16px #0004; }
+.grid-context-menu button { border-radius:3px; font-size:13px; }
+.grid-context-menu button:hover,.grid-context-menu button:focus-visible { background:var(--active-selection); color:var(--selection-text); }
+.row-editor,.delete-confirmation { border-color:var(--border); background:var(--surface); }
+.transaction-controls { border-bottom-color:var(--separator); }

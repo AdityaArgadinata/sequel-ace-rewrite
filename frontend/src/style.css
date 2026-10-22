@@ -1,3 +1,54 @@
-*{box-sizing:border-box}:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;color-scheme:light dark;--surface:#ececec;--workspace:#f5f5f5;--sidebar:#e4e5e6;--toolbar:#e7e7e7;--field:#fff;--border:#b8b8b8;--text:#252525;--muted:#757575;--selection:#b7d5f5;--stripe:#f1f5fa;--accent:#087fdf;color:var(--text);background:var(--workspace)}
-@media(prefers-color-scheme:dark){:root{--surface:#2d3132;--workspace:#252a2b;--sidebar:#444647;--toolbar:#393a3b;--field:#373b3c;--border:#4b4f50;--text:#e1e1e1;--muted:#95999a;--selection:#606364;--stripe:#2c3133}}
-body{margin:0}html,body,#root{width:100%;height:100%;overflow:hidden}button,input,select,textarea{font:inherit;color:inherit}button{cursor:default}button:disabled{opacity:.38}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #77aff1;outline-offset:1px}
+* { box-sizing:border-box; }
+/* AppKit semantic colors resolved on the reference Mac, Aqua/Dark Aqua.
+   Vibrant source-list backgrounds depend on the wallpaper; sidebar remains an
+   opaque approximation. See docs/gui-parity.md for values and provenance. */
+:root {
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    font-size:13px;
+    line-height:1.3;
+    color-scheme:light dark;
+    --surface:#ececec;
+    --workspace:#ececec;
+    --sidebar:#e4e5e6;
+    --toolbar:#ececec;
+    --field:#fff;
+    --border:#b8b8b8;
+    --separator:rgba(0,0,0,.098);
+    --grid-border:#e6e6e6;
+    --text:rgba(0,0,0,.847);
+    --muted:rgba(0,0,0,.498);
+    --selection:#dcdcdc;
+    --active-selection:#0064e1;
+    --selection-text:#fff;
+    --stripe:#f4f5f5;
+    --accent:#007aff;
+    --focus:rgba(0,103,244,.498);
+    color:var(--text);
+    background:var(--workspace);
+}
+@media(prefers-color-scheme:dark) {
+    :root {
+        --surface:#323232;
+        --workspace:#323232;
+        --sidebar:#444647;
+        --toolbar:#323232;
+        --field:#1e1e1e;
+        --border:#555;
+        --separator:rgba(255,255,255,.098);
+        --grid-border:#1a1a1a;
+        --text:rgba(255,255,255,.847);
+        --muted:rgba(255,255,255,.549);
+        --selection:#464646;
+        --active-selection:#0059d1;
+        --stripe:#292929;
+        --focus:rgba(26,169,255,.498);
+    }
+}
+body { margin:0; }
+html,body,#root { width:100%; height:100%; overflow:hidden; }
+button,input,select,textarea { font:inherit; color:inherit; }
+button { cursor:default; }
+button:disabled { opacity:.38; }
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible {
+    outline:3px solid var(--focus); outline-offset:1px;
+}

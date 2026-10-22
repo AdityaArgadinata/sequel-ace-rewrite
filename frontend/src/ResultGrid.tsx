@@ -45,7 +45,7 @@ export default function ResultGrid({result, busy, selected, onSelect}: {result: 
                     onLostPointerCapture={() => { drag.current = null; }} />
             </th>)}</tr></thead><tbody>{result.rows.map((row, r) => <tr key={r} aria-selected={active === r} className={active === r ? 'selected-row' : ''}
                 onClick={event => { if (!busy) { choose(r); event.currentTarget.closest<HTMLElement>('.results')?.focus(); } }}>
-                {row.map((value, c) => <td key={c} className={value.null ? 'null' : ''} title={value.null ? 'NULL' : value.value}
+                {row.map((value, c) => <td key={c} className={[value.null ? 'null' : '', /^(?:UNSIGNED )?(TINYINT|SMALLINT|MEDIUMINT|INT|INTEGER|BIGINT|DECIMAL|NUMERIC|FLOAT|DOUBLE|REAL|YEAR)(\b|$)/i.test(result.columns[c]?.type ?? '') ? 'numeric' : ''].join(' ')} title={value.null ? 'NULL' : value.value}
                     onContextMenu={event => { event.preventDefault(); if (busy) return; choose(r); setMenu({row:r,column:c,x:Math.min(event.clientX,window.innerWidth-170),y:Math.min(event.clientY,window.innerHeight-90)}); }}>
                     {value.null ? 'NULL' : value.value}</td>)}
             </tr>)}</tbody></table> : <div className="result-empty">{busy ? 'Loading…' : result ? 'No rows returned.' : 'Run a query to display results.'}</div>}
