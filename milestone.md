@@ -3,8 +3,8 @@
 Status: milestone 0 selesai. Implementasi milestone 1 dan CI sudah lulus;
 manual QA GUI Windows/Linux masih terbuka sebelum milestone 1 dinyatakan selesai.
 Repo: https://github.com/AdityaArgadinata/sequel-ace-rewrite.
-Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39549139051
-(commit kode `62c4750`, 2026-10-21).
+Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39745002743
+(commit kode `ab5e712`, diverifikasi 2026-10-22).
 
 ## Ringkasan progres — 2026-10-21
 
@@ -243,7 +243,8 @@ terkelola, DDL/CALL/statement transaksi manual ditolak untuk menghindari implici
   index, urutan composite FK, aturan ON UPDATE/DELETE, serta CREATE statement.
   Metadata berparameter dan read-only; metadata terpotong tidak diklaim lengkap.
   Unit/integration MySQL 5.7.44 lokal, frontend build dan build desktop Mac lulus.
-- [ ] Verifikasi CI perubahan Structure dan manual QA GUI tiga OS.
+- [ ] Verifikasi CI perubahan Structure pada tiga OS dan dua database.
+- [ ] Manual QA GUI Structure pada tiga OS.
 - [ ] Tambahkan export CSV secara streaming dengan penanganan tipe dan encoding.
 - [ ] Tambahkan import CSV dengan preview pemetaan kolom dan laporan kegagalan;
   jelaskan jika operasi hanya selesai sebagian.
@@ -345,3 +346,8 @@ Test lokal mencakup backtick pada nama tabel, PK/index prefix, default/comment/
 generated column, FK composite beserta urutan/rule, view, tabel tidak ditemukan,
 serta metadata melebihi batas. Export/import CSV dan migrasi favorites belum
 diimplementasikan; eksekusi SQL tetap satu statement.
+
+Implementasi Structure di-push sebagai `edb701f`; CI masih berjalan saat catatan
+ini dibuat: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39746801936.
+Build Mac lokal telah diperbarui. Manual GUI Structure belum diperiksa langsung;
+keberhasilan build tidak dianggap sebagai kesetaraan visual dengan Sequel Ace.
