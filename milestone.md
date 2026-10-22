@@ -14,7 +14,7 @@ Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/action
 | 1 — Alur query pertama | Implementasi dan CI selesai | Smoke test GUI Windows dan Ubuntu |
 | 1A — Kesetaraan GUI Sequel Ace | Sedang dikerjakan; layout awal selesai | Referensi lengkap, detail visual/interaksi, overlay, dan GUI Windows/Linux |
 | 2 — Penggunaan harian | Implementasi dan CI selesai | Manual QA GUI Windows/Linux; batas fitur didokumentasikan |
-| 3 — Pengubahan data | Belum dimulai | Editor baris, transaksi UI, dan penanganan konflik |
+| 3 — Pengubahan data | Implementasi; verifikasi berlangsung | CI terbaru dan manual QA GUI |
 | 4 — Struktur dan pertukaran data | Belum dimulai | Metadata struktur, import/export, dan migrasi |
 | 5 — Beta Windows/Linux | Belum dimulai | Paket distribusi dan verifikasi rilis |
 
@@ -205,21 +205,35 @@ khusus OS sudah dicoba pada Windows serta Ubuntu.
 
 ## Milestone 3 — Pengubahan data yang aman
 
-- [ ] Tambahkan insert, edit, dan delete pada browser tabel.
-- [ ] Batasi edit/delete awal pada tabel dengan primary key, termasuk composite key.
-- [ ] Jadikan hasil yang identitas barisnya ambigu sebagai read-only.
-- [ ] Gunakan parameter untuk nilai dan validasi/quote identifier.
-- [ ] Sediakan konfirmasi delete dan tampilkan hasil jumlah baris terpengaruh.
-- [ ] Deteksi data berubah sejak dimuat sebelum menimpa/menghapusnya; uji dengan
+- [x] Tambahkan insert, edit, dan delete pada browser tabel.
+- [x] Batasi edit/delete awal pada tabel dengan primary key, termasuk composite key.
+- [x] Jadikan hasil yang identitas barisnya ambigu sebagai read-only.
+- [x] Gunakan parameter untuk nilai dan validasi/quote identifier.
+- [x] Sediakan konfirmasi delete dan tampilkan hasil jumlah baris terpengaruh.
+- [x] Deteksi data berubah sejak dimuat sebelum menimpa/menghapusnya; uji dengan
   dua sesi yang mengubah baris sama.
-- [ ] Sediakan begin/commit/rollback pada sesi query, dengan status transaksi
+- [x] Sediakan begin/commit/rollback pada sesi query, dengan status transaksi
   terlihat dan penanganan disconnect yang tidak mengklaim rollback/commit sukses.
-- [ ] Tambahkan integration test untuk composite key, `NULL`, karakter khusus,
+- [x] Tambahkan integration test untuk composite key, `NULL`, karakter khusus,
   konflik perubahan, rollback, dan kegagalan koneksi saat write.
 
 **Selesai jika:** insert/edit/delete memengaruhi baris yang dimaksud, konflik
 ditampilkan, dan kegagalan tidak menyebabkan pengulangan write tanpa persetujuan.
 Uji manual alur perubahan data terhadap server pengujian pada ketiga OS.
+
+Implementasi: hanya tabel dasar InnoDB dengan primary key (termasuk composite)
+editable. View, tabel tanpa PK/non-InnoDB/invisible columns tetap read-only.
+Snapshot seluruh kolom dibandingkan byte-exact dengan NULL-safe predicate;
+nilai di-bind, identifier di-quote. Metadata lock menahan schema selama validasi
+hingga write selesai. Write di luar transaksi UI memakai transaksi pendek;
+write di transaksi UI menunggu Commit/Rollback. Generated column tidak ditulis.
+Konflik/no-op meminta reload, bukan retry otomatis. Hasil write yang tak dapat
+dikonfirmasi tidak dilaporkan sukses. SQL manual membuat status unverified;
+selesaikan melalui Commit/Rollback sebelum row editor/Begin. Dalam transaksi
+terkelola, DDL/CALL/statement transaksi manual ditolak untuk menghindari implicit commit.
+
+- [ ] Verifikasi CI terbaru tiga OS dan integration MySQL 8.4/MariaDB 11.4.
+- [ ] Manual QA GUI insert/edit/delete, konflik dan transaksi pada tiga OS.
 
 ## Milestone 4 — Struktur dan pertukaran data
 

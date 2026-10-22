@@ -127,3 +127,33 @@ func (a *App) StreamQuery(tab, id, statement string, recordHistory bool) (databa
 	return output, err
 }
 func (a *App) shutdown(context.Context) { a.workspace.Shutdown() }
+
+func (a *App) TableDetails(tab, db, table string) (database.TableDetails, error) {
+	s, err := a.workspace.Session(tab)
+	if err != nil {
+		return database.TableDetails{}, err
+	}
+	return s.TableDetails(db, table)
+}
+func (a *App) Mutate(tab string, r database.Mutation) (int64, error) {
+	s, err := a.workspace.Session(tab)
+	if err != nil {
+		return 0, err
+	}
+	return s.Mutate(r)
+}
+
+func (a *App) TransactionStatus(tab string) string {
+	s, err := a.workspace.Session(tab)
+	if err != nil {
+		return "disconnected"
+	}
+	return s.TransactionStatus()
+}
+func (a *App) Transaction(tab, action string) error {
+	s, err := a.workspace.Session(tab)
+	if err != nil {
+		return err
+	}
+	return s.Transaction(action)
+}

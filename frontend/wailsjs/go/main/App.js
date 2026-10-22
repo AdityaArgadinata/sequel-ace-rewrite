@@ -54,6 +54,10 @@ export function LoadCredentials(arg1) {
   return window['go']['main']['App']['LoadCredentials'](arg1);
 }
 
+export function Mutate(arg1, arg2) {
+  return window['go']['main']['App']['Mutate'](arg1, arg2);
+}
+
 export function NewTab() {
   return window['go']['main']['App']['NewTab']();
 }
@@ -78,8 +82,20 @@ export function StreamQuery(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['StreamQuery'](arg1, arg2, arg3, arg4);
 }
 
+export function TableDetails(arg1, arg2, arg3) {
+  return window['go']['main']['App']['TableDetails'](arg1, arg2, arg3);
+}
+
 export function Tables(arg1, arg2) {
   return window['go']['main']['App']['Tables'](arg1, arg2);
+}
+
+export function Transaction(arg1, arg2) {
+  return window['go']['main']['App']['Transaction'](arg1, arg2);
+}
+
+export function TransactionStatus(arg1) {
+  return window['go']['main']['App']['TransactionStatus'](arg1);
 }
 
 export function UseDatabase(arg1, arg2) {

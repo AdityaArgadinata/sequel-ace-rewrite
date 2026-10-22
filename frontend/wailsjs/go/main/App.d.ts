@@ -31,6 +31,8 @@ export function ListProfiles():Promise<Array<profiles.Profile>>;
 
 export function LoadCredentials(arg1:string):Promise<credentials.Secrets>;
 
+export function Mutate(arg1:string,arg2:database.Mutation):Promise<number>;
+
 export function NewTab():Promise<string>;
 
 export function Platform():Promise<string>;
@@ -43,6 +45,12 @@ export function SaveProfile(arg1:profiles.Profile):Promise<profiles.Profile>;
 
 export function StreamQuery(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<database.Result>;
 
+export function TableDetails(arg1:string,arg2:string,arg3:string):Promise<database.TableDetails>;
+
 export function Tables(arg1:string,arg2:string):Promise<database.Result>;
+
+export function Transaction(arg1:string,arg2:string):Promise<void>;
+
+export function TransactionStatus(arg1:string):Promise<string>;
 
 export function UseDatabase(arg1:string,arg2:string):Promise<void>;

@@ -67,13 +67,15 @@ type Batch struct {
 // Cancellation/timeout discards the session: session variables and transactions
 // cannot be silently reconstructed on a new connection.
 type Session struct {
-	op     sync.Mutex
-	mu     sync.Mutex
-	cancel context.CancelFunc
-	db     *sql.DB
-	conn   *sql.Conn
-	failed bool
-	tunnel *ssh.Client
+	op           sync.Mutex
+	mu           sync.Mutex
+	cancel       context.CancelFunc
+	db           *sql.DB
+	conn         *sql.Conn
+	transaction  bool
+	txUnverified bool
+	failed       bool
+	tunnel       *ssh.Client
 }
 
 func config(c Connection) (*mysql.Config, error) {
@@ -177,6 +179,13 @@ func (s *Session) Connect(c Connection) error {
 		db.Close()
 		return err
 	}
+	var autocommit int
+	if err = conn.QueryRowContext(connectCtx, "SELECT @@session.autocommit").Scan(&autocommit); err != nil {
+		conn.Close()
+		db.Close()
+		return err
+	}
+	s.txUnverified = autocommit != 1
 	s.db, s.conn = db, conn
 	return nil
 }
@@ -190,6 +199,8 @@ func (s *Session) Cancel() {
 }
 
 func (s *Session) close() {
+	s.transaction = false
+	s.txUnverified = false
 	if s.tunnel != nil {
 		s.tunnel.Close()
 		s.tunnel = nil
@@ -228,6 +239,9 @@ func (s *Session) Connected() bool {
 
 // Only server SQL errors preserve the session; transport failures require reconnect.
 func (s *Session) queryError(err error) error {
+	if s.transaction {
+		s.txUnverified = true
+	}
 	var serverError *mysql.MySQLError
 	if !errors.As(err, &serverError) {
 		s.failed = true
@@ -279,10 +293,10 @@ func (s *Session) Query(statement string) (Result, error) {
 // Stream calls emit synchronously while reading rows, without any UI dependency.
 // The callback must not wait for another operation on this session.
 func (s *Session) Stream(statement string, emit func(Batch)) (Result, error) {
-	return s.execute(statement, nil, emit)
+	return s.execute(statement, nil, emit, false)
 }
 
-func (s *Session) execute(statement string, args []any, emit func(Batch)) (Result, error) {
+func (s *Session) execute(statement string, args []any, emit func(Batch), metadata bool) (Result, error) {
 	ctx, done, err := s.begin()
 	if err != nil {
 		return Result{}, err
@@ -293,6 +307,12 @@ func (s *Session) execute(statement string, args []any, emit func(Batch)) (Resul
 	}
 	if strings.TrimSpace(statement) == "" {
 		return Result{}, errors.New("enter one SQL statement")
+	}
+	if err := s.allowManagedStatement(statement); !metadata && err != nil {
+		return Result{}, err
+	}
+	if !s.transaction && !metadata {
+		s.txUnverified = true
 	}
 	start := time.Now()
 	rows, err := s.conn.QueryContext(ctx, statement, args...)
@@ -384,11 +404,11 @@ func (s *Session) execute(statement string, args []any, emit func(Batch)) (Resul
 	return result, nil
 }
 
-func (s *Session) Databases() (Result, error) { return s.Query("SHOW DATABASES") }
+func (s *Session) Databases() (Result, error) { return s.execute("SHOW DATABASES", nil, nil, true) }
 
 func (s *Session) Tables(database string) (Result, error) {
 	if database == "" || strings.ContainsRune(database, 0) {
 		return Result{}, fmt.Errorf("select a database first")
 	}
-	return s.Query("SHOW FULL TABLES FROM " + quoteIdentifier(database))
+	return s.execute("SHOW FULL TABLES FROM "+quoteIdentifier(database), nil, nil, true)
 }

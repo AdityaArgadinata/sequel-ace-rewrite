@@ -302,3 +302,30 @@ Windows dan Ubuntu, test vault native masing-masing OS, serta integration MySQL
 8.4/MariaDB 11.4 (SSH forwarding, isolasi tab, filter/pagination dan cancel).
 [Run dan artifact milestone 2](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39549139051).
 [Checklist manual QA yang masih terbuka](docs/milestone-2-qa.md).
+
+## Pengubahan data — milestone 3
+
+Content menyediakan Insert row/Edit row/Delete row pada tabel dasar InnoDB
+ber-primary key. Klik nomor baris untuk memilih; centang kolom yang ingin ditulis.
+Kolom insert yang tidak dipilih memakai default server. NULL berbeda dari teks
+kosong, binary memakai 0x hex, generated columns tidak dapat ditulis. Delete
+memerlukan konfirmasi yang menampilkan primary key; trigger/cascade server tetap
+berlaku. View, tabel tanpa PK/non-InnoDB dan invisible columns tetap read-only.
+
+Update/delete membandingkan seluruh snapshot baris dan composite key. Konflik atau
+nilai tak berubah meminta reload. Tidak ada retry write otomatis; jika koneksi
+putus saat write/commit, periksa keadaan server sebelum mengulang. Mutasi mandiri
+memakai transaksi pendek dan menahan metadata lock selama validasi/write, mengikuti
+[metadata locking MySQL](https://dev.mysql.com/doc/refman/8.0/en/metadata-locking.html).
+
+Begin/Commit/Rollback tersedia per tab dengan status terlihat. Perubahan editor
+dalam transaksi terkelola belum permanen sampai Commit. SQL manual membuat
+status unverified, sehingga row editor/Begin menunggu Commit/Rollback. DDL/CALL
+serta SQL pengubah transaksi ditolak di transaksi terkelola; SELECT/INSERT/UPDATE/
+DELETE diperbolehkan. Error transaksi meminta Rollback sebelum melanjutkan.
+Rollback hanya melindungi storage engine transaksional; efek trigger ke engine
+nontransaksional atau sistem eksternal tidak dijamin dapat dibatalkan.
+
+Test lokal mencakup composite key, binary/NULL/quotes, konflik dua sesi termasuk
+perubahan huruf besar/kecil, insert/update/delete, commit/rollback, serta simulasi
+koneksi terputus tanpa replay. GUI Windows/Linux tetap perlu diuji langsung.

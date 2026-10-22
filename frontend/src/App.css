@@ -617,3 +617,15 @@ td.null,.empty-value {
 .remember-passwords { display:block; margin-top:12px; font-size:11px; }
 .ssh-settings h3 { font-size:12px; border-top:1px solid var(--border); padding-top:12px; }
 .connection-tabs button[aria-pressed=true] { background:#80808070; }
+
+.content-controls { border: 0; margin: 0; padding: 0; min-width: 0; }
+.content-actions { display: flex; align-items: center; gap: 8px; padding: 8px; flex-wrap: wrap; }
+.row-editor, .delete-confirmation { padding: 12px; border: 1px solid #6d7480; margin: 8px; overflow: auto; max-height: 45vh; flex-shrink: 0; }
+.row-editor p, .delete-confirmation p { margin: 6px 0 12px; }
+.row-editor-fields { display: grid; gap: 8px; margin-bottom: 12px; }
+.row-editor-field { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.row-editor-field > label:first-child { min-width: 220px; }
+.row-editor-field > input { flex: 1; min-width: 120px; }
+.results tr.selected-row td { background: #304b72; color: white; }
+.row-index button { min-width: 28px; padding: 2px 4px; }
+.transaction-controls { display: flex; gap: 8px; align-items: center; padding: 6px 10px; flex-wrap: wrap; font-size: 12px; border-bottom: 1px solid #555; }

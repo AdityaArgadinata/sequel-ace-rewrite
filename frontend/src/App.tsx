@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from 'react';
-import {Cancel, Connect, Connected, Databases, Disconnect, Query, StreamQuery, Tables, UseDatabase, NewTab, CloseTab} from '../wailsjs/go/main/App';
+import {Cancel, Connect, Connected, Databases, Disconnect, Query, StreamQuery, Tables, UseDatabase, NewTab, CloseTab, Transaction, TransactionStatus} from '../wailsjs/go/main/App';
 import {database} from '../wailsjs/go/models';
 import {EventsOn} from '../wailsjs/runtime/runtime';
 import './App.css';
@@ -14,6 +14,7 @@ function Workspace({tab, connectionName, onClose}: {tab: string; connectionName:
     const [sidebarWidth, setSidebarWidth] = useState(17);
     const [editorHeight, setEditorHeight] = useState(32);
     const lineNumbers = useRef<HTMLDivElement>(null);
+    const [transaction, setTransaction] = useState('idle');
     const [connected, setConnected] = useState(true);
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState('Hubungkan server untuk memulai.');
@@ -40,12 +41,13 @@ function Workspace({tab, connectionName, onClose}: {tab: string; connectionName:
             try {
                 const live = await Connected(tab);
                 setConnected(live);
+                setTransaction(await TransactionStatus(tab));
                 if (!live) {
                     setDatabases([]); setTables([]); setSelectedDB(''); setSelectedTable('');
                     setMessage(previous => `${previous} Sesi tab ini tidak aktif; tutup tab lalu hubungkan ulang.${mayWrite ? " Periksa hasil query pengubah data sebelum mengulang; tidak ada retry otomatis." : ""}`);
                 }
             } catch {
-                setConnected(false);
+                setConnected(false); setTransaction('disconnected');
                 setMessage('Backend tidak tersedia. Jalankan jendela desktop melalui Wails.');
             }
             setBusy(false);
@@ -87,6 +89,13 @@ function Workspace({tab, connectionName, onClose}: {tab: string; connectionName:
         });
     }
 
+    async function transactionAction(action: 'begin' | 'commit' | 'rollback') {
+        await operation(async () => {
+            await Transaction(tab, action);
+            setMessage(action === 'begin' ? 'Transaksi aktif. Gunakan Commit/Rollback untuk mengakhirinya.' : `${action.toUpperCase()} diterima server. Reload Content untuk melihat data terbaru. Perubahan pada tabel nontransaksional tidak dapat di-rollback.`);
+            setResult(null);
+        }, true);
+    }
     async function run() {
         setResult(null);
         await operation(async () => {
@@ -134,6 +143,13 @@ function Workspace({tab, connectionName, onClose}: {tab: string; connectionName:
                 <button className="toolbar-item" disabled title="User Manager is not available yet"><ToolbarIcon name="users"/><span>Users</span></button>
                 <button className="toolbar-item" onClick={() => setShowHistory(v => !v)} title="Query history (metadata only)"><ToolbarIcon name="console"/><span>History</span></button>
             </header>
+            <div className="transaction-controls" aria-label="Transaction controls">
+                <span role="status">Transaction: {transaction === 'unverified' ? 'unverified after SQL/error — use Commit/Rollback' : transaction}</span>
+                <button disabled={busy || !connected || transaction !== 'idle'} onClick={() => void transactionAction('begin')}>Begin</button>
+                <button disabled={busy || !connected || transaction === 'idle'} onClick={() => void transactionAction('commit')}>Commit</button>
+                <button disabled={busy || !connected || transaction === 'idle'} onClick={() => void transactionAction('rollback')}>Rollback</button>
+                <span>Rollback applies to transactional tables. Closing a session discards uncommitted work.</span>
+            </div>
             {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} />}
             <div className="workspace">
                 <aside id={`tables-panel-${tab}`} className="tables-sidebar" aria-label="Tables" style={{flexBasis: `${sidebarWidth}%`}}>

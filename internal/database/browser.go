@@ -70,5 +70,5 @@ func (s *Session) Browse(r BrowseRequest) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	return s.execute(q, args, nil)
+	return s.execute(q, args, nil, true)
 }
