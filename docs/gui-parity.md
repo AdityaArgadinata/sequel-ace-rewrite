@@ -222,3 +222,19 @@ labels while metadata identifiers and values remain unchanged.
 Four frontend tests, TypeScript/Vite build, Go unit tests and packaged Mac build
 passed. Desktop workspace smoke testing was blocked by CUA AX frame errors;
 no connected layout verification is claimed. Test fixture cleanup completed.
+
+## Structure detail follow-up — 2026-10-22
+
+Columns and Indexes now use initial widths from DBView.xib tables 232/289,
+clamped to the existing 48 px resize minimum. Index headers/values are reordered
+together to the native Non_unique/Key_name/Seq_in_index/Column_name sequence;
+additional server columns remain available at the end. Allow Null is a disabled
+checkbox for known YES/NO values; NULL/unexpected data stays visible as text.
+Clipboard still receives the raw server value. Both panels have 25 px action
+strips; schema writes are visibly disabled and reload stays functional. Empty
+Structure/Indexes no longer instruct the user to run a SQL query.
+
+Five frontend tests now pass, including a lossless reordering test. Typecheck/
+frontend build, Go unit tests and packaged Mac build are run for this change.
+The new layout has not been manually verified on desktop; XIB defaults and
+functional tests do not establish pixel equivalence or Windows/Linux GUI QA.

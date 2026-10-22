@@ -768,3 +768,10 @@ td.null,.empty-value {
     .query-actions>span { display:none; }
     .content-bottom-bar .page-status { display:none; }
 }
+.structure-columns { flex-direction:column; }
+.schema-actions { display:flex; align-items:center; flex-shrink:0; height:25px; gap:5px; background:var(--surface); border-top:1px solid var(--separator); font-size:11px; }
+.schema-actions button { border:0; background:transparent; width:25px; height:25px; padding:0; font-size:16px; }
+.schema-actions span { flex:1; color:var(--muted); }
+.results td:has(input[type=checkbox]) { text-align:center; }
+.results td input[type=checkbox] { width:12px; height:12px; margin:0; vertical-align:middle; accent-color:var(--accent); opacity:1; }
+.results td input[type=checkbox]:disabled { pointer-events:none; }

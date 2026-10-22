@@ -3,7 +3,7 @@ import {ClipboardSetText} from '../wailsjs/runtime/runtime';
 import {database} from '../wailsjs/go/models';
 import {columnWidth, selectedRow} from './grid-navigation';
 
-export default function ResultGrid({result, busy, selected, onSelect, columnLabels}: {result: database.Result | null; busy: boolean; selected?: number; onSelect?: (row: number) => void; columnLabels?: Record<string, string>}) {
+export default function ResultGrid({result, busy, selected, onSelect, columnLabels, initialWidths, checkboxColumns, emptyMessage}: {result: database.Result | null; busy: boolean; selected?: number; onSelect?: (row: number) => void; columnLabels?: Record<string, string>; initialWidths?: Record<string, number>; checkboxColumns?: Record<string, string>; emptyMessage?: string}) {
     const [selection, setSelection] = useState(-1);
     const [widths, setWidths] = useState<Record<string, number>>({});
     const [menu, setMenu] = useState<{row: number; column: number; x: number; y: number} | null>(null);
@@ -11,7 +11,7 @@ export default function ResultGrid({result, busy, selected, onSelect, columnLabe
     const drag = useRef<{x: number; width: number; key: string} | null>(null);
     const active = selected ?? selection;
     const keyFor = (i: number) => `${i}:${result?.columns[i].name}`;
-    const widthFor = (i: number) => widths[keyFor(i)] ?? Math.max(90, Math.min(220, (result?.columns[i].name.length ?? 0) * 8 + 24));
+    const widthFor = (i: number) => widths[keyFor(i)] ?? initialWidths?.[result?.columns[i].name ?? ''] ?? Math.max(90, Math.min(220, (result?.columns[i].name.length ?? 0) * 8 + 24));
     const choose = (row: number) => { setSelection(row); onSelect?.(row); };
     async function copy(row: boolean) {
         if (!menu || !result) return;
@@ -47,8 +47,8 @@ export default function ResultGrid({result, busy, selected, onSelect, columnLabe
                 onClick={event => { if (!busy) { choose(r); event.currentTarget.closest<HTMLElement>('.results')?.focus(); } }}>
                 {row.map((value, c) => <td key={c} className={[value.null ? 'null' : '', /^(?:UNSIGNED )?(TINYINT|SMALLINT|MEDIUMINT|INT|INTEGER|BIGINT|DECIMAL|NUMERIC|FLOAT|DOUBLE|REAL|YEAR)(\b|$)/i.test(result.columns[c]?.type ?? '') ? 'numeric' : ''].join(' ')} title={value.null ? 'NULL' : value.value}
                     onContextMenu={event => { event.preventDefault(); if (busy) return; choose(r); setMenu({row:r,column:c,x:Math.min(event.clientX,window.innerWidth-170),y:Math.min(event.clientY,window.innerHeight-90)}); }}>
-                    {value.null ? 'NULL' : value.value}</td>)}
-            </tr>)}</tbody></table> : <div className="result-empty">{busy ? 'Loading…' : result ? 'No rows returned.' : 'Run a query to display results.'}</div>}
+                    {!value.null && checkboxColumns?.[result.columns[c].name] !== undefined && (value.value === checkboxColumns[result.columns[c].name] || value.value === "NO") ? <input type="checkbox" disabled checked={value.value === checkboxColumns[result.columns[c].name]} aria-label={`${columnLabels?.[result.columns[c].name] ?? result.columns[c].name}: ${value.value}`} /> : value.null ? 'NULL' : value.value}</td>)}
+            </tr>)}</tbody></table> : <div className="result-empty">{busy ? 'Loading…' : result ? 'No rows returned.' : emptyMessage ?? 'Run a query to display results.'}</div>}
         {menu && <div className="grid-context-menu" role="menu" aria-label="Copy result" style={{left:menu.x,top:menu.y}} onClick={event => event.stopPropagation()}>
             <button role="menuitem" autoFocus onClick={() => void copy(false)}>Copy cell</button>
             <button role="menuitem" onClick={() => void copy(true)}>Copy row (tab separated)</button>

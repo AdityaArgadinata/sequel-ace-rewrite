@@ -135,6 +135,11 @@ belum identik dengan aplikasi asli. Referensi dan perbedaan dicatat di
   Structure. Transaksi dipindah ke status bar dengan status tetap terlihat.
   Test/build lulus; smoke test workspace terhalang error frame CUA dan belum
   dihitung sebagai verifikasi visual atau interaksi.
+- [x] Terapkan detail tabel Structure dari DBView.xib: lebar awal kolom,
+  urutan Indexes, checkbox Allow Null read-only, action strip 25 px dan pesan
+  kosong khusus metadata. Schema write tetap disabled. Test lossless reorder
+  memverifikasi header/nilai, NULL, kolom tambahan dan input tidak berubah.
+  Render desktop detail ini belum diverifikasi; kesetaraan penuh masih terbuka.
 - [ ] Samakan warna, ukuran/proporsi, jarak, tipografi, ikon, border, selection,
   hover, focus, dan keadaan disabled dengan aplikasi asli; periksa lisensi aset
   sebelum digunakan kembali.

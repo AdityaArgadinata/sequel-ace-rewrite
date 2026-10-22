@@ -17,8 +17,8 @@ XIB sizes can be adjusted at runtime by controller code and user preferences.
 | Content pagination | DBView.xib 6650/6653/6647, ContentPaginationView.xib | bottom/right previous/next + row limit; no native Go-to-page popover |
 | Query editor | DBView.xib textView 8254, 695×142 inside split 7209 | editor begins directly under tabs; adjustable height; textarea lacks highlighting/completion |
 | Query action strip | DBView.xib 7218 130×25, 7217 145×25, 8316 200×22 | favorites placeholder disabled; history metadata only; run executes one statement, not native Run Current/All menu |
-| Structure columns | DBView.xib table 232 | labels Field/Type/Allow Null/Key/Default/Extra/Encoding/Collation/Comment; raw type retained, no synthetic length/unsigned/zerofill/binary checkboxes |
-| Structure indexes | DBView.xib table 289 | stacked under Columns; Key_name/Non_unique/Seq_in_index/Column_name etc.; no schema write actions |
+| Structure columns | DBView.xib table 232 | labels Field/Type/Allow Null/Key/Default/Extra/Encoding/Collation/Comment; XIB initial widths, read-only Allow Null checkbox; raw type retained, no synthetic length/unsigned/zerofill/binary columns |
+| Structure indexes | DBView.xib table 289 | stacked under Columns; native Non_unique/Key_name/Seq_in_index/Column_name order and initial widths; no schema write actions |
 | Additional schema metadata | catalog queries in rewrite | Foreign keys and CREATE statement remain secondary sections |
 | Transaction controls | rewrite extension | compact status-bar summary opens Begin/Commit/Rollback panel; state remains visible |
 | Grid interaction | native NSTableView / controllers | row selection, keyboard, resize, copy menu; cell editing and full context-menu parity missing |
@@ -35,3 +35,16 @@ transaction panel, or connected workspace screenshot was verified in this pass.
 The test schema/server was removed/stopped. This is a concrete automation gap,
 not a passed manual UI check. Windows/Linux, light rendering, minimum size and
 same-scale overlays remain pending.
+
+## Structure detail follow-up
+
+Initial widths use table 232/289 XIB values where metadata exists. Widths below
+48 px are raised to the shared grid's resize minimum. Server columns missing
+from the query (e.g. Cardinality/Packed) are not fabricated. Unknown columns stay
+at the end in their server order. Native widths are defaults only; resizing still
+works. Values are reordered together with headers and remain unchanged for copy.
+Allow Null shows YES/NO as disabled checked/unchecked boxes; NULL and unexpected
+values remain textual instead of being silently shown as false. Each panel has
+a 25 px action strip, with schema writes disabled and column reload functional.
+A new Node test proves header/value association, NULL and extra metadata survive
+reordering without mutating the input. Visual desktop verification remains open.
