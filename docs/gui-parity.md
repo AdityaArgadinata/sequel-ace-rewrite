@@ -51,9 +51,11 @@ Status: first layout implementation; **not pixel-identical or accepted as comple
 - Profile save is explicit, credential-vault save/load/forget are explicit, and CA
   uses a PEM text area. SSH uses key/known_hosts path fields. These differ from the
   native app's full connection controls.
-- Result grid is read-only. It does not yet implement native row selection,
-  cell editing, context menus or column resizing. Content has pagination, sorting
-  and filters, but exact native visual/interactions have not been compared.
+- Arbitrary Query results remain read-only. Content supports row-number selection
+  and a separate insert/edit form with delete confirmation on eligible tables.
+  Native cell editing, context menus and column resizing are not implemented.
+  Content pagination, sorting, filters and row forms have not been compared for
+  exact native visual/interaction parity.
 - Editor uses a plain textarea; no syntax highlighting/autocomplete. Line numbers
   synchronize with the textarea scroll position. Cmd/Ctrl+Enter
   runs one statement; original shortcut parity has not been established.

@@ -153,7 +153,7 @@ atau tester. Tidak perlu membeli laptop lain untuk memulai pengembangan.
 - Metadata tidak dimuat ulang setelah query agar ROW_COUNT()/diagnostik sesi tidak
   terganggu. Klik **Segarkan daftar** setelah USE/DDL manual jika perlu; tindakan
   ini menjalankan query metadata sehingga dapat mengubah diagnostik sesi.
-- Import/export dan pengubahan baris melalui grid belum tersedia.
+- Import/export belum tersedia. Row editor Content dibatasi ke tabel InnoDB ber-primary key; hasil SQL bebas tetap read-only.
 
 ## Integration test pada server disposable
 

@@ -313,3 +313,16 @@ CI build/test/vet tiga OS, vault native tiga OS, integration MySQL 8.4/MariaDB
 belum tersedia; kriteria selesai penuh milestone 2 tetap terbuka untuk butir itu.
 Panduan handoff: `docs/milestone-2-qa.md`. Build Mac lokal sudah diperbarui;
 schema/history/credential dummy dan server fixture sudah dibersihkan.
+
+## Progres milestone 3 — 2026-10-22
+
+Implementasi `ab5e712` sudah tersedia dalam build Mac lokal. Frontend test/build,
+Go vet, serta seluruh unit/integration/race lokal lulus. Test tambahan memutus
+koneksi fisik saat INSERT tertahan di trigger fixture: outcome dilaporkan gagal,
+sesi dibuang, baris tidak ter-commit dan write tidak diulang.
+CI https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39745002743:
+MySQL 8.4, MariaDB 11.4, desktop macOS dan Windows lulus. Job Ubuntu masih
+berjalan pada pemasangan dependensi desktop saat catatan ini dibuat; checklist
+CI tiga OS tetap terbuka. Manual QA GUI editor/transaksi pada ketiga OS belum
+dilakukan. Panduan: `docs/milestone-3-qa.md`. Server/schema fixture lokal sudah
+dibersihkan; tidak ada perubahan terhadap database pengguna.
