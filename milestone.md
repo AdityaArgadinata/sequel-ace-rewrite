@@ -375,3 +375,10 @@ menemukan assertion default literal yang mengasumsikan format MySQL. Test diperb
 untuk menerima literal ber-kutip MariaDB; nilai metadata asli tidak diubah.
 Verifikasi ulang digabungkan dengan CI export berikutnya. Import CSV dengan
 preview/mapping, laporan partial failure, dan round-trip masih tahap berikutnya.
+
+Export CSV di-push pada `81b6f11`. Run 39748176141:
+https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39748176141.
+MySQL 8.4, MariaDB 11.4, macOS dan Windows sudah lulus; Ubuntu masih memasang
+paket desktop saat catatan ini dibuat. Assertion Structure MariaDB kini lulus.
+Build Mac lokal sudah diperbarui dan server/schema fixture dibersihkan.
+Export melalui dialog GUI belum diuji langsung; import CSV belum diimplementasikan.

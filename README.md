@@ -378,9 +378,16 @@ dibaca. Export mengikuti timeout operasi 60 detik, tanpa batas total 500 baris U
 Batas isi sel ter-encode satu baris 4 MiB diperiksa setelah driver membaca baris;
 satu BLOB besar tetap dapat memakai memori sementara lebih besar dari batas itu.
 Status sesi unverified harus diselesaikan dengan Commit/Rollback sebelum export.
+Jika transaksi aktif, file dapat memuat perubahan sesi yang belum di-commit.
+Timeout database tidak menjamin I/O filesystem yang macet langsung terhenti.
 
 Test lokal menguji 2.048 baris, NULL/empty/bytes/escape/angka presisi, file race,
 writer failure/cancel, cleanup dan oversized row. Dialog save native dan export
 melalui GUI pada ketiga OS masih perlu diverifikasi. Test Structure juga menerima
 [default literal ber-kutip MariaDB](https://mariadb.com/docs/server/reference/system-tables/information-schema/information-schema-tables/information-schema-columns-table)
 sesuai representasi asli server.
+
+[CI export CSV dan regresi Structure](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39748176141)
+untuk commit `81b6f11`: MySQL/MariaDB dan desktop macOS/Windows lulus; Ubuntu
+masih berjalan saat catatan ini dibuat. Uji dialog dan export langsung di GUI
+ketiga OS masih terbuka.
