@@ -116,7 +116,7 @@ export default function ConnectionForm({busy, onConnect, sidebarWidth, onSidebar
             <h2>FAVORITES</h2>
             <div className="favorites-list" role="list" aria-label="Saved connections">
                 {saved.map(p => <div role="listitem" key={p.id}><button title={`${p.host}:${p.port}`} className={`favorite ${selected === p.id ? 'selected' : ''}`} disabled={busy || saving || loading} onClick={() => choose(p.id)}><ToolbarIcon name="database" /><span>{p.name}</span></button></div>)}
-                {!loading && saved.length === 0 && <p className="sidebar-empty">No Favorites</p>}
+
             </div>
             <div className="sidebar-bottom">
                 <button aria-label="New connection" title="New connection" disabled={busy || saving} onClick={() => choose('')}>＋</button>
@@ -154,11 +154,14 @@ export default function ConnectionForm({busy, onConnect, sidebarWidth, onSidebar
                         <div className="form-row"><label htmlFor="known-hosts">Known Hosts:</label><input id="known-hosts" placeholder="Default: ~/.ssh/known_hosts" value={knownHosts} onChange={e => setKnownHosts(e.target.value)} /></div>
                         <p className="form-note">Host keys must already be trusted in known_hosts. Database Host is reached from the SSH server.</p>
                     </div>}
-                    <label className="remember-passwords"><input type="checkbox" checked={remember} disabled={!name.trim()} onChange={e => setRemember(e.target.checked)} /> Save passwords in OS credential store (requires named profile)</label>
+
                 </fieldset>
                 <div className="connection-actions"><button type="button" disabled={busy || saving || loading || !!storageError || !name.trim()} onClick={() => void save()}>{selected ? 'Save Changes' : 'Add to Favorites'}</button><button className="primary connect-button" type="submit" disabled={busy || saving}>{busy ? 'Connecting…' : 'Connect'}</button></div>
+                <details className="credential-store"><summary>Password storage</summary>
+                    <label className="remember-passwords"><input type="checkbox" checked={remember} disabled={!name.trim() || busy || saving} onChange={e => setRemember(e.target.checked)} /> Save passwords in OS credential store (requires named profile)</label>
                 <div className="credential-actions"><button type="button" disabled={!selected || busy || saving} onClick={() => void loadPasswords()}>Use saved passwords</button><button type="button" disabled={!selected || busy || saving} onClick={() => void forgetPasswords()}>Forget saved passwords</button></div>
                 <p className="form-note">Passwords are saved only when explicitly selected, never in profile files. { !tls && 'SSL is off; use only on a trusted local connection.'}</p>
+                </details>
                 {storageError && <div role="alert" className="notice">Profil tidak dapat dimuat: {storageError}. Koneksi tanpa profil tetap tersedia. <button type="button" disabled={loading} onClick={() => void retry()}>Coba lagi</button></div>}
                 {confirmDelete && <div className="notice" role="group" aria-label="Delete favorite confirmation">Hapus profil tersimpan ini? <button type="button" disabled={saving} onClick={() => void remove()}>Ya, hapus profil</button> <button type="button" disabled={saving} onClick={() => setConfirmDelete(false)}>Batal</button></div>}
                 {notice && <p role="status" className="form-notice">{notice}</p>}

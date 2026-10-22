@@ -12,7 +12,7 @@ import HistoryPanel from './HistoryPanel';
 import ResultGrid from './ResultGrid';
 
 function Workspace({tab, connectionName, onClose}: {tab: string; connectionName: string; onClose: () => Promise<void>}) {
-    const [sidebarWidth, setSidebarWidth] = useState(17);
+    const [sidebarWidth, setSidebarWidth] = useState(100 / 6);
     const [editorHeight, setEditorHeight] = useState(32);
     const lineNumbers = useRef<HTMLDivElement>(null);
     const [transaction, setTransaction] = useState('idle');
@@ -181,7 +181,7 @@ export default function App() {
     const [active, setActive] = useState('');
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState('');
-    const [sidebarWidth, setSidebarWidth] = useState(17);
+    const [sidebarWidth, setSidebarWidth] = useState(100 / 6);
     async function connect(connection: database.Connection) {
         setBusy(true); setMessage('');
         try { const id = await Connect(connection); setConnectionName(`${connection.user}@${connection.host}`); setTabs([id]); setActive(id); }

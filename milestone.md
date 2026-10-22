@@ -3,19 +3,21 @@
 Status: milestone 0 selesai. Implementasi milestone 1 dan CI sudah lulus;
 manual QA GUI Windows/Linux masih terbuka sebelum milestone 1 dinyatakan selesai.
 Repo: https://github.com/AdityaArgadinata/sequel-ace-rewrite.
-Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39745002743
-(commit kode `ab5e712`, diverifikasi 2026-10-22).
+Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39748176141
+(commit kode `81b6f11`, kelima job terverifikasi lulus 2026-10-22).
+Perubahan grid `0b5eb63` dan diagnostik koneksi sesudahnya baru diuji lokal;
+run ini bukan bukti CI untuk perubahan tersebut.
 
-## Ringkasan progres — 2026-10-21
+## Ringkasan progres — 2026-10-22
 
 | Milestone | Status | Sisa pekerjaan |
 | --- | --- | --- |
 | 0 — Fondasi dan CI | Selesai | Tidak ada |
 | 1 — Alur query pertama | Implementasi dan CI selesai | Smoke test GUI Windows dan Ubuntu |
-| 1A — Kesetaraan GUI Sequel Ace | Sedang dikerjakan; layout awal selesai | Referensi lengkap, detail visual/interaksi, overlay, dan GUI Windows/Linux |
+| 1A — Kesetaraan GUI Sequel Ace | Sedang dikerjakan; layout, interaksi grid dan Structure bertumpuk tersedia | Detail visual/interaksi, referensi light/dark, overlay, dan GUI Windows/Linux |
 | 2 — Penggunaan harian | Implementasi dan CI selesai | Manual QA GUI Windows/Linux; batas fitur didokumentasikan |
 | 3 — Pengubahan data | Implementasi dan CI selesai | Manual QA GUI tiga OS |
-| 4 — Struktur dan pertukaran data | Sedang dikerjakan | Structure/export CSV diimplementasikan; import dan migrasi belum |
+| 4 — Struktur dan pertukaran data | Sedang dikerjakan | Structure/export CSV dan CI selesai; QA GUI, import dan migrasi belum |
 | 5 — Beta Windows/Linux | Belum dimulai | Paket distribusi dan verifikasi rilis |
 
 Build/test CI sudah lulus pada ketiga OS. Ini belum membuktikan interaksi GUI
@@ -116,6 +118,11 @@ belum identik dengan aplikasi asli. Referensi dan perbedaan dicatat di
 - [x] Bangun kerangka workspace utama: posisi sidebar, toolbar, tab Content,
   Structure, Query, dan tampilan lain yang ada pada referensi. Tab yang fiturnya
   belum dibangun harus terlihat tidak tersedia, bukan berpura-pura berfungsi.
+- [x] Terapkan metrik ConnectionView.xib: sidebar awal 200 px pada lebar
+  1200 px, label 98 px, input 247×22 px, dan jarak field. Ukuran default
+  jendela menjadi 1200×710. Toolbar Mac 52 px menyatu dengan title bar;
+  render awal dan aksesibilitas kontrol diverifikasi pada salinan build.
+  Tab sesi diposisikan di bawah toolbar; belum diuji pada sesi aktif.
 - [ ] Samakan warna, ukuran/proporsi, jarak, tipografi, ikon, border, selection,
   hover, focus, dan keadaan disabled dengan aplikasi asli; periksa lisensi aset
   sebelum digunakan kembali.
@@ -136,7 +143,9 @@ belum identik dengan aplikasi asli. Referensi dan perbedaan dicatat di
   Kesamaan dengan seluruh interaksi asli dan QA resize manual belum terbukti.
 - [x] Susun Columns dan Indexes Structure secara bertumpuk dengan splitter;
   Foreign keys dan CREATE statement tetap tersedia. Build TypeScript/Mac lulus;
-  detail kolom native dan pemeriksaan visual panel masih terbuka.
+  smoke test fixture Mac memverifikasi empat kolom, PRIMARY index, dan
+  splitter keyboard 60% → 61%. Detail kolom native dan kesetaraan visual
+  panel masih terbuka.
 - [ ] Ikuti alur keyboard, pemilihan tabel/baris, resizing panel/kolom, serta
   menu konteks aplikasi asli untuk fitur yang sudah diimplementasikan.
 - [ ] Bandingkan screenshot berdampingan atau dengan overlay pada ukuran/skala
@@ -251,7 +260,9 @@ terkelola, DDL/CALL/statement transaksi manual ditolak untuk menghindari implici
   index, urutan composite FK, aturan ON UPDATE/DELETE, serta CREATE statement.
   Metadata berparameter dan read-only; metadata terpotong tidak diklaim lengkap.
   Unit/integration MySQL 5.7.44 lokal, frontend build dan build desktop Mac lulus.
-- [ ] Verifikasi CI perubahan Structure pada tiga OS dan dua database.
+- [x] Verifikasi CI perubahan Structure pada tiga OS dan dua database.
+  Run `39748176141` (`81b6f11`): kelima job lulus, termasuk assertion MariaDB
+  yang diperbaiki. Perubahan layout Structure berikutnya baru diuji lokal.
 - [ ] Manual QA GUI Structure pada tiga OS.
 - [x] Tambahkan export CSV secara streaming dengan penanganan tipe dan encoding.
   Export seluruh tabel tanpa batas 500 baris UI, buffering satu baris; UTF-8
@@ -259,7 +270,9 @@ terkelola, DDL/CALL/statement transaksi manual ditolak untuk menghindari implici
   sebagai teks. File sementara baru dipublikasikan setelah selesai, tanpa overwrite.
   Unit/integration lokal menguji 2.048 baris, presisi, escape, writer failure,
   cancel, batas baris, cleanup dan race tujuan file. Import round-trip belum dibuat.
-- [ ] Verifikasi CI export CSV serta dialog file/hasil export di GUI tiga OS.
+- [x] Verifikasi CI export CSV: run `39748176141` (`81b6f11`) lulus pada
+  macOS, Windows, Ubuntu, MySQL 8.4, dan MariaDB 11.4.
+- [ ] Verifikasi dialog file/hasil export CSV di GUI tiga OS.
 - [ ] Tambahkan import CSV dengan preview pemetaan kolom dan laporan kegagalan;
   jelaskan jika operasi hanya selesai sebagian.
 - [ ] Jika dibutuhkan untuk migrasi, tambahkan importer favorites Sequel Ace
@@ -390,3 +403,43 @@ MySQL 8.4, MariaDB 11.4, macOS dan Windows sudah lulus; Ubuntu masih memasang
 paket desktop saat catatan ini dibuat. Assertion Structure MariaDB kini lulus.
 Build Mac lokal sudah diperbarui dan server/schema fixture dibersihkan.
 Export melalui dialog GUI belum diuji langsung; import CSV belum diimplementasikan.
+
+## Catatan perbaikan koneksi — 2026-10-22
+
+- [x] Tambahkan konteks tahap handshake/authentication, ping, dan inisialisasi
+  sesi pada error koneksi. Error `invalid connection` menjelaskan kemungkinan
+  sambungan ditutup/respons tidak lengkap dan pemeriksaan endpoint/tunnel/log.
+  Test loopback mereproduksi server yang menutup handshake; password tidak
+  masuk pesan dan sesi gagal tidak tersimpan aktif.
+- [ ] Verifikasi ulang koneksi yang dilaporkan pengguna: pengguna memakai TCP/IP
+  ke 127.0.0.1:3306; greeting sudah pulih setelah restart, login GUI belum
+  dikonfirmasi. Perbaikan diagnostik bukan bukti penyebab
+  endpoint pengguna telah diselesaikan; konfigurasi/verifikasi TLS tetap.
+
+### Diagnosis TCP lokal pengguna
+
+- [x] Port 127.0.0.1:3306 dimiliki mysqld MySQL 5.7.44. Probe TCP read-only
+  tanpa autentikasi menerima EOF sebelum greeting. Log server pada waktu
+  diagnosis berulang kali mencatat `File Descriptor 1667 exceeded FD_SETSIZE=1024`.
+  Ini mengindikasikan kegagalan server sebelum autentikasi/TLS, bukan bukti
+  kesalahan password atau validasi form rewrite.
+- [x] Restart layanan MySQL lokal atas izin pengguna; Homebrew melaporkan
+  stop/start berhasil. Probe 127.0.0.1:3306 kembali menerima greeting MySQL
+  5.7.44 lengkap. Login dari GUI dengan kredensial pengguna masih perlu dicoba.
+
+## Audit checklist — 2026-10-22
+
+Checklist disesuaikan dengan bukti terkini, bukan hanya keberadaan implementasi.
+CI Structure/export sudah diverifikasi langsung: lima job run `39748176141`
+selesai sukses. Pemeriksaan dialog export dipisahkan karena belum dilakukan.
+Perubahan grid dan diagnostik koneksi lulus pemeriksaan lokal/build Mac;
+CI untuk perubahan terbaru belum diverifikasi. Login GUI pengguna setelah
+restart MySQL tetap terbuka. Milestone 1A dan QA Windows/Linux belum selesai.
+
+### Styling dari source asli
+
+Form/toolbar/sidebar diperbarui dari metrik XIB dan observasi native. Pengaturan
+credential dipindah ke bagian Password storage yang dapat dibuka. Frontend
+4 test, typecheck/build produksi, Go unit test dan build desktop Mac lulus.
+Pemeriksaan final grouping credential, light theme, workspace terhubung dan
+Windows/Linux masih terbuka. Ini bukan penutupan milestone 1A.

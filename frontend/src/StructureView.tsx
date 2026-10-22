@@ -1,9 +1,8 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useId, useState} from 'react';
 import {Structure} from '../wailsjs/go/main/App';
 import {database} from '../wailsjs/go/models';
 import ResultGrid from './ResultGrid';
 import Splitter from './Splitter';
-import {useId} from 'react';
 
 type Props = {tab: string; databaseName: string; table: string; busy: boolean; operation: (work: () => Promise<void>) => Promise<void>};
 export default function StructureView({tab, databaseName, table, busy, operation}: Props) {

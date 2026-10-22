@@ -35,14 +35,14 @@ Status: first layout implementation; **not pixel-identical or accepted as comple
 
 ## Known differences and unfinished work
 
-- Native title bar is retained. An inset/full-content toolbar experiment could
-  not be verified with native accessibility, so it was reverted. The native app
-  has a unified toolbar; this difference is not yet accepted as parity.
+- Mac now uses a full-content inset title bar with an 80 px toolbar allowance
+  for native window buttons. Render and accessibility were checked in a separate
+  test bundle. Windows/Linux retain their platform frame; those are unverified.
 - SVG toolbar symbols are newly drawn approximations, not the original system
   symbols. Icon shapes, disabled opacity, font metrics, selection and exact
   spacing still require measured comparison.
-- Rewrite's default window is 1200×760; observed native connection reference was
-  approximately 1200×710. Size/scale must be standardized for golden comparison.
+- Default window is now 1200×710, matching the observed native reference.
+  Complete same-scale golden comparisons are still pending.
 - Query, Content and read-only Structure are functional. Relations, Triggers,
   Table Info, table history, Users and Console remain unavailable. Query history
   metadata has its own toolbar control; this differs from the original Console.
@@ -129,3 +129,26 @@ rows, click + Down selecting the second row, context-menu copy of DECIMAL
 to Down (60→61%). Pointer resizing, clipboard failure, and Windows/Linux GUI
 were not manually verified in this pass. Go unit tests also passed; server
 integration suites requiring environment variables were skipped. No raw user query/data was used in the comparison.
+
+## Source-derived styling — 2026-10-22
+
+Read `ConnectionView.xib`: sidebar frame 200 px, label frames 98 px, text
+fields 247×22 px, standard system fonts and semantic AppKit colors. CSS now
+uses these metrics rather than stretching inputs. Initial sidebar is 16⅔%
+(200 px at 1200 px); it remains adjustable. Native dark reference and XIB are
+complementary: the source uses semantic colors, not fixed cross-platform RGB.
+Existing light/dark tokens remain approximations, not measured color parity.
+
+Mac title bar and 52 px toolbar share one region. Document tabs move below
+that toolbar, active toolbar labels use accent color, sidebar rows and field
+spacing are compact, empty Favorites stays blank, and the table icon is tinted.
+The native default size observed (1200×710) is now used. Credential controls
+are grouped under Password storage to keep the main connection form compact;
+this is a documented functional extension, not an original AppKit control.
+
+An isolated copy of the first styling build showed the unified toolbar and
+unobscured fields/Connect button; accessibility exposed fields, splitters and
+native window buttons after focusing the WebView. Final credential grouping
+was typechecked/built but not re-inspected in the GUI. Connected tab positioning,
+minimum size, light appearance, and Windows/Linux rendering still need manual QA.
+No original asset was copied; drawn SVG icons remain approximations.

@@ -7,6 +7,7 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/mac"
 )
 
 //go:embed all:frontend/dist
@@ -20,9 +21,10 @@ func main() {
 	err := wails.Run(&options.App{
 		Title:      "Sequel Rewrite",
 		Width:      1200,
-		Height:     760,
+		Height:     710,
 		MinWidth:   800,
 		MinHeight:  600,
+		Mac:        &mac.Options{TitleBar: mac.TitleBarHiddenInset()},
 		OnShutdown: app.shutdown,
 		OnStartup:  app.startup,
 		AssetServer: &assetserver.Options{
