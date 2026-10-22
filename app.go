@@ -157,3 +157,11 @@ func (a *App) Transaction(tab, action string) error {
 	}
 	return s.Transaction(action)
 }
+
+func (a *App) Structure(tab, db, table string) (database.Structure, error) {
+	s, err := a.workspace.Session(tab)
+	if err != nil {
+		return database.Structure{}, err
+	}
+	return s.Structure(db, table)
+}

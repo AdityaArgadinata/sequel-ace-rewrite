@@ -7,6 +7,7 @@ import ConnectionForm from './ConnectionForm';
 import ToolbarIcon from './ToolbarIcon';
 import Splitter from './Splitter';
 import ContentBrowser from './ContentBrowser';
+import StructureView from './StructureView';
 import HistoryPanel from './HistoryPanel';
 import ResultGrid from './ResultGrid';
 
@@ -24,7 +25,7 @@ function Workspace({tab, connectionName, onClose}: {tab: string; connectionName:
     const [sql, setSQL] = useState('SELECT VERSION(), DATABASE(), CONNECTION_ID();');
     const [tableFilter, setTableFilter] = useState('');
     const [selectedTable, setSelectedTable] = useState('');
-    const [view, setView] = useState<'query' | 'content'>('query');
+    const [view, setView] = useState<'query' | 'content' | 'structure'>('query');
     const [showHistory, setShowHistory] = useState(false);
     const [recordHistory, setRecordHistory] = useState(false);
     const [result, setResult] = useState<database.Result | null>(null);
@@ -137,7 +138,7 @@ function Workspace({tab, connectionName, onClose}: {tab: string; connectionName:
                 <strong className="connection-title" title={connectionName}>{connected ? connectionName : 'Sequel Rewrite'}</strong>
                 <label className="database-picker"><select aria-label="Select Database" value={selectedDB} disabled={!connected || busy} onChange={e => void chooseDatabase(e.target.value)}><option value="" disabled>Choose Database…</option>{databases.map(name => <option key={name} value={name}>{name}</option>)}</select><span>Select Database</span></label>
                 <nav className="view-toolbar" aria-label="Database views">
-                    {(['structure', 'content', 'relations', 'triggers', 'info', 'query'] as const).map((icon, i) => <button key={icon} disabled={(icon !== 'query' && icon !== 'content') || !connected || busy || (icon === 'content' && !selectedTable)} aria-current={icon === view && connected ? 'page' : undefined} title={icon === 'query' || icon === 'content' ? icon : 'Not available yet'} onClick={() => { if (icon === 'query' || icon === 'content') setView(icon); }}><ToolbarIcon name={icon} /><span>{['Structure','Content','Relations','Triggers','Table Info','Query'][i]}</span></button>)}
+                    {(['structure', 'content', 'relations', 'triggers', 'info', 'query'] as const).map((icon, i) => <button key={icon} disabled={(icon !== 'query' && icon !== 'content' && icon !== 'structure') || !connected || busy || (icon !== 'query' && !selectedTable)} aria-current={icon === view && connected ? 'page' : undefined} title={icon === 'query' || icon === 'content' || icon === 'structure' ? icon : 'Not available yet'} onClick={() => { if (icon === 'query' || icon === 'content' || icon === 'structure') setView(icon); }}><ToolbarIcon name={icon} /><span>{['Structure','Content','Relations','Triggers','Table Info','Query'][i]}</span></button>)}
                 </nav>
                 <div className="history-tools"><div><button disabled aria-label="Back">‹</button><button disabled aria-label="Forward">›</button></div><span>Table History</span></div>
                 <button className="toolbar-item" disabled title="User Manager is not available yet"><ToolbarIcon name="users"/><span>Users</span></button>
@@ -155,11 +156,11 @@ function Workspace({tab, connectionName, onClose}: {tab: string; connectionName:
                 <aside id={`tables-panel-${tab}`} className="tables-sidebar" aria-label="Tables" style={{flexBasis: `${sidebarWidth}%`}}>
                     <input className="table-search" type="search" aria-label="Filter tables" placeholder="Filter" value={tableFilter} onChange={e => setTableFilter(e.target.value)} />
                     <h2>TABLES</h2>
-                    <div className="table-list">{tables.filter(name => name.toLowerCase().includes(tableFilter.toLowerCase())).map(name => <button key={name} className={`table-name ${selectedTable === name ? 'selected' : ''}`} disabled={busy} onClick={() => { setSelectedTable(name); setSQL(`SELECT * FROM \`${selectedDB.replaceAll('`', '``')}\`.\`${name.replaceAll('`', '``')}\` LIMIT 100;`); setView('content'); }}><ToolbarIcon name="content"/><span>{name}</span></button>)}</div>
+                    <div className="table-list">{tables.filter(name => name.toLowerCase().includes(tableFilter.toLowerCase())).map(name => <button key={name} className={`table-name ${selectedTable === name ? 'selected' : ''}`} disabled={busy} onClick={() => { setSelectedTable(name); setSQL(`SELECT * FROM \`${selectedDB.replaceAll('`', '``')}\`.\`${name.replaceAll('`', '``')}\` LIMIT 100;`); setView(previous => previous === 'structure' ? 'structure' : 'content'); }}><ToolbarIcon name="content"/><span>{name}</span></button>)}</div>
                     <div className="sidebar-bottom"><button disabled aria-label="Add table unavailable">＋</button><button title="Refresh databases and tables" aria-label="Refresh databases and tables" disabled={busy} onClick={() => void refreshSchema()}>↻</button><button title="Disconnect" disabled={busy} onClick={() => void onClose()}>Disconnect</button></div>
                 </aside>
                 <Splitter label="Tables sidebar width" controls={`tables-panel-${tab}`} axis="x" value={sidebarWidth} min={15} max={35} onChange={setSidebarWidth} />
-                {view === 'content' && connected && selectedTable ? <ContentBrowser key={`${selectedDB}:${selectedTable}`} tab={tab} databaseName={selectedDB} table={selectedTable} busy={busy} operation={operation} /> : <section className="query-workspace" aria-label="Query">
+                {view === 'structure' && connected && selectedTable ? <StructureView key={`${selectedDB}:${selectedTable}`} tab={tab} databaseName={selectedDB} table={selectedTable} busy={busy} operation={operation} /> : view === 'content' && connected && selectedTable ? <ContentBrowser key={`${selectedDB}:${selectedTable}`} tab={tab} databaseName={selectedDB} table={selectedTable} busy={busy} operation={operation} /> : <section className="query-workspace" aria-label="Query">
                     <div className="query-heading"><span>Query</span><label><input type="checkbox" checked={recordHistory} onChange={e => setRecordHistory(e.target.checked)} /> Record history (metadata only)</label><span>One SQL statement</span></div>
                     <div id={`editor-panel-${tab}`} className="sql-editor" style={{flexBasis: `${editorHeight}%`}}><div ref={lineNumbers} className="line-numbers" aria-hidden="true">{sql.split('\n').map((_, i) => <div key={i}>{i+1}</div>)}</div><textarea id={`sql-${tab}`} wrap="off" onScroll={e => { if (lineNumbers.current) lineNumbers.current.scrollTop = e.currentTarget.scrollTop; }} aria-label="SQL query" value={sql} onChange={e => setSQL(e.target.value)} spellCheck={false} disabled={busy} onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); if (!busy && connected && sql.trim()) void run(); } }} /></div>
                     <Splitter label="SQL editor height" controls={`editor-panel-${tab}`} axis="y" value={editorHeight} min={20} max={65} onChange={setEditorHeight} />

@@ -14,8 +14,8 @@ Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/action
 | 1 — Alur query pertama | Implementasi dan CI selesai | Smoke test GUI Windows dan Ubuntu |
 | 1A — Kesetaraan GUI Sequel Ace | Sedang dikerjakan; layout awal selesai | Referensi lengkap, detail visual/interaksi, overlay, dan GUI Windows/Linux |
 | 2 — Penggunaan harian | Implementasi dan CI selesai | Manual QA GUI Windows/Linux; batas fitur didokumentasikan |
-| 3 — Pengubahan data | Implementasi; verifikasi berlangsung | CI terbaru dan manual QA GUI |
-| 4 — Struktur dan pertukaran data | Belum dimulai | Metadata struktur, import/export, dan migrasi |
+| 3 — Pengubahan data | Implementasi dan CI selesai | Manual QA GUI tiga OS |
+| 4 — Struktur dan pertukaran data | Sedang dikerjakan | Structure diimplementasikan; CSV dan migrasi belum |
 | 5 — Beta Windows/Linux | Belum dimulai | Paket distribusi dan verifikasi rilis |
 
 Build/test CI sudah lulus pada ketiga OS. Ini belum membuktikan interaksi GUI
@@ -232,12 +232,18 @@ dikonfirmasi tidak dilaporkan sukses. SQL manual membuat status unverified;
 selesaikan melalui Commit/Rollback sebelum row editor/Begin. Dalam transaksi
 terkelola, DDL/CALL/statement transaksi manual ditolak untuk menghindari implicit commit.
 
-- [ ] Verifikasi CI terbaru tiga OS dan integration MySQL 8.4/MariaDB 11.4.
+- [x] Verifikasi CI terbaru tiga OS dan integration MySQL 8.4/MariaDB 11.4.
+  Run 39745002743 (`ab5e712`) selesai: kelima job lulus, termasuk Ubuntu.
 - [ ] Manual QA GUI insert/edit/delete, konflik dan transaksi pada tiga OS.
 
 ## Milestone 4 — Struktur dan pertukaran data
 
-- [ ] Tampilkan struktur kolom, index, primary key, dan foreign key.
+- [x] Tampilkan struktur kolom, index, primary key, dan foreign key.
+  Tab Structure juga menampilkan default/comment/generated expression, prefix
+  index, urutan composite FK, aturan ON UPDATE/DELETE, serta CREATE statement.
+  Metadata berparameter dan read-only; metadata terpotong tidak diklaim lengkap.
+  Unit/integration MySQL 5.7.44 lokal, frontend build dan build desktop Mac lulus.
+- [ ] Verifikasi CI perubahan Structure dan manual QA GUI tiga OS.
 - [ ] Tambahkan export CSV secara streaming dengan penanganan tipe dan encoding.
 - [ ] Tambahkan import CSV dengan preview pemetaan kolom dan laporan kegagalan;
   jelaskan jika operasi hanya selesai sebagian.
@@ -326,3 +332,16 @@ berjalan pada pemasangan dependensi desktop saat catatan ini dibuat; checklist
 CI tiga OS tetap terbuka. Manual QA GUI editor/transaksi pada ketiga OS belum
 dilakukan. Panduan: `docs/milestone-3-qa.md`. Server/schema fixture lokal sudah
 dibersihkan; tidak ada perubahan terhadap database pengguna.
+
+## Progres milestone 4 — Structure
+
+Tab Structure berisi Columns, Indexes/Primary key, Foreign keys dan CREATE
+statement, dengan reload eksplisit. Pemilihan tabel saat berada di Structure
+mempertahankan tampilan Structure. Setiap query catalog dibatasi 500 baris/4 MiB;
+jika terpotong, snapshot tidak ditampilkan dan sesi perlu dihubungkan ulang.
+Informasi catalog diambil lewat beberapa query: concurrent DDL dapat mengubah
+metadata di antaranya, sehingga ini bukan snapshot schema transaksional.
+Test lokal mencakup backtick pada nama tabel, PK/index prefix, default/comment/
+generated column, FK composite beserta urutan/rule, view, tabel tidak ditemukan,
+serta metadata melebihi batas. Export/import CSV dan migrasi favorites belum
+diimplementasikan; eksekusi SQL tetap satu statement.

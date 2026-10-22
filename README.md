@@ -329,3 +329,17 @@ nontransaksional atau sistem eksternal tidak dijamin dapat dibatalkan.
 Test lokal mencakup composite key, binary/NULL/quotes, konflik dua sesi termasuk
 perubahan huruf besar/kecil, insert/update/delete, commit/rollback, serta simulasi
 koneksi terputus tanpa replay. GUI Windows/Linux tetap perlu diuji langsung.
+
+## Struktur tabel — milestone 4
+
+Pilih database/tabel, lalu klik **Structure**. Subbagian Columns, Indexes / Primary
+key, Foreign keys, serta CREATE statement bersifat read-only. **Reload structure**
+memuat metadata terbaru, termasuk urutan composite foreign key dan aturan
+ON UPDATE/DELETE. Functional index dapat memiliki COLUMN_NAME NULL; lihat CREATE
+statement untuk ekspresi lengkapnya. View juga didukung sesuai izin server.
+
+Batas metadata tetap 500 baris / 4 MiB per query. Jika terpotong, aplikasi menolak
+menampilkan snapshot lengkap dan meminta reconnect. Catalog dibaca dalam beberapa
+query, bukan snapshot transaksional saat concurrent DDL. CSV export/import dan
+importer favorites belum tersedia. Test fixture lokal mencakup batas hasil,
+identifier ber-backtick, generated column, prefix index, FK composite dan view.

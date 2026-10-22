@@ -45,6 +45,8 @@ export function SaveProfile(arg1:profiles.Profile):Promise<profiles.Profile>;
 
 export function StreamQuery(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<database.Result>;
 
+export function Structure(arg1:string,arg2:string,arg3:string):Promise<database.Structure>;
+
 export function TableDetails(arg1:string,arg2:string,arg3:string):Promise<database.TableDetails>;
 
 export function Tables(arg1:string,arg2:string):Promise<database.Result>;

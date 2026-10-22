@@ -43,7 +43,7 @@ Status: first layout implementation; **not pixel-identical or accepted as comple
   spacing still require measured comparison.
 - Rewrite's default window is 1200×760; observed native connection reference was
   approximately 1200×710. Size/scale must be standardized for golden comparison.
-- Query and read-only Content are functional. Structure, Relations, Triggers,
+- Query, Content and read-only Structure are functional. Relations, Triggers,
   Table Info, table history, Users and Console remain unavailable. Query history
   metadata has its own toolbar control; this differs from the original Console.
 - Socket, favorite colors, preselected database, configurable time zone,

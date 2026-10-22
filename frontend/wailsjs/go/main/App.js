@@ -82,6 +82,10 @@ export function StreamQuery(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['StreamQuery'](arg1, arg2, arg3, arg4);
 }
 
+export function Structure(arg1, arg2, arg3) {
+  return window['go']['main']['App']['Structure'](arg1, arg2, arg3);
+}
+
 export function TableDetails(arg1, arg2, arg3) {
   return window['go']['main']['App']['TableDetails'](arg1, arg2, arg3);
 }
