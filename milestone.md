@@ -15,7 +15,7 @@ Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/action
 | 1A — Kesetaraan GUI Sequel Ace | Sedang dikerjakan; layout awal selesai | Referensi lengkap, detail visual/interaksi, overlay, dan GUI Windows/Linux |
 | 2 — Penggunaan harian | Implementasi dan CI selesai | Manual QA GUI Windows/Linux; batas fitur didokumentasikan |
 | 3 — Pengubahan data | Implementasi dan CI selesai | Manual QA GUI tiga OS |
-| 4 — Struktur dan pertukaran data | Sedang dikerjakan | Structure diimplementasikan; CSV dan migrasi belum |
+| 4 — Struktur dan pertukaran data | Sedang dikerjakan | Structure/export CSV diimplementasikan; import dan migrasi belum |
 | 5 — Beta Windows/Linux | Belum dimulai | Paket distribusi dan verifikasi rilis |
 
 Build/test CI sudah lulus pada ketiga OS. Ini belum membuktikan interaksi GUI
@@ -245,7 +245,13 @@ terkelola, DDL/CALL/statement transaksi manual ditolak untuk menghindari implici
   Unit/integration MySQL 5.7.44 lokal, frontend build dan build desktop Mac lulus.
 - [ ] Verifikasi CI perubahan Structure pada tiga OS dan dua database.
 - [ ] Manual QA GUI Structure pada tiga OS.
-- [ ] Tambahkan export CSV secara streaming dengan penanganan tipe dan encoding.
+- [x] Tambahkan export CSV secara streaming dengan penanganan tipe dan encoding.
+  Export seluruh tabel tanpa batas 500 baris UI, buffering satu baris; UTF-8
+  Sequel CSV v1 membedakan NULL/empty/binary/backslash dan mempertahankan angka
+  sebagai teks. File sementara baru dipublikasikan setelah selesai, tanpa overwrite.
+  Unit/integration lokal menguji 2.048 baris, presisi, escape, writer failure,
+  cancel, batas baris, cleanup dan race tujuan file. Import round-trip belum dibuat.
+- [ ] Verifikasi CI export CSV serta dialog file/hasil export di GUI tiga OS.
 - [ ] Tambahkan import CSV dengan preview pemetaan kolom dan laporan kegagalan;
   jelaskan jika operasi hanya selesai sebagian.
 - [ ] Jika dibutuhkan untuk migrasi, tambahkan importer favorites Sequel Ace
@@ -351,3 +357,21 @@ Implementasi Structure di-push sebagai `edb701f`; CI masih berjalan saat catatan
 ini dibuat: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39746801936.
 Build Mac lokal telah diperbarui. Manual GUI Structure belum diperiksa langsung;
 keberhasilan build tidak dianggap sebagai kesetaraan visual dengan Sequel Ace.
+
+## Progres milestone 4 — export CSV
+
+Tombol Content **Export entire table CSV** memakai dialog simpan native. Export
+mengabaikan filter/sort/pagination UI dan memuat seluruh tabel/view yang dipilih.
+File UTF-8 ber-header memakai dialect Sequel CSV v1; lihat README. Export meminta
+nama baru dan tidak menimpa file lama. Publikasi memakai hard link file sementara
+di direktori tujuan; filesystem tanpa hard-link support belum didukung.
+Operasi mengikuti timeout sesi 60 detik dan batas 4 MiB isi sel ter-encode per
+baris; driver tetap membaca satu baris utuh sebelum batas dapat diperiksa.
+Cancel/error saat masih membaca membuang sesi agar rows.Close tidak menguras
+seluruh hasil. Tidak ada file hasil parsial yang dianggap sukses.
+
+CI Structure sebelumnya (39746801936): build tiga OS dan MySQL lulus, MariaDB
+menemukan assertion default literal yang mengasumsikan format MySQL. Test diperbaiki
+untuk menerima literal ber-kutip MariaDB; nilai metadata asli tidak diubah.
+Verifikasi ulang digabungkan dengan CI export berikutnya. Import CSV dengan
+preview/mapping, laporan partial failure, dan round-trip masih tahap berikutnya.

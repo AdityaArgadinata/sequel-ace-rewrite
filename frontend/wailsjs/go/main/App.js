@@ -42,6 +42,10 @@ export function Disconnect() {
   return window['go']['main']['App']['Disconnect']();
 }
 
+export function ExportTableCSV(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ExportTableCSV'](arg1, arg2, arg3);
+}
+
 export function ListHistory() {
   return window['go']['main']['App']['ListHistory']();
 }

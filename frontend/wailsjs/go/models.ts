@@ -315,6 +315,25 @@ export namespace history {
 
 }
 
+export namespace main {
+
+	export class CSVExport {
+	    rows: number;
+	    cancelled: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new CSVExport(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.rows = source["rows"];
+	        this.cancelled = source["cancelled"];
+	    }
+	}
+
+}
+
 export namespace profiles {
 
 	export class Profile {

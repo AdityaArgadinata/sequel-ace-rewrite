@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react';
-import {Browse, TableDetails, Mutate} from '../wailsjs/go/main/App';
+import {Browse, TableDetails, Mutate, ExportTableCSV} from '../wailsjs/go/main/App';
 import {database} from '../wailsjs/go/models';
 import ResultGrid from './ResultGrid';
 import RowEditor from './RowEditor';
@@ -29,6 +29,15 @@ export default function ContentBrowser({tab, databaseName, table, busy, operatio
             setDetails(await TableDetails(tab, databaseName, table));
             const output = await Browse(tab, new database.BrowseRequest({database: databaseName, table, offset: next, limit, column, operator, value, sort, descending}));
             setResult(output); setColumns(output.columns); setOffset(next); setApplied(signature);
+        });
+    }
+    async function exportCSV() {
+        await operation(async () => {
+            setWriteMessage('');
+            try {
+                const output = await ExportTableCSV(tab, databaseName, table);
+                setWriteMessage(output.cancelled ? 'Export cancelled.' : `Exported ${output.rows} rows from the entire table (filters and pagination are not applied).`);
+            } catch (error) { setWriteMessage('Export failed; no completed export file was published.'); throw error; }
         });
     }
     async function write(action: 'insert' | 'update' | 'delete', values: Record<string, database.Cell> = {}) {
@@ -70,7 +79,7 @@ export default function ContentBrowser({tab, databaseName, table, busy, operatio
             <label><input type="checkbox" disabled={busy} checked={descending} onChange={e => setDescending(e.target.checked)} /> Desc</label>
             <button disabled={busy}>Apply</button>
         </form></fieldset>
-        <div className="content-actions">
+        <div className="content-actions"><button disabled={busy || !!editor || confirmDelete} onClick={() => void exportCSV()}>Export entire table CSV</button>
             <button disabled={busy || !details?.editable || !!editor || confirmDelete || dirty} onClick={() => { setEditor('insert'); setWriteMessage(''); }}>Insert row</button>
             <button disabled={busy || !details?.editable || selected < 0 || !!editor || confirmDelete || dirty} onClick={() => { setEditor('update'); setWriteMessage(''); }}>Edit row</button>
             <button disabled={busy || !details?.editable || selected < 0 || !!editor || confirmDelete || dirty} onClick={() => setConfirmDelete(true)}>Delete row</button>
@@ -81,6 +90,6 @@ export default function ContentBrowser({tab, databaseName, table, busy, operatio
         {writeMessage && <p className="form-note" role="status">{writeMessage}</p>}
         <ResultGrid result={result} busy={busy || !!editor || confirmDelete} selected={selected} onSelect={details?.editable ? setSelected : undefined} />
         <div className="results-footer"><fieldset className="content-controls" disabled={!!editor || confirmDelete}><button disabled={busy || dirty || offset === 0} onClick={() => void load(Math.max(0, offset-limit))}>Previous</button> <button disabled={busy || dirty || !result || result.rows.length < limit || offset+limit>10000000} onClick={() => void load(offset+limit)}>Next</button> <select aria-label="Rows per page" disabled={busy} value={limit} onChange={e => { setLimit(Number(e.target.value)); setResult(null); setOffset(0); }} >{[25,50,100,200].map(n => <option key={n} value={n}>{n} rows</option>)}</select> <button disabled={busy} onClick={() => void load(0)}>Reload</button></fieldset><span>Offset {offset} · {result?.rows.length ?? 0} rows · {result?.durationMS ?? 0} ms</span></div>
-        <p className="form-note">Choose a unique sort column for stable pages. Concurrent changes can shift rows between pages.</p>
+        <p className="form-note">CSV uses Sequel CSV v1 for database round-trip; spreadsheet apps may interpret formulas. Choose a unique sort column for stable pages. Concurrent changes can shift rows between pages.</p>
     </section>;
 }

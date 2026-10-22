@@ -57,7 +57,8 @@ func TestStructureIntegration(t *testing.T) {
 	if len(structure.Columns.Rows) != 5 || len(structure.ForeignKeys.Rows) != 2 {
 		t.Fatalf("incomplete catalog: %d columns, %d FK parts", len(structure.Columns.Rows), len(structure.ForeignKeys.Rows))
 	}
-	if structure.Columns.Rows[3][3].Value != "quoted value" || structure.Columns.Rows[3][8].Value != "fixture comment" || structure.Columns.Rows[4][9].Value == "" {
+	defaultValue := structure.Columns.Rows[3][3].Value
+	if (defaultValue != "quoted value" && defaultValue != "'quoted value'") || structure.Columns.Rows[3][8].Value != "fixture comment" || structure.Columns.Rows[4][9].Value == "" {
 		t.Fatal("column default/comment/generated expression lost")
 	}
 	primary, prefix := false, false

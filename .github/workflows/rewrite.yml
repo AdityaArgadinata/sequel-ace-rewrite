@@ -44,7 +44,7 @@ jobs:
         working-directory: frontend
       - name: Check Go formatting
         run: |
-          unformatted="$(gofmt -l app.go main.go internal)"
+          unformatted="$(gofmt -l app.go main.go export.go internal)"
           if [ -n "$unformatted" ]; then
             printf '%s\n' "$unformatted"
             exit 1

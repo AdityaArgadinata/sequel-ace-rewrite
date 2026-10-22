@@ -343,3 +343,44 @@ menampilkan snapshot lengkap dan meminta reconnect. Catalog dibaca dalam beberap
 query, bukan snapshot transaksional saat concurrent DDL. CSV export/import dan
 importer favorites belum tersedia. Test fixture lokal mencakup batas hasil,
 identifier ber-backtick, generated column, prefix index, FK composite dan view.
+
+## Export CSV — milestone 4
+
+Di Content, klik **Export entire table CSV**, lalu pilih nama file baru. Seluruh
+tabel/view diekspor; filter, sort dan halaman UI tidak diterapkan. Export berjalan
+bertahap di Go tanpa mengumpulkan seluruh tabel atau mengirimkannya ke React.
+Import CSV belum tersedia.
+
+Format **Sequel CSV v1**: UTF-8 tanpa BOM, separator koma, header nama kolom,
+quoting standar CSV. Nilai sel memakai penanda berikut agar round-trip tidak
+menggabungkan tipe yang berbeda:
+
+| Nilai | Representasi |
+| --- | --- |
+| SQL NULL | `\N` |
+| Teks kosong | `\E` |
+| Binary | `\B` diikuti hex; binary kosong adalah `\B` |
+| Backslash teks | `\\` |
+| CR / LF / tab pada teks | `\r` / `\n` / `\t` |
+| Angka/date/decimal/teks lain | Teks server tanpa konversi floating point |
+
+Contoh: teks literal `\N` menjadi `\\N`, berbeda dari SQL NULL. Penanda teks
+kosong juga menjaga baris satu kolom kosong agar tidak hilang sebagai blank line.
+Format ini untuk pertukaran data database, bukan mode spreadsheet-safe: aplikasi
+spreadsheet dapat menafsirkan nilai yang dimulai dengan tanda formula.
+
+File sementara mode 0600 pada POSIX ditulis/sync/close dahulu, kemudian
+dipublikasikan tanpa overwrite melalui hard link di direktori yang sama.
+Filesystem tanpa hard-link support (misalnya beberapa volume FAT) tidak didukung;
+pilih filesystem yang mendukungnya. File yang sudah ada ditolak. Error/cancel
+menghapus file sementara; sesi dibuang jika masih ada hasil database yang belum
+dibaca. Export mengikuti timeout operasi 60 detik, tanpa batas total 500 baris UI.
+Batas isi sel ter-encode satu baris 4 MiB diperiksa setelah driver membaca baris;
+satu BLOB besar tetap dapat memakai memori sementara lebih besar dari batas itu.
+Status sesi unverified harus diselesaikan dengan Commit/Rollback sebelum export.
+
+Test lokal menguji 2.048 baris, NULL/empty/bytes/escape/angka presisi, file race,
+writer failure/cancel, cleanup dan oversized row. Dialog save native dan export
+melalui GUI pada ketiga OS masih perlu diverifikasi. Test Structure juga menerima
+[default literal ber-kutip MariaDB](https://mariadb.com/docs/server/reference/system-tables/information-schema/information-schema-tables/information-schema-columns-table)
+sesuai representasi asli server.
