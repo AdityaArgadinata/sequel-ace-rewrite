@@ -201,3 +201,24 @@ from AppKit but a light GUI render was not captured. Four frontend tests,
 TypeScript/Vite production build, Go unit tests and packaged Mac build passed.
 Server integration suites were skipped without fixture environment variables.
 Windows/Linux GUI and same-scale overlays remain open.
+
+## Workspace layout from DBView.xib — 2026-10-22
+
+See `source-ui-map.md` for the element IDs, sizes, source files and remaining
+behavior differences. Content actions/pagination now sit below the grid; filter
+and sort are hidden until toggled. The selected read-only row can also be copied;
+selection does not enable writes on ineligible tables. Delete confirmation and
+mutation guards remain in place. Duplicate is visibly unavailable, not a fake
+action. CSV export remains explicit and Content information explains its scope.
+
+Query starts with the editor instead of an extra heading. Its 130/145 px
+favorites/history controls and 200×22 run control follow the XIB action strip;
+favorites stays disabled and history is accurately labeled metadata-only.
+The extra transaction strip was moved into a status-bar popover while keeping
+transaction state and existing Begin/Commit/Rollback checks. Native 214 px table
+sidebar width is used initially at 1200 px. Structure headers use native display
+labels while metadata identifiers and values remain unchanged.
+
+Four frontend tests, TypeScript/Vite build, Go unit tests and packaged Mac build
+passed. Desktop workspace smoke testing was blocked by CUA AX frame errors;
+no connected layout verification is claimed. Test fixture cleanup completed.

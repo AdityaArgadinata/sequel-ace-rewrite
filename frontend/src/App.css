@@ -733,3 +733,38 @@ td.null,.empty-value {
 .grid-context-menu button:hover,.grid-context-menu button:focus-visible { background:var(--active-selection); color:var(--selection-text); }
 .row-editor,.delete-confirmation { border-color:var(--border); background:var(--surface); }
 .transaction-controls { border-bottom-color:var(--separator); }
+
+/* DBView.xib: 25 px content actions, recessed query menus and 200x22 run control. */
+.query-workspace { position:relative; }
+.content-controls[hidden] { display:none; }
+.content-bottom-bar { flex-shrink:0; display:flex; align-items:center; flex-wrap:wrap; gap:4px; min-height:25px; padding:0 27px 0 2px; background:var(--surface); border-top:1px solid var(--separator); font-size:11px; }
+.content-bottom-bar .content-actions { padding:0; gap:3px; flex-wrap:nowrap; }
+.content-actions button { height:25px; min-width:25px; padding:0 4px; border:0; border-radius:0; background:transparent; }
+.content-actions button[aria-label="Insert row"],.content-actions button[aria-label="Delete row"],.content-actions button[aria-label="Edit row"],.content-actions button[aria-label="Reload content"],.content-actions button[aria-label="Duplicate row unavailable"] { width:25px; font-size:17px; }
+.content-actions>span { max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.content-row-count { flex:1; min-width:45px; }
+.content-bottom-bar>.content-controls { display:flex; align-items:center; gap:3px; }
+.content-bottom-bar select { max-width:82px; font-size:11px; }
+.content-bottom-bar .page-status { font-size:10px; color:var(--muted); }
+.content-info { position:absolute; bottom:3px; right:7px; z-index:3; font-size:11px; }
+.content-info>summary { list-style:none; cursor:pointer; }
+.content-info>p { position:absolute; bottom:15px; right:0; width:300px; max-width:70vw; padding:10px; background:var(--surface); border:1px solid var(--border); box-shadow:0 3px 10px #0004; border-radius:4px; }
+.content-filter { min-height:30px; padding:3px 6px; border-bottom:1px solid var(--separator); }
+.query-actions { min-height:30px; padding:2px 6px; gap:6px; }
+.query-tools { align-items:center; gap:5px; }
+.query-tools button { background:transparent; border-color:transparent; font-size:11px; height:25px; padding:0 6px; }
+.query-tools button:first-child { width:130px; }
+.query-tools button:nth-child(2) { width:145px; }
+.query-tools label { white-space:nowrap; font-size:10px; }
+.query-actions .primary { width:200px; height:22px; min-height:22px; padding:1px 8px; text-align:left; }
+.query-actions>span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.transaction-menu { position:relative; flex-shrink:0; font-size:11px; }
+.transaction-menu summary { cursor:pointer; }
+.transaction-menu .transaction-controls { position:absolute; left:0; bottom:22px; z-index:10; width:340px; max-width:80vw; padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:5px; box-shadow:0 3px 12px #0005; }
+.transaction-controls>span { flex-basis:100%; }
+@media(max-width:1050px) {
+    .query-tools button:first-child,.query-tools button:nth-child(2) { width:auto; }
+    .query-actions .primary { width:160px; }
+    .query-actions>span { display:none; }
+    .content-bottom-bar .page-status { display:none; }
+}

@@ -12,7 +12,7 @@ import HistoryPanel from './HistoryPanel';
 import ResultGrid from './ResultGrid';
 
 function Workspace({tab, connectionName, onClose}: {tab: string; connectionName: string; onClose: () => Promise<void>}) {
-    const [sidebarWidth, setSidebarWidth] = useState(100 / 6);
+    const [sidebarWidth, setSidebarWidth] = useState(214 / 12);
     const [editorHeight, setEditorHeight] = useState(32);
     const lineNumbers = useRef<HTMLDivElement>(null);
     const [transaction, setTransaction] = useState('idle');
@@ -144,13 +144,6 @@ function Workspace({tab, connectionName, onClose}: {tab: string; connectionName:
                 <button className="toolbar-item" disabled title="User Manager is not available yet"><ToolbarIcon name="users"/><span>Users</span></button>
                 <button className="toolbar-item" onClick={() => setShowHistory(v => !v)} title="Query history (metadata only)"><ToolbarIcon name="console"/><span>History</span></button>
             </header>
-            <div className="transaction-controls" aria-label="Transaction controls">
-                <span role="status">Transaction: {transaction === 'unverified' ? 'unverified after SQL/error — use Commit/Rollback' : transaction}</span>
-                <button disabled={busy || !connected || transaction !== 'idle'} onClick={() => void transactionAction('begin')}>Begin</button>
-                <button disabled={busy || !connected || transaction === 'idle'} onClick={() => void transactionAction('commit')}>Commit</button>
-                <button disabled={busy || !connected || transaction === 'idle'} onClick={() => void transactionAction('rollback')}>Rollback</button>
-                <span>Rollback applies to transactional tables. Closing a session discards uncommitted work.</span>
-            </div>
             {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} />}
             <div className="workspace">
                 <aside id={`tables-panel-${tab}`} className="tables-sidebar" aria-label="Tables" style={{flexBasis: `${sidebarWidth}%`}}>
@@ -161,15 +154,22 @@ function Workspace({tab, connectionName, onClose}: {tab: string; connectionName:
                 </aside>
                 <Splitter label="Tables sidebar width" controls={`tables-panel-${tab}`} axis="x" value={sidebarWidth} min={15} max={35} onChange={setSidebarWidth} />
                 {view === 'structure' && connected && selectedTable ? <StructureView key={`${selectedDB}:${selectedTable}`} tab={tab} databaseName={selectedDB} table={selectedTable} busy={busy} operation={operation} /> : view === 'content' && connected && selectedTable ? <ContentBrowser key={`${selectedDB}:${selectedTable}`} tab={tab} databaseName={selectedDB} table={selectedTable} busy={busy} operation={operation} /> : <section className="query-workspace" aria-label="Query">
-                    <div className="query-heading"><span>Query</span><label><input type="checkbox" checked={recordHistory} onChange={e => setRecordHistory(e.target.checked)} /> Record history (metadata only)</label><span>One SQL statement</span></div>
+
                     <div id={`editor-panel-${tab}`} className="sql-editor" style={{flexBasis: `${editorHeight}%`}}><div ref={lineNumbers} className="line-numbers" aria-hidden="true">{sql.split('\n').map((_, i) => <div key={i}>{i+1}</div>)}</div><textarea id={`sql-${tab}`} wrap="off" onScroll={e => { if (lineNumbers.current) lineNumbers.current.scrollTop = e.currentTarget.scrollTop; }} aria-label="SQL query" value={sql} onChange={e => setSQL(e.target.value)} spellCheck={false} disabled={busy} onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); if (!busy && connected && sql.trim()) void run(); } }} /></div>
                     <Splitter label="SQL editor height" controls={`editor-panel-${tab}`} axis="y" value={editorHeight} min={20} max={65} onChange={setEditorHeight} />
-                    <div className="query-actions"><span>{result ? `${result.rows.length} rows` : 'No query executed'}{result?.truncated ? ' · Truncated' : ''}</span><div>{busy && <button aria-label="Cancel query" onClick={() => { void Cancel(tab).catch(error => setMessage(String(error))); }}>Cancel</button>}<button className="primary" disabled={busy || !connected || !sql.trim()} onClick={() => void run()}>Run Query <span className="shortcut">⌘/Ctrl ↵</span></button></div></div>
+                    <div className="query-actions"><div className="query-tools"><button disabled title="SQL favorites are not available yet">Query Favorites</button><button onClick={() => setShowHistory(v => !v)} title="Execution metadata only; SQL text is not stored">History (metadata)</button><label title="Record execution metadata only; SQL text is never stored"><input type="checkbox" checked={recordHistory} onChange={e => setRecordHistory(e.target.checked)} /> Record</label></div><span>{result ? `${result.rows.length} rows` : 'No query executed'}{result?.truncated ? ' · Truncated' : ''}</span><div>{busy && <button aria-label="Cancel query" onClick={() => { void Cancel(tab).catch(error => setMessage(String(error))); }}>Cancel</button>}<button className="primary" disabled={busy || !connected || !sql.trim()} onClick={() => void run()}>Run Query <span className="shortcut">⌘/Ctrl ↵</span></button></div></div>
                     <ResultGrid result={result} busy={busy} />
                     <div className="results-footer"><span>{result ? `${result.rows.length} rows loaded` : '0 rows'}{result ? (busy ? ' · running' : ` · ${result.durationMS} ms`) : ''}</span><span>Read-only result grid</span></div>
                 </section>}
             </div>
-            <footer className="status-bar"><span className={`connection-dot ${connected ? 'online' : ''}`} /><span role="status" title={message}>{message}</span>{busy && <button aria-label="Cancel operation" onClick={() => { void Cancel(tab).catch(error => setMessage(String(error))); }}>Cancel</button>}</footer>
+            <footer className="status-bar">
+                <details className="transaction-menu"><summary>Transaction: {transaction}</summary><div className="transaction-controls" aria-label="Transaction controls">
+                <span role="status">Transaction: {transaction === 'unverified' ? 'unverified after SQL/error — use Commit/Rollback' : transaction}</span>
+                <button disabled={busy || !connected || transaction !== 'idle'} onClick={() => void transactionAction('begin')}>Begin</button>
+                <button disabled={busy || !connected || transaction === 'idle'} onClick={() => void transactionAction('commit')}>Commit</button>
+                <button disabled={busy || !connected || transaction === 'idle'} onClick={() => void transactionAction('rollback')}>Rollback</button>
+                <span>Rollback applies to transactional tables. Closing a session discards uncommitted work.</span>
+            </div></details><span className={`connection-dot ${connected ? 'online' : ''}`} /><span role="status" title={message}>{message}</span>{busy && <button aria-label="Cancel operation" onClick={() => { void Cancel(tab).catch(error => setMessage(String(error))); }}>Cancel</button>}</footer>
         </main>
     );
 }

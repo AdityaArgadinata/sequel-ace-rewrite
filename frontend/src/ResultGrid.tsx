@@ -3,7 +3,7 @@ import {ClipboardSetText} from '../wailsjs/runtime/runtime';
 import {database} from '../wailsjs/go/models';
 import {columnWidth, selectedRow} from './grid-navigation';
 
-export default function ResultGrid({result, busy, selected, onSelect}: {result: database.Result | null; busy: boolean; selected?: number; onSelect?: (row: number) => void}) {
+export default function ResultGrid({result, busy, selected, onSelect, columnLabels}: {result: database.Result | null; busy: boolean; selected?: number; onSelect?: (row: number) => void; columnLabels?: Record<string, string>}) {
     const [selection, setSelection] = useState(-1);
     const [widths, setWidths] = useState<Record<string, number>>({});
     const [menu, setMenu] = useState<{row: number; column: number; x: number; y: number} | null>(null);
@@ -33,8 +33,8 @@ export default function ResultGrid({result, busy, selected, onSelect}: {result: 
         {copyError && <div role="alert">{copyError}</div>}
         {result && result.columns.length ? <table style={{width:result.columns.reduce((total, _, i) => total + widthFor(i), 0)}}>
             <colgroup>{result.columns.map((_, i) => <col key={i} style={{width:widthFor(i)}} />)}</colgroup>
-            <thead><tr>{result.columns.map((column, i) => <th key={i} title={column.type}>{column.name}
-                <span className="column-resizer" role="separator" tabIndex={0} aria-label={`Resize ${column.name} column`} aria-orientation="vertical" aria-valuemin={48} aria-valuemax={800} aria-valuenow={widthFor(i)}
+            <thead><tr>{result.columns.map((column, i) => <th key={i} title={column.type}>{columnLabels?.[column.name] ?? column.name}
+                <span className="column-resizer" role="separator" tabIndex={0} aria-label={`Resize ${columnLabels?.[column.name] ?? column.name} column`} aria-orientation="vertical" aria-valuemin={48} aria-valuemax={800} aria-valuenow={widthFor(i)}
                     onKeyDown={event => {
                         const next = event.key === 'Home' ? 48 : event.key === 'End' ? 800 : event.key === 'ArrowLeft' ? widthFor(i)-10 : event.key === 'ArrowRight' ? widthFor(i)+10 : undefined;
                         if (next !== undefined) { event.preventDefault(); setWidths(current => ({...current, [keyFor(i)]:columnWidth(next)})); }

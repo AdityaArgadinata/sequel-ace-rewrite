@@ -129,6 +129,12 @@ belum identik dengan aplikasi asli. Referensi dan perbedaan dicatat di
   Ikon SVG sendiri mengikuti nama simbol toolbar di source; bukan salinan
   artwork Apple. Render dark koneksi, 4 test frontend, unit Go, dan build Mac
   lulus. Rincian warna, provenance, lisensi dan batas ada di docs/gui-parity.md.
+- [x] Petakan DBView.xib/ContentPaginationView.xib ke komponen workspace
+  (`docs/source-ui-map.md`): aksi Content di bawah grid, filter toggle,
+  action strip Query berukuran acuan XIB, sidebar tabel awal 214 px dan label
+  Structure. Transaksi dipindah ke status bar dengan status tetap terlihat.
+  Test/build lulus; smoke test workspace terhalang error frame CUA dan belum
+  dihitung sebagai verifikasi visual atau interaksi.
 - [ ] Samakan warna, ukuran/proporsi, jarak, tipografi, ikon, border, selection,
   hover, focus, dan keadaan disabled dengan aplikasi asli; periksa lisensi aset
   sebelum digunakan kembali.
@@ -460,3 +466,13 @@ Build Mac lokal terbaru tersedia. Butir kesetaraan penuh tetap terbuka:
 source-list vibrancy, bentuk glyph persis, light render, focus/selection grid
 aktif dan overlay belum terverifikasi; aksesibilitas gagal saat uji focus ring.
 Tidak mengklaim kesamaan penuh atau QA Windows/Linux selesai.
+
+### Pemetaan UI workspace dari codebase asli
+
+DBView.xib, IndexesView.xib dan ContentPaginationView.xib dibaca untuk frame,
+label, tooltip, simbol dan susunan panel. Perubahan diterapkan ke Content,
+Query, Structure dan status bar. Source map serta perbedaan perilaku tersisa
+tersimpan di docs/source-ui-map.md. Build Mac lokal sudah diperbarui; empat
+test frontend, typecheck/build dan unit Go lulus. Fixture TLS terpisah disiapkan
+lalu dibersihkan karena otomasi GUI gagal pada akses frame input; alur workspace
+baru belum diverifikasi manual. Kesetaraan penuh dan QA OS tujuan tetap terbuka.
