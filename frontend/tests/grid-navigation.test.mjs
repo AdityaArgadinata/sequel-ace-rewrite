@@ -32,11 +32,11 @@ test('grid copy/menu shortcuts ignore typing, composition and modifier conflicts
 });
 
 test('content widths fit names/types and values while bounding long or NULL cells', () => {
-    assert.equal(fittedColumnWidth({name:'id',type:'INT'}, [{value:'9'}]), 51.5);
+    assert.equal(fittedColumnWidth({name:'id',type:'INT'}, [{value:'9'}]), 56);
     assert.equal(fittedColumnWidth({name:'email',type:'VARCHAR'}, [{value:'a@b.com'}]), 170);
     assert.equal(fittedColumnWidth({name:'post_date',type:'DATETIME'}, []), 156);
     const cells = [{value:'123.4500'}, {value:'ignored'.repeat(100),null:true}];
-    assert.equal(fittedColumnWidth({name:'amount',type:'DECIMAL'}, cells), 93.5);
+    assert.equal(fittedColumnWidth({name:'amount',type:'DECIMAL'}, cells), 106);
     assert.equal(cells[0].value, '123.4500');
     assert.equal(fittedColumnWidth({name:'payload',type:'TEXT'}, [{value:'x'.repeat(10000)}]), 260);
 });

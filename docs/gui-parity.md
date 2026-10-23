@@ -342,3 +342,9 @@ as `ui-checks-<runner>` artifacts; failures block distribution release creation.
 Browser engine tests complement native testing; they do not certify all OS/font,
 GTK theme, scaling, screen reader or platform dialog combinations. The original
 native popup menu and macOS wallpaper material remain platform-provided.
+
+CI screenshot review also found a type label clipped in a default Content header
+under Linux WebKit's wider font metrics. Initial header width estimates now
+reserve more space, and the UI tests assert that the fixture's header name/type
+text fits before any manual resize. Long identifiers still intentionally cap at
+260 px and can be resized. SQL values and column metadata are unchanged.

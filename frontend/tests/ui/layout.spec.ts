@@ -32,6 +32,8 @@ for (const viewport of [{width:800,height:600},{width:1280,height:720},{width:14
         await expect(page.getByRole('combobox',{name:'Filter operator',exact:true})).toHaveValue('=');
         const toolbar=await page.getByRole('button',{name:'Console',exact:true}).boundingBox();
         expect(toolbar!.x+toolbar!.width).toBeLessThanOrEqual(viewport.width);
+        const headers=await page.locator('.content-grid th:not(.grid-filler)').evaluateAll(nodes => nodes.map(node => ({name:node.textContent,width:node.clientWidth,content:node.scrollWidth})));
+        for (const header of headers) expect(header.content,header.name ?? '').toBeLessThanOrEqual(header.width);
         await page.locator('tbody tr').nth(4).click();
         await screenshot(page,info,'content');
         await page.getByRole('textbox',{name:'Filter value',exact:true}).fill('8');

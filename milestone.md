@@ -588,3 +588,7 @@ also reviewed. Local Chromium/WebKit checks passed (14), frontend unit tests (9)
 and frontend build passed. The desktop CI jobs now run both test engines on all
 three OSes and retain screenshots. A new alpha.2 package build is being prepared;
 cross-OS run results will be recorded after verification.
+The first cross-OS run passed (42 UI checks plus desktop/database jobs). Reviewing
+the Linux WebKit screenshots found one additional initial header-width issue;
+its spacing estimate and UI assertion were corrected before regenerating alpha.2.
+The corrected build passed 14 local UI checks and 9 frontend unit tests.
