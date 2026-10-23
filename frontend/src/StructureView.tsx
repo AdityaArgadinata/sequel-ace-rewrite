@@ -3,6 +3,7 @@ import {Structure} from '../wailsjs/go/main/App';
 import {database} from '../wailsjs/go/models';
 import ResultGrid from './ResultGrid';
 import Splitter from './Splitter';
+import {workspaceShortcut} from './workspace-shortcuts';
 import {indexOrder, reorderColumns, structureWidths, indexWidths} from './structure-columns';
 
 // Display labels match DBView.xib; metadata identifiers and values stay intact.
@@ -32,7 +33,10 @@ export default function StructureView({tab, databaseName, table, busy, operation
     }
     useEffect(() => { void load(); }, []);
     const result = structure?.[section] ?? null;
-    return <section className="query-workspace" aria-label="Table structure">
+    return <section className="query-workspace" aria-label="Table structure" onKeyDown={event => {
+        if (workspaceShortcut(event.nativeEvent, /Mac/.test(navigator.platform)) !== 'refresh') return;
+        event.preventDefault(); if (!busy) void load();
+    }}>
         <div className="query-heading"><strong>{databaseName}.{table}</strong><span>Read-only structure</span><button disabled={busy} onClick={() => void load()}>Reload structure</button></div>
         <div className="structure-sections" role="group" aria-label="Structure sections">{(['columns','foreignKeys','definition'] as const).map((name, i) => <button key={name} disabled={busy} aria-pressed={section === name} onClick={() => setSection(name)}>{['Columns & Indexes','Foreign keys','CREATE statement'][i]}</button>)}</div>
         {error && <p role="alert" className="notice">{error}</p>}

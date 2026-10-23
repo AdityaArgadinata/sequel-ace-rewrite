@@ -5,6 +5,8 @@ test('grid navigation starts at first row, clamps and ignores unrelated keys', (
     assert.equal(selectedRow('ArrowDown', -1, 3), 0);
     assert.equal(selectedRow('ArrowUp', 0, 3), 0);
     assert.equal(selectedRow('ArrowDown', 2, 3), 2);
+    assert.equal(selectedRow('ArrowUp', 99, 3), 2);
+    assert.equal(selectedRow('ArrowDown', -5, 3), 0);
     assert.equal(selectedRow('Home', 2, 3), 0);
     assert.equal(selectedRow('End', 0, 3), 2);
     assert.equal(selectedRow('End', 0, 0), undefined);

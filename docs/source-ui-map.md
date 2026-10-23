@@ -48,3 +48,21 @@ values remain textual instead of being silently shown as false. Each panel has
 a 25 px action strip, with schema writes disabled and column reload functional.
 A new Node test proves header/value association, NULL and extra metadata survive
 reordering without mutating the input. Visual desktop verification remains open.
+
+## Keyboard follow-up — 2026-10-23
+
+`MainMenu.xib` View menu items 497/499/500 map Cmd+1/2/6 to Structure,
+Content and Query. Content's native Cmd+R refresh and Cmd+F/Option+Cmd+F filter
+focus are implemented; Structure supports Cmd+R too. Control replaces Command
+on Windows/Linux. Native shortcuts for unsupported views remain unimplemented.
+Handlers bubble within the focused workspace, not globally across mounted hidden
+tabs. Refresh/filter are ignored while busy, editing a row or confirming delete.
+Content refresh preserves offset unless pending filter changes require page one.
+SQL is not replayed by refresh. Filter focus uses a ref after the hidden controls
+are revealed. Toolbar tooltips expose the available view shortcuts.
+
+Two Node tests cover platform modifiers, supported commands, IME, repeat,
+additional modifiers and unsupported views. Grid tests now also cover stale
+selection indices after a shorter result replaces the old one. Seven frontend
+tests, typecheck/build, Go unit tests and Mac package build passed locally.
+Native keyboard delivery, minimum size and Windows/Linux GUI remain unverified.

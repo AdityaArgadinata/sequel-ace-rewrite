@@ -10,6 +10,7 @@ import ContentBrowser from './ContentBrowser';
 import StructureView from './StructureView';
 import HistoryPanel from './HistoryPanel';
 import ResultGrid from './ResultGrid';
+import {workspaceShortcut} from './workspace-shortcuts';
 
 function Workspace({tab, connectionName, onClose}: {tab: string; connectionName: string; onClose: () => Promise<void>}) {
     const [sidebarWidth, setSidebarWidth] = useState(214 / 12);
@@ -133,12 +134,18 @@ function Workspace({tab, connectionName, onClose}: {tab: string; connectionName:
     }
 
     return (
-        <main className="app-shell">
+        <main className="app-shell" onKeyDown={event => {
+            if (event.defaultPrevented) return;
+            const action = workspaceShortcut(event.nativeEvent, /Mac/.test(navigator.platform));
+            if (action !== 'structure' && action !== 'content' && action !== 'query') return;
+            event.preventDefault();
+            if (!busy && connected && (action === 'query' || selectedTable)) setView(action);
+        }}>
             <header className="main-toolbar">
                 <strong className="connection-title" title={connectionName}>{connected ? connectionName : 'Sequel Rewrite'}</strong>
                 <label className="database-picker"><select aria-label="Select Database" value={selectedDB} disabled={!connected || busy} onChange={e => void chooseDatabase(e.target.value)}><option value="" disabled>Choose Database…</option>{databases.map(name => <option key={name} value={name}>{name}</option>)}</select><span>Select Database</span></label>
                 <nav className="view-toolbar" aria-label="Database views">
-                    {(['structure', 'content', 'relations', 'triggers', 'info', 'query'] as const).map((icon, i) => <button key={icon} disabled={(icon !== 'query' && icon !== 'content' && icon !== 'structure') || !connected || busy || (icon !== 'query' && !selectedTable)} aria-current={icon === view && connected ? 'page' : undefined} title={icon === 'query' || icon === 'content' || icon === 'structure' ? icon : 'Not available yet'} onClick={() => { if (icon === 'query' || icon === 'content' || icon === 'structure') setView(icon); }}><ToolbarIcon name={icon} /><span>{['Structure','Content','Relations','Triggers','Table Info','Query'][i]}</span></button>)}
+                    {(['structure', 'content', 'relations', 'triggers', 'info', 'query'] as const).map((icon, i) => <button key={icon} disabled={(icon !== 'query' && icon !== 'content' && icon !== 'structure') || !connected || busy || (icon !== 'query' && !selectedTable)} aria-current={icon === view && connected ? 'page' : undefined} title={icon === 'query' ? 'Query (⌘/Ctrl+6)' : icon === 'content' ? 'Content (⌘/Ctrl+2)' : icon === 'structure' ? 'Structure (⌘/Ctrl+1)' : 'Not available yet'} onClick={() => { if (icon === 'query' || icon === 'content' || icon === 'structure') setView(icon); }}><ToolbarIcon name={icon} /><span>{['Structure','Content','Relations','Triggers','Table Info','Query'][i]}</span></button>)}
                 </nav>
                 <div className="history-tools"><div><button disabled aria-label="Back">‹</button><button disabled aria-label="Forward">›</button></div><span>Table History</span></div>
                 <button className="toolbar-item" disabled title="User Manager is not available yet"><ToolbarIcon name="users"/><span>Users</span></button>

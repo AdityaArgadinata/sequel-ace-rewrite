@@ -163,6 +163,12 @@ belum identik dengan aplikasi asli. Referensi dan perbedaan dicatat di
   smoke test fixture Mac memverifikasi empat kolom, PRIMARY index, dan
   splitter keyboard 60% → 61%. Detail kolom native dan kesetaraan visual
   panel masih terbuka.
+- [x] Terapkan shortcut dari MainMenu.xib untuk fitur tersedia: ⌘1/2/6
+  (Structure/Content/Query), ⌘R (Content/Structure), ⌘F dan ⌥⌘F (filter Content).
+  Windows/Linux memakai Ctrl; repeat/IME/modifier tambahan diabaikan. Busy,
+  editor baris dan konfirmasi delete tetap mengunci refresh/filter. Shortcut
+  hanya ditangani workspace fokus, tanpa listener global pada tab tersembunyi.
+  Tujuh test frontend, unit Go dan build Mac lulus; smoke test desktop belum.
 - [ ] Ikuti alur keyboard, pemilihan tabel/baris, resizing panel/kolom, serta
   menu konteks aplikasi asli untuk fitur yang sudah diimplementasikan.
 - [ ] Bandingkan screenshot berdampingan atau dengan overlay pada ukuran/skala
@@ -481,3 +487,14 @@ tersimpan di docs/source-ui-map.md. Build Mac lokal sudah diperbarui; empat
 test frontend, typecheck/build dan unit Go lulus. Fixture TLS terpisah disiapkan
 lalu dibersihkan karena otomasi GUI gagal pada akses frame input; alur workspace
 baru belum diverifikasi manual. Kesetaraan penuh dan QA OS tujuan tetap terbuka.
+
+## Progres GUI 1A — 2026-10-23
+
+Shortcut menu native diterapkan untuk tampilan yang tersedia, reload metadata/
+Content dan fokus filter. Refresh Content mempertahankan halaman jika filter
+belum berubah; perubahan filter memulai dari halaman pertama. Query tidak
+pernah dijalankan ulang oleh shortcut refresh. Navigasi grid juga dibatasi
+ulang bila result set baru lebih pendek dari selection sebelumnya.
+Tujuh test frontend, typecheck/build, unit Go dan build Mac lokal lulus.
+Verifikasi CI perubahan GUI terkumpul akan dijalankan setelah push ke origin
+rewrite; belum menjadi bukti manual GUI Windows/Linux.
