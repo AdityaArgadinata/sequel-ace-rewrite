@@ -524,3 +524,7 @@ berpindah keluar grid saat clipboard selesai, fokus pengguna tidak direbut.
 Delapan test frontend, typecheck/build, unit Go dan build Mac lokal lulus.
 GUI native, light/dark overlay serta Windows/Linux masih perlu pemeriksaan.
 CI terakhir terverifikasi di atas tetap untuk b4b5fc3, bukan perubahan terbaru ini.
+
+CI perubahan menu/CSS `95580b0` sudah dipicu:
+https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39897440014.
+Status saat pencatatan: queued; belum dicentang lulus untuk perubahan ini.
