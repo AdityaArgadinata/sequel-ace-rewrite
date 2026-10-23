@@ -238,3 +238,14 @@ Five frontend tests now pass, including a lossless reordering test. Typecheck/
 frontend build, Go unit tests and packaged Mac build are run for this change.
 The new layout has not been manually verified on desktop; XIB defaults and
 functional tests do not establish pixel equivalence or Windows/Linux GUI QA.
+
+## Latest cumulative CI — 2026-10-23
+
+Commit `b4b5fc3` includes the accumulated GUI, Structure presentation, connection
+diagnostics and native keyboard shortcuts. Run
+https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39896410477
+completed successfully in all five jobs: macOS 15, Windows Server 2022,
+Ubuntu 24.04, MySQL 8.4 and MariaDB 11.4. Desktop artifact upload succeeded.
+This supersedes earlier pending CI notes for those code changes. It does not
+supersede unperformed manual GUI checks, native shortcut delivery, light/dark
+same-scale overlays or the recorded CUA frame errors.

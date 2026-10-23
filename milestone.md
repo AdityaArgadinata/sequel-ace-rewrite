@@ -3,18 +3,18 @@
 Status: milestone 0 selesai. Implementasi milestone 1 dan CI sudah lulus;
 manual QA GUI Windows/Linux masih terbuka sebelum milestone 1 dinyatakan selesai.
 Repo: https://github.com/AdityaArgadinata/sequel-ace-rewrite.
-Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39748176141
-(commit kode `81b6f11`, kelima job terverifikasi lulus 2026-10-22).
-Perubahan grid `0b5eb63` dan diagnostik koneksi sesudahnya baru diuji lokal;
-run ini bukan bukti CI untuk perubahan tersebut.
+Run terverifikasi: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39896410477
+(commit kode `b4b5fc3`, kelima job lulus dan diverifikasi 2026-10-23).
+Mencakup perubahan styling, layout workspace, Structure, diagnostik koneksi
+serta shortcut yang terkumpul. Build/test bukan bukti kesetaraan visual.
 
-## Ringkasan progres — 2026-10-22
+## Ringkasan progres — 2026-10-23
 
 | Milestone | Status | Sisa pekerjaan |
 | --- | --- | --- |
 | 0 — Fondasi dan CI | Selesai | Tidak ada |
 | 1 — Alur query pertama | Implementasi dan CI selesai | Smoke test GUI Windows dan Ubuntu |
-| 1A — Kesetaraan GUI Sequel Ace | Sedang dikerjakan; layout, interaksi grid dan Structure bertumpuk tersedia | Detail visual/interaksi, referensi light/dark, overlay, dan GUI Windows/Linux |
+| 1A — Kesetaraan GUI Sequel Ace | Sedang dikerjakan; layout/grid/Structure/shortcut dan CI terbaru tersedia | Detail visual/interaksi, referensi light/dark, overlay, dan GUI Windows/Linux |
 | 2 — Penggunaan harian | Implementasi dan CI selesai | Manual QA GUI Windows/Linux; batas fitur didokumentasikan |
 | 3 — Pengubahan data | Implementasi dan CI selesai | Manual QA GUI tiga OS |
 | 4 — Struktur dan pertukaran data | Sedang dikerjakan | Structure/export CSV dan CI selesai; QA GUI, import dan migrasi belum |
@@ -169,6 +169,10 @@ belum identik dengan aplikasi asli. Referensi dan perbedaan dicatat di
   editor baris dan konfirmasi delete tetap mengunci refresh/filter. Shortcut
   hanya ditangani workspace fokus, tanpa listener global pada tab tersembunyi.
   Tujuh test frontend, unit Go dan build Mac lulus; smoke test desktop belum.
+- [x] Verifikasi CI seluruh perubahan GUI dan shortcut terbaru: run
+  `39896410477` (`b4b5fc3`) lulus desktop macOS 15, Windows Server 2022,
+  Ubuntu 24.04, serta integration MySQL 8.4/MariaDB 11.4. Artifact tiga OS
+  berhasil diunggah. GUI/overlay dan pengiriman shortcut native belum diuji.
 - [ ] Ikuti alur keyboard, pemilihan tabel/baris, resizing panel/kolom, serta
   menu konteks aplikasi asli untuk fitur yang sudah diimplementasikan.
 - [ ] Bandingkan screenshot berdampingan atau dengan overlay pada ukuran/skala
@@ -497,5 +501,5 @@ pernah dijalankan ulang oleh shortcut refresh. Navigasi grid juga dibatasi
 ulang bila result set baru lebih pendek dari selection sebelumnya.
 Tujuh test frontend, typecheck/build, unit Go dan build Mac lokal lulus.
 Perubahan GUI terkumpul sudah di-push ke origin rewrite. CI commit `b4b5fc3`
-sedang berjalan: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39896410477.
-Hasil belum dinyatakan lulus dan bukan bukti manual GUI Windows/Linux.
+lulus kelima job: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39896410477.
+Ini bukti build/test lintas OS, bukan manual GUI Windows/Linux.
