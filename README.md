@@ -391,3 +391,21 @@ sesuai representasi asli server.
 untuk commit `81b6f11`: MySQL/MariaDB dan desktop macOS/Windows lulus; Ubuntu
 masih berjalan saat catatan ini dibuat. Uji dialog dan export langsung di GUI
 ketiga OS masih terbuka.
+
+## Shortcut workspace
+
+Gunakan ⌘ pada Mac atau Ctrl pada Windows/Linux:
+
+| Shortcut | Aksi |
+| --- | --- |
+| ⌘/Ctrl+1 | Structure pada tabel terpilih |
+| ⌘/Ctrl+2 | Content pada tabel terpilih |
+| ⌘/Ctrl+6 | Query |
+| ⌘/Ctrl+R | Reload Content/Structure; tidak menjalankan ulang SQL Query |
+| ⌘/Ctrl+F | Buka dan fokuskan filter saat berada di Content |
+| ⌘/Ctrl+Enter | Jalankan satu statement di editor Query |
+
+Pada Mac, ⌥⌘F juga membuka filter Content sesuai menu Sequel Ace asli.
+Refresh/filter tidak mengganggu row editor atau konfirmasi delete yang terbuka.
+Jika hasil query baru lebih pendek, navigasi panah tetap dibatasi baris tersedia.
+Shortcut membutuhkan fokus di workspace; dukungan menu native penuh belum ada.

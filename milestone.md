@@ -496,5 +496,6 @@ belum berubah; perubahan filter memulai dari halaman pertama. Query tidak
 pernah dijalankan ulang oleh shortcut refresh. Navigasi grid juga dibatasi
 ulang bila result set baru lebih pendek dari selection sebelumnya.
 Tujuh test frontend, typecheck/build, unit Go dan build Mac lokal lulus.
-Verifikasi CI perubahan GUI terkumpul akan dijalankan setelah push ke origin
-rewrite; belum menjadi bukti manual GUI Windows/Linux.
+Perubahan GUI terkumpul sudah di-push ke origin rewrite. CI commit `b4b5fc3`
+sedang berjalan: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39896410477.
+Hasil belum dinyatakan lulus dan bukan bukti manual GUI Windows/Linux.
