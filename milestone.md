@@ -578,3 +578,13 @@ architectures, Linux executable permissions, and the released DMG checksum
 were verified. Files are also available locally in `dist/from-github/` (ignored
 by Git). Native installation/GUI tests on Windows/Linux and publisher signing /
 notarization remain open. The release is a draft pending the owner's publication.
+
+### Cross-platform UI control fix — 2026-10-23
+
+Linux dropdown text clipping is addressed through explicit shared control metrics
+and appearance. The form's global select selector was corrected. Search insets,
+small-window favorite labels, row-editor label spacing and menu overflow were
+also reviewed. Local Chromium/WebKit checks passed (14), frontend unit tests (9)
+and frontend build passed. The desktop CI jobs now run both test engines on all
+three OSes and retain screenshots. A new alpha.2 package build is being prepared;
+cross-OS run results will be recorded after verification.

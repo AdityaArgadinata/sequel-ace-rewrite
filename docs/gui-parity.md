@@ -313,3 +313,32 @@ it must not be treated as proof of wallpaper-dependent rendering. Frontend
 build and nine tests, plus Go unit tests passed. Native visual comparison
 against different wallpapers and Windows/Linux GUI QA remain open.
 The updated darwin/arm64 app also built and passed code-signature verification.
+
+## Cross-platform control rendering — 2026-10-23
+
+A Linux package screenshot showed database/filter select text clipped vertically.
+The compact controls used 18–20 px heights while allowing GTK's native select
+appearance and padding. A connection-form selector also unintentionally styled
+all selects. The shared `controls.css` now sets explicit appearance, 24 px field
+height, 18 px line height, text/background colors, and a portable select arrow.
+Native select semantics and keyboard interaction are retained. Checkbox and
+button surfaces are styled consistently; forced-colors mode retains native
+controls. The Content filter strip grows to 32 px to fit the controls.
+
+The review also corrected search-icon/text overlap after the field reset, narrow
+Quick Connect labels, row-editor checkbox spacing/wrapping, credential action
+wrapping and scroll limits for the Content options panel. Native macOS sidebar
+vibrancy is unchanged.
+
+Playwright 1.62.1 checks Connection/SSH/credentials, Content filter/sort controls,
+row editor, operation errors, Structure and Query/history in Chromium and WebKit.
+The 800×600, 1280×720 and 1408×1024 layouts verify readable control metrics,
+selected values, search insets, toolbar bounds, menu visibility and working filter
+requests. Tests use a synthetic Wails bridge, with no user database or vault.
+Fourteen local engine/layout checks, nine frontend unit tests and frontend build
+passed. CI now runs both engines on every desktop OS and uploads screenshots
+as `ui-checks-<runner>` artifacts; failures block distribution release creation.
+
+Browser engine tests complement native testing; they do not certify all OS/font,
+GTK theme, scaling, screen reader or platform dialog combinations. The original
+native popup menu and macOS wallpaper material remain platform-provided.

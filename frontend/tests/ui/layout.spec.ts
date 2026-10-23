@@ -1,0 +1,79 @@
+import {test,expect} from '@playwright/test';
+import {openApp,openContent,readableSelects,screenshot} from './fixture';
+
+for (const viewport of [{width:800,height:600},{width:1280,height:720},{width:1408,height:1024}]) {
+    test(`connection controls ${viewport.width}x${viewport.height}`,async ({page},info) => {
+        await page.setViewportSize(viewport);
+        await openApp(page);
+        await readableSelects(page);
+        const quick=await page.locator('.favorite.quick').evaluate(node => ({width:node.clientWidth,content:node.scrollWidth}));
+        expect(quick.content).toBeLessThanOrEqual(quick.width);
+        await screenshot(page,info,'connection');
+        await page.getByRole('button',{name:'SSH',exact:true}).click();
+        await page.getByText('Password storage',{exact:true}).click();
+        await page.locator('#ssh-host').fill('ssh.example.com');
+        await page.locator('#host').fill('database.example.com');
+        await expect(page.locator('#host')).toHaveValue('database.example.com');
+        await readableSelects(page);
+        await page.getByRole('button',{name:'Connect',exact:true}).scrollIntoViewIfNeeded();
+        const bounds=await page.getByRole('button',{name:'Connect',exact:true}).boundingBox();
+        expect(bounds!.y+bounds!.height).toBeLessThanOrEqual(viewport.height);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width);
+        await screenshot(page,info,'ssh-credentials');
+    });
+    test(`content dropdowns and filters ${viewport.width}x${viewport.height}`,async ({page},info) => {
+        await page.setViewportSize(viewport);
+        await openContent(page);
+        await readableSelects(page);
+        const search=await page.getByRole('searchbox',{name:'Filter tables',exact:true}).evaluate(node => parseFloat(getComputedStyle(node).paddingLeft));
+        expect(search).toBeGreaterThanOrEqual(25);
+        await expect(page.getByRole('combobox',{name:'Select Database',exact:true})).toHaveValue('mysql');
+        await expect(page.getByRole('combobox',{name:'Filter column',exact:true})).toHaveValue('id');
+        await expect(page.getByRole('combobox',{name:'Filter operator',exact:true})).toHaveValue('=');
+        const toolbar=await page.getByRole('button',{name:'Console',exact:true}).boundingBox();
+        expect(toolbar!.x+toolbar!.width).toBeLessThanOrEqual(viewport.width);
+        await page.locator('tbody tr').nth(4).click();
+        await screenshot(page,info,'content');
+        await page.getByRole('textbox',{name:'Filter value',exact:true}).fill('8');
+        await page.getByRole('button',{name:'Apply Filter(s)',exact:true}).click();
+        await expect(page.locator('tbody tr')).toHaveCount(1);
+        await page.getByRole('button',{name:'Disable filter',exact:true}).click();
+        await page.getByRole('button',{name:'Apply Filter(s)',exact:true}).click();
+        await expect(page.locator('tbody tr')).toHaveCount(6);
+        await page.getByLabel('Content options',{exact:true}).click();
+        await readableSelects(page);
+        await page.getByRole('combobox',{name:'Sort column',exact:true}).selectOption('post_date');
+        await page.getByLabel('Descending',{exact:true}).check();
+        await page.getByRole('button',{name:'Apply sort / page size',exact:true}).click();
+        await expect.poll(() => page.evaluate(() => (window as any).lastBrowse.sort)).toBe('post_date');
+        const menu=await page.locator('.content-options-panel').boundingBox();
+        expect(menu!.x).toBeGreaterThanOrEqual(0);
+        expect(menu!.y).toBeGreaterThanOrEqual(0);
+        await screenshot(page,info,'content-options');
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width);
+    });
+}
+
+test('row editor, errors, Structure and Query controls',async ({page},info) => {
+    await page.setViewportSize({width:1280,height:720});
+    await openContent(page);
+    await page.getByRole('button',{name:'Insert row',exact:true}).click();
+    await page.getByRole('checkbox',{name:'Write name',exact:true}).check();
+    await page.getByRole('textbox',{name:'Value name',exact:true}).fill('A long sample value with accents é and descenders gjpqy');
+    await expect(page.getByRole('textbox',{name:'Value name',exact:true})).toHaveValue('A long sample value with accents é and descenders gjpqy');
+    await screenshot(page,info,'row-editor');
+    await page.getByRole('button',{name:'Cancel',exact:true}).click();
+    await page.getByRole('textbox',{name:'Filter value',exact:true}).fill('force-error');
+    await page.getByRole('button',{name:'Apply Filter(s)',exact:true}).click();
+    await expect(page.getByRole('status').filter({hasText:'Fixture request failed'})).toBeVisible();
+    await screenshot(page,info,'error');
+    await page.getByRole('button',{name:'Structure',exact:true}).click();
+    await expect(page.getByRole('button',{name:'Columns & Indexes',exact:true})).toBeVisible();
+    await expect(page.locator('tbody tr')).toHaveCount(3);
+    await screenshot(page,info,'structure');
+    await page.getByRole('button',{name:'Query',exact:true}).click();
+    await expect(page.getByRole('textbox',{name:'SQL query',exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'History (metadata)',exact:true}).click();
+    await expect(page.getByRole('region',{name:'Query history',exact:true})).toBeVisible();
+    await screenshot(page,info,'query-history');
+});

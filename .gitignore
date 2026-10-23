@@ -7,3 +7,5 @@
 /dist/
 /staging/
 /build/windows/installer/tmp/
+/frontend/test-results/
+/frontend/playwright-report/

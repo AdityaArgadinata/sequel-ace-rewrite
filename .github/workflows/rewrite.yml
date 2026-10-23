@@ -121,6 +121,24 @@ jobs:
       - name: Typecheck and build frontend
         run: npm test && npm run build
         working-directory: frontend
+      - name: Install UI test engines
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            npx playwright install --with-deps chromium webkit
+          else
+            npx playwright install chromium webkit
+          fi
+        working-directory: frontend
+      - name: Verify UI controls and layout in Chromium and WebKit
+        run: npm run test:ui
+        working-directory: frontend
+      - name: Upload UI screenshots and failure traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-checks-${{ matrix.os }}
+          path: frontend/test-results/
+          if-no-files-found: ignore
       - name: Test and vet Go
         run: |
           if [ "$RUNNER_OS" = Linux ]; then

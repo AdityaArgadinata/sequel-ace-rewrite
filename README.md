@@ -405,6 +405,26 @@ not replace manual GUI tests; see [milestones](milestone.md),
 [GUI parity](docs/gui-parity.md), [daily-use QA](docs/milestone-2-qa.md), and
 [row-editing QA](docs/milestone-3-qa.md) for evidence and remaining work.
 
+### UI regression checks
+
+After installing frontend dependencies, install the pinned Playwright browsers
+and run the UI checks:
+
+```sh
+cd frontend
+npx playwright install chromium webkit
+npm run test:ui
+```
+
+On Ubuntu, use `npx playwright install --with-deps chromium webkit` to install
+browser system dependencies as well. CI runs Chromium and WebKit on macOS,
+Windows and Ubuntu, checking dropdown readability, field metrics, filters,
+small-window layout, editors and menus. Screenshots are saved in
+`frontend/test-results/` and uploaded as `ui-checks-<runner>` workflow artifacts.
+The tests use synthetic data and never connect to a real database or credential
+vault. Native dialogs, wallpaper materials and every OS/scaling combination
+still require platform testing.
+
 ### Optional database integration tests
 
 Use a **disposable localhost database server**. Tests create and delete uniquely
