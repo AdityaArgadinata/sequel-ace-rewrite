@@ -1,13 +1,13 @@
 // DBView.xib table 289 order. Preserve extra metadata returned by newer servers.
 export const indexOrder = ['NON_UNIQUE', 'INDEX_NAME', 'SEQ_IN_INDEX', 'COLUMN_NAME', 'COLLATION', 'CARDINALITY', 'SUB_PART', 'PACKED', 'COMMENT'];
 export const structureWidths: Record<string, number> = {
-    COLUMN_NAME:54.5, COLUMN_TYPE:69.5, IS_NULLABLE:57, COLUMN_KEY:48,
-    COLUMN_DEFAULT:48, EXTRA:65, CHARACTER_SET_NAME:48.5,
-    COLLATION_NAME:54.5, COLUMN_COMMENT:48, GENERATION_EXPRESSION:160,
+    COLUMN_NAME:145, COLUMN_TYPE:145, LENGTH:102, UNSIGNED:56, ZEROFILL:48,
+    BINARY:44, IS_NULLABLE:64, COLUMN_KEY:32, COLUMN_DEFAULT:115, EXTRA:145,
+    CHARACTER_SET_NAME:98, COLLATION_NAME:98, COLUMN_COMMENT:130,
 };
 export const indexWidths: Record<string, number> = {
-    NON_UNIQUE:73.5, INDEX_NAME:64.5, SEQ_IN_INDEX:77, COLUMN_NAME:85,
-    COLLATION:55.5, CARDINALITY:65.5, SUB_PART:56, PACKED:48, COMMENT:106,
+    NON_UNIQUE:90, INDEX_NAME:100, SEQ_IN_INDEX:92, COLUMN_NAME:140,
+    COLLATION:75, CARDINALITY:90, SUB_PART:70, PACKED:70, COMMENT:150,
 };
 
 export function reorderColumns<T extends {columns: {name: string}[]; rows: unknown[][]}>(result: T, order: string[]): T {

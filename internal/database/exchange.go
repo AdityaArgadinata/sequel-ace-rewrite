@@ -264,7 +264,7 @@ func (s *Session) ExportData(w io.Writer, spec SAExportSpec) (int64, error) {
 			if err := s.conn.QueryRowContext(ctx, "SELECT @@session.sql_mode").Scan(&mode); err != nil {
 				return 0, s.queryError(err)
 			}
-			if _, err := io.WriteString(w, "-- Sequel Rewrite table structure and data; review target names before importing.\n-- Source SQL_MODE: "+mode+"\nCREATE TABLE "+qualified(r.Database, r.Table)+" "+tail+";\n"); err != nil {
+			if _, err := io.WriteString(w, "-- sequelx table structure and data; review target names before importing.\n-- Source SQL_MODE: "+mode+"\nCREATE TABLE "+qualified(r.Database, r.Table)+" "+tail+";\n"); err != nil {
 				return 0, err
 			}
 		}

@@ -20,14 +20,15 @@ type SASchemaObject struct {
 	Definition string `json:"definition"`
 }
 type SASchemaChange struct {
-	Database   string `json:"database"`
-	Table      string `json:"table"`
-	Action     string `json:"action"`
-	Kind       string `json:"kind"`
-	Original   string `json:"original"`
-	Name       string `json:"name"`
-	IndexKind  string `json:"indexKind"`
-	Definition string `json:"definition"`
+	Database    string            `json:"database"`
+	Table       string            `json:"table"`
+	Action      string            `json:"action"`
+	Kind        string            `json:"kind"`
+	Original    string            `json:"original"`
+	Name        string            `json:"name"`
+	IndexKind   string            `json:"indexKind"`
+	Definition  string            `json:"definition"`
+	ColumnEdits map[string]string `json:"columnEdits,omitempty"`
 }
 type SASchemaPlan struct {
 	Token string `json:"token"`
@@ -259,6 +260,21 @@ func schemaSQL(r SASchemaChange, objects []SASchemaObject, mode string) (string,
 		return "", errors.New("schema object name must contain 1–64 characters without NUL")
 	}
 	definition := strings.TrimSpace(r.Definition)
+	if r.ColumnEdits != nil {
+		if r.Kind != "column" || r.Action != "edit" {
+			return "", errors.New("column attributes require an existing column")
+		}
+		for _, object := range objects {
+			if object.Kind == "column" && object.Name == r.Original {
+				var err error
+				definition, err = patchColumnAttributes(object.Definition, r.ColumnEdits, mode)
+				if err != nil {
+					return "", err
+				}
+				break
+			}
+		}
+	}
 	if err := validateSchemaFragment(definition, mode); err != nil {
 		return "", err
 	}

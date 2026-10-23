@@ -1,17 +1,21 @@
 import {type ReactNode, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {ClipboardSetText} from '../wailsjs/runtime/runtime';
 import {database} from '../wailsjs/go/models';
-import {copyRows} from './content-grid';
+import {copyRows, selectRows} from './content-grid';
 import {columnWidth, fittedColumnWidth, gridShortcut, selectedRow} from './grid-navigation';
 
-export default function ResultGrid({result, busy, selected, onSelect, columnLabels, initialWidths, checkboxColumns, emptyMessage, showColumnTypes = false, sortColumn, descending, onSort, onEditCell, cellEditor, selectedRows, onSelectAll, onClearSelection, tableName, databaseName, sqlColumns, autoIncrementColumns = [], actions = []}: {result: database.Result | null; busy: boolean; selected?: number; onSelect?: (row: number, modifiers?: {toggle: boolean; range: boolean}) => void; selectedRows?: number[]; onSelectAll?: () => void; onClearSelection?: () => void; tableName?: string; databaseName?: string; sqlColumns?: string[]; autoIncrementColumns?: string[]; actions?: {label: string; disabled?: boolean | ((row: number, column: number) => boolean); run: (row: number, column: number) => void}[]; columnLabels?: Record<string, string>; initialWidths?: Record<string, number>; checkboxColumns?: Record<string, string>; emptyMessage?: string; showColumnTypes?: boolean; sortColumn?: string; descending?: boolean; onSort?: (column: string) => void; onEditCell?: (row: number, column: number) => void; cellEditor?: {row: number; column: number; content: ReactNode}}) {
+export default function ResultGrid({result, busy, selected, onSelect, columnLabels, initialWidths, checkboxColumns, emptyMessage, showColumnTypes = false, sortColumn, descending, onSort, onEditCell, cellEditor, renderCell, selectedRows, onSelectAll, onClearSelection, tableName, databaseName, sqlColumns, autoIncrementColumns = [], actions = []}: {result: database.Result | null; busy: boolean; selected?: number; onSelect?: (row: number, modifiers?: {toggle: boolean; range: boolean}) => void; selectedRows?: number[]; onSelectAll?: () => void; onClearSelection?: () => void; tableName?: string; databaseName?: string; sqlColumns?: string[]; autoIncrementColumns?: string[]; actions?: {label: string; disabled?: boolean | ((row: number, column: number) => boolean); run: (row: number, column: number) => void}[]; columnLabels?: Record<string, string>; initialWidths?: Record<string, number>; checkboxColumns?: Record<string, string>; emptyMessage?: string; showColumnTypes?: boolean; sortColumn?: string; descending?: boolean; onSort?: (column: string) => void; onEditCell?: (row: number, column: number) => void; renderCell?: (row:number,column:number) => ReactNode | undefined; cellEditor?: {row: number; column: number; content: ReactNode}}) {
     const grid = useRef<HTMLDivElement>(null);
     const [selection, setSelection] = useState(-1);
+    const [localRows,setLocalRows]=useState<number[]>([]);
+    const anchor=useRef(-1);
+    const localSelection=selected===undefined && selectedRows===undefined && !onSelect;
     const [widths, setWidths] = useState<Record<string, number>>({});
     const [menu, setMenu] = useState<{row: number; column: number; x: number; y: number} | null>(null);
     const [copyError, setCopyError] = useState('');
     const drag = useRef<{x: number; width: number; key: string} | null>(null);
     useLayoutEffect(() => {
+        if(localSelection){setSelection(-1);setLocalRows([]);anchor.current=-1;setMenu(null);}
         const element = grid.current;
         const header = element?.querySelector('thead');
         if (!element) return;
@@ -24,16 +28,22 @@ export default function ResultGrid({result, busy, selected, onSelect, columnLabe
         const observer = new ResizeObserver(measure);
         observer.observe(header);
         return () => observer.disconnect();
-    },[result]);
+    },[result,localSelection]);
     const active = selected ?? selection;
-    const chosen = selectedRows ?? (active >= 0 ? [active] : []);
+    const chosen = selectedRows ?? (localSelection ? localRows : active >= 0 ? [active] : []);
+    const selectAll = onSelectAll ?? (localSelection ? () => {setLocalRows(result?.rows.map((_,i)=>i) ?? []);setSelection(result?.rows.length ? 0 : -1);anchor.current=result?.rows.length ? 0 : -1;} : undefined);
+    const clearSelection = onClearSelection ?? (localSelection ? () => {setLocalRows([]);setSelection(-1);anchor.current=-1;} : undefined);
     const keyFor = (i: number) => `${i}:${result?.columns[i].name}`;
     const fittedWidths = useMemo(() => showColumnTypes ? result?.columns.map((column, i) =>
         fittedColumnWidth(column, result.rows.map(row => row[i])),
     ) ?? [] : [], [result, showColumnTypes]);
     const widthFor = (i: number) => (
         widths[keyFor(i)] ?? initialWidths?.[result?.columns[i].name ?? ''] ?? (showColumnTypes ? fittedWidths[i] : Math.max(90, Math.min(220, (result?.columns[i].name.length ?? 0) * 8 + 24))));
-    const choose = (row: number, modifiers?: {toggle: boolean; range: boolean}) => { setSelection(row); onSelect?.(row,modifiers); };
+    const choose = (row: number, modifiers: {toggle: boolean; range: boolean} = {toggle:false,range:false}) => {
+        setSelection(row);
+        if(localSelection){setLocalRows(old=>selectRows(old,anchor.current,row,result?.rows.length ?? 0,modifiers.toggle,modifiers.range));if(!modifiers.range || anchor.current<0)anchor.current=row;}
+        onSelect?.(row,modifiers);
+    };
     async function copyText(value: string) {
         try {
             if (!await ClipboardSetText(value)) throw new Error('Clipboard unavailable');
@@ -58,7 +68,7 @@ export default function ResultGrid({result, busy, selected, onSelect, columnLabe
         onKeyDown={event => {
             if (event.key === 'Escape') { setMenu(null); return; }
             if (event.target !== event.currentTarget || busy) return;
-            if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === 'a' && onSelectAll) { event.preventDefault(); onSelectAll(); return; }
+            if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && !event.nativeEvent.isComposing && !event.repeat && event.key.toLowerCase() === 'a' && selectAll) { event.preventDefault(); selectAll(); return; }
             const command = gridShortcut(event.nativeEvent);
             if (result?.rows[active] && command === 'copy') {
                 event.preventDefault(); copySelection('tsv'); return;
@@ -87,11 +97,11 @@ export default function ResultGrid({result, busy, selected, onSelect, columnLabe
                     onPointerUp={event => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); drag.current = null; }}
                     onLostPointerCapture={() => { drag.current = null; }} />
             </th>)}{showColumnTypes && <th className="grid-filler" aria-hidden="true" />}</tr></thead><tbody>{result.rows.map((row, r) => <tr key={r} aria-selected={chosen.includes(r)} className={chosen.includes(r) ? 'selected-row' : ''}
-                onClick={event => { if (!busy) { choose(r,{toggle:event.metaKey || event.ctrlKey,range:event.shiftKey}); event.currentTarget.closest<HTMLElement>('.results')?.focus(); } }}>
+                onClick={event => { if (!busy) { choose(r,{toggle:event.metaKey || event.ctrlKey,range:event.shiftKey}); if (!(event.target as HTMLElement).closest('input,select,textarea,button')) event.currentTarget.closest<HTMLElement>('.results')?.focus(); } }}>
                 {row.map((value, c) => <td key={c} className={[value.null ? 'null' : '', /^(?:UNSIGNED )?(TINYINT|SMALLINT|MEDIUMINT|INT|INTEGER|BIGINT|DECIMAL|NUMERIC|FLOAT|DOUBLE|REAL|YEAR)(\b|$)/i.test(result.columns[c]?.type ?? '') ? 'numeric' : ''].join(' ')} title={value.null ? 'NULL' : value.value}
-                    onDoubleClick={() => { if (!busy) onEditCell?.(r, c); }}
+                    onDoubleClick={event => { if (!busy && !(event.target as HTMLElement).closest("input,select,textarea,button")) onEditCell?.(r, c); }}
                     onContextMenu={event => { event.preventDefault(); if (busy) return; if (!chosen.includes(r)) choose(r); setMenu({row:r,column:c,x:Math.max(4,Math.min(event.clientX,window.innerWidth-240)),y:Math.max(0,Math.min(event.clientY,window.innerHeight-300))}); }}>
-                    {cellEditor?.row === r && cellEditor.column === c ? cellEditor.content : !value.null && checkboxColumns?.[result.columns[c].name] !== undefined && (value.value === checkboxColumns[result.columns[c].name] || value.value === "NO") ? <input type="checkbox" disabled checked={value.value === checkboxColumns[result.columns[c].name]} aria-label={`${columnLabels?.[result.columns[c].name] ?? result.columns[c].name}: ${value.value}`} /> : value.null ? 'NULL' : value.value}</td>)}{showColumnTypes && <td className="grid-filler" aria-hidden="true" />}
+                    {cellEditor?.row === r && cellEditor.column === c ? cellEditor.content : renderCell?.(r,c) ?? (!value.null && checkboxColumns?.[result.columns[c].name] !== undefined && (value.value === checkboxColumns[result.columns[c].name] || value.value === "NO") ? <input type="checkbox" disabled checked={value.value === checkboxColumns[result.columns[c].name]} aria-label={`${columnLabels?.[result.columns[c].name] ?? result.columns[c].name}: ${value.value}`} /> : value.null ? 'NULL' : value.value)}</td>)}{showColumnTypes && <td className="grid-filler" aria-hidden="true" />}
             </tr>)}</tbody></table> : <div className="result-empty">{busy ? 'Loading…' : result ? 'No rows returned.' : emptyMessage ?? 'Run a query to display results.'}</div>}
         {menu && <div className="grid-context-menu" role="menu" aria-label="Copy result" style={{left:menu.x,top:menu.y,maxHeight:Math.max(80,window.innerHeight-menu.y-8)}} onClick={event => event.stopPropagation()} onKeyDown={event => {
             if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setMenu(null); grid.current?.focus(); return; }
@@ -105,8 +115,8 @@ export default function ResultGrid({result, busy, selected, onSelect, columnLabe
             <button role="menuitem" onClick={() => copySelection('headers')}>Copy with column names</button>
             <button role="menuitem" onClick={() => copySelection('csv')}>Copy as CSV</button>
             {tableName && <><button role="menuitem" onClick={() => copySelection('sql')}>Copy as SQL INSERT</button><button role="menuitem" onClick={() => copySelection('sql',true)}>Copy as SQL INSERT (no auto_inc)</button></>}
-            {onSelectAll && <button role="menuitem" onClick={() => { onSelectAll(); setMenu(null); }}>Select all rows on page</button>}
-            {onClearSelection && <button role="menuitem" onClick={() => { onClearSelection(); setMenu(null); }}>Clear selection</button>}
+            {selectAll && <button role="menuitem" onClick={() => { selectAll(); setMenu(null); }}>Select all rows on page</button>}
+            {clearSelection && <button role="menuitem" onClick={() => { clearSelection(); setMenu(null); }}>Clear selection</button>}
             {actions.map(action => <button key={action.label} role="menuitem" disabled={typeof action.disabled === 'function' ? action.disabled(menu.row,menu.column) : action.disabled} onClick={() => { setMenu(null); action.run(menu.row,menu.column); }}>{action.label}</button>)}
         </div>}
     </div>;

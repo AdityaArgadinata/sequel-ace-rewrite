@@ -2,10 +2,10 @@ import {useState} from 'react';
 import {PrepareSchemaChange} from '../wailsjs/go/main/App';
 import {database} from '../wailsjs/go/models';
 
-type Props={tab:string;databaseName:string;table:string;kind:'column'|'index'|'foreignKey';action:'add'|'edit'|'drop';object?:database.SASchemaObject;busy:boolean;operation:(work:()=>Promise<void>,mayWrite?:boolean)=>Promise<void>;onApply:(token:string)=>Promise<void>;onCancel:()=>void};
-export default function SASchemaEditor({tab,databaseName,table,kind,action,object,busy,operation,onApply,onCancel}:Props) {
+type Props={columnEdits?:Record<string,string>;proposedName?:string;tab:string;databaseName:string;table:string;kind:'column'|'index'|'foreignKey';action:'add'|'edit'|'drop';object?:database.SASchemaObject;busy:boolean;operation:(work:()=>Promise<void>,mayWrite?:boolean)=>Promise<void>;onApply:(token:string)=>Promise<void>;onCancel:()=>void};
+export default function SASchemaEditor({columnEdits,proposedName,tab,databaseName,table,kind,action,object,busy,operation,onApply,onCancel}:Props) {
  const proposed=object ? Array.from(object.name).slice(0,57).join('')+'_edited' : '';
- const [name,setName]=useState(object ? kind==='foreignKey' && action==='edit' ? proposed===object.name ? proposed.slice(0,-1)+'2' : proposed : object.name : '');
+ const [name,setName]=useState(proposedName ?? (object ? kind==='foreignKey' && action==='edit' ? proposed===object.name ? proposed.slice(0,-1)+'2' : proposed : object.name : ''));
  const [indexKind,setIndexKind]=useState(object?.indexKind || 'INDEX');
  const [definition,setDefinition]=useState(object?.definition ?? (kind==='column' ? 'VARCHAR(255) NULL' : kind==='index' ? '(`column_name`)' : '(`column_name`) REFERENCES `parent_table` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT'));
  const [plan,setPlan]=useState<database.SASchemaPlan|null>(null),[error,setError]=useState(''),[ack,setAck]=useState(false);
@@ -14,7 +14,7 @@ export default function SASchemaEditor({tab,databaseName,table,kind,action,objec
  function changed(){setPlan(null);setAck(false);setError('');}
  async function prepare(){
   setPlan(null);setAck(false);setError('');
-  await operation(async()=>{try{setPlan(await PrepareSchemaChange(tab,new database.SASchemaChange({database:databaseName,table,kind,action,original:object?.name ?? '',name,indexKind,definition})));}catch(e){setError(String(e));throw e;}});
+  await operation(async()=>{try{setPlan(await PrepareSchemaChange(tab,new database.SASchemaChange({database:databaseName,table,kind,action,original:object?.name ?? '',name,indexKind,definition,columnEdits})));}catch(e){setError(String(e));throw e;}});
  }
  return <form className="schema-editor" aria-label={title} onSubmit={e=>{e.preventDefault();void prepare();}}>
   <div className="schema-editor-heading"><strong>{title} · {databaseName}.{table}</strong><button type="button" disabled={busy} onClick={onCancel}>Cancel schema change</button></div>
@@ -24,7 +24,7 @@ export default function SASchemaEditor({tab,databaseName,table,kind,action,objec
     {kind==='index' && <label>Index type<select aria-label="Index type" disabled={busy} value={indexKind} onChange={e=>{changed();setIndexKind(e.target.value);if(e.target.value==='PRIMARY')setName('PRIMARY');else if(name==='PRIMARY')setName('');}}>{['INDEX','UNIQUE','PRIMARY','FULLTEXT','SPATIAL'].map(type=><option key={type}>{type}</option>)}</select></label>}
     <label>Name<input aria-label="Schema object name" autoFocus maxLength={64} disabled={busy || (kind==='index' && indexKind==='PRIMARY')} required value={name} onChange={e=>{changed();setName(e.target.value);}}/></label>
    </div>
-   <label>{kind==='column' ? 'Type and attributes (SQL)' : kind==='index' ? 'Columns and index options (SQL)' : 'Columns, reference and actions (SQL)'}<textarea aria-label="Schema definition" disabled={busy} required value={definition} onChange={e=>{changed();setDefinition(e.target.value);}} spellCheck={false}/></label>
+   {columnEdits ? <p className="schema-attribute-summary">{Object.entries(columnEdits).map(([key,value])=>`${key}: ${value || '(empty)'}`).join(' · ')}</p> : <><label>{kind==='column' ? 'Type and attributes (SQL)' : kind==='index' ? 'Columns and index options (SQL)' : 'Columns, reference and actions (SQL)'}<textarea aria-label="Schema definition" disabled={busy} required value={definition} onChange={e=>{changed();setDefinition(e.target.value);}} spellCheck={false}/></label></>}
    <p>{kind==='column' ? "Keep all attributes when editing: type/length, NULL or NOT NULL, DEFAULT, AUTO_INCREMENT, CHARACTER SET/COLLATE, COMMENT, generated expression, FIRST/AFTER. Text defaults use SQL quotes." : kind==='index' ? 'Use an ordered column list, optional prefix lengths/directions and USING/COMMENT options. Example: (`name`(20), `id`) USING BTREE.' : 'Use local columns, REFERENCES database/table and matching referenced columns, with ON DELETE/ON UPDATE actions. Example: (`parent_id`) REFERENCES `parent` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT.'}</p>
    <p>One definition only; SQL comments and statement separators outside quoted text are not accepted. The server validates supported attributes and dependencies.</p>
   </>}

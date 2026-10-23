@@ -181,7 +181,7 @@ jobs:
             wails build -platform linux/amd64 -tags webkit2_41
           elif [ "$RUNNER_OS" = Windows ]; then
             wails build -platform windows/amd64 -nsis
-            test -f build/bin/sequel-rewrite-amd64-installer.exe
+            test -f build/bin/sequelx-amd64-installer.exe
           else
             wails build -platform darwin/arm64
           fi
@@ -189,28 +189,28 @@ jobs:
         env:
           BUILD_LABEL: ${{ needs.prepare.outputs.label }}
         run: |
-          mkdir -p dist staging/sequel-rewrite
-          cp LICENSE README.md staging/sequel-rewrite/
-          base="sequel-rewrite-$BUILD_LABEL"
+          mkdir -p dist staging/sequelx
+          cp LICENSE README.md staging/sequelx/
+          base="sequelx-$BUILD_LABEL"
           if [ "$RUNNER_OS" = macOS ]; then
-            ditto build/bin/sequel-rewrite.app staging/sequel-rewrite/sequel-rewrite.app
-            codesign --verify --deep staging/sequel-rewrite/sequel-rewrite.app
-            ditto -c -k --keepParent staging/sequel-rewrite "dist/$base-macos-arm64.zip"
-            ln -s /Applications staging/sequel-rewrite/Applications
-            hdiutil create -volname 'Sequel Rewrite' -srcfolder staging/sequel-rewrite -ov -format UDZO "dist/$base-macos-arm64.dmg"
+            ditto build/bin/sequelx.app staging/sequelx/sequelx.app
+            codesign --verify --deep staging/sequelx/sequelx.app
+            ditto -c -k --keepParent staging/sequelx "dist/$base-macos-arm64.zip"
+            ln -s /Applications staging/sequelx/Applications
+            hdiutil create -volname 'sequelx' -srcfolder staging/sequelx -ov -format UDZO "dist/$base-macos-arm64.dmg"
             hdiutil verify "dist/$base-macos-arm64.dmg"
           elif [ "$RUNNER_OS" = Windows ]; then
-            cp build/bin/sequel-rewrite.exe staging/sequel-rewrite/
-            cp build/bin/sequel-rewrite-amd64-installer.exe "dist/$base-windows-amd64-setup.exe"
-            powershell.exe -NoProfile -Command 'Compress-Archive -Path staging/sequel-rewrite -DestinationPath ("dist/sequel-rewrite-" + $env:BUILD_LABEL + "-windows-amd64-portable.zip")'
+            cp build/bin/sequelx.exe staging/sequelx/
+            cp build/bin/sequelx-amd64-installer.exe "dist/$base-windows-amd64-setup.exe"
+            powershell.exe -NoProfile -Command 'Compress-Archive -Path staging/sequelx -DestinationPath ("dist/sequelx-" + $env:BUILD_LABEL + "-windows-amd64-portable.zip")'
           else
-            cp build/bin/sequel-rewrite staging/sequel-rewrite/
-            tar -czf "dist/$base-linux-amd64.tar.gz" -C staging/sequel-rewrite .
+            cp build/bin/sequelx staging/sequelx/
+            tar -czf "dist/$base-linux-amd64.tar.gz" -C staging/sequelx .
             tar -tzf "dist/$base-linux-amd64.tar.gz"
           fi
       - uses: actions/upload-artifact@v4
         with:
-          name: sequel-rewrite-${{ matrix.os }}
+          name: sequelx-${{ matrix.os }}
           if-no-files-found: error
           path: dist/*
 
@@ -230,14 +230,14 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
-          pattern: sequel-rewrite-*
+          pattern: sequelx-*
           merge-multiple: true
           path: dist
       - name: Verify packages and write checksums
         env:
           RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
         run: |
-          base="sequel-rewrite-$RELEASE_TAG"
+          base="sequelx-$RELEASE_TAG"
           for suffix in macos-arm64.zip macos-arm64.dmg windows-amd64-setup.exe windows-amd64-portable.zip linux-amd64.tar.gz; do
             test -s "dist/$base-$suffix"
           done
@@ -250,7 +250,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
         run: |
-          gh release create "$RELEASE_TAG" dist/* --target "$GITHUB_SHA" --draft --prerelease --title "Sequel Rewrite $RELEASE_TAG" --notes-file docs/release-notes.md
+          gh release create "$RELEASE_TAG" dist/* --target "$GITHUB_SHA" --draft --prerelease --title "sequelx $RELEASE_TAG" --notes-file docs/release-notes.md
 
   database-integration:
     name: Database (${{ matrix.image }})

@@ -9,7 +9,7 @@ import Splitter from './Splitter';
 import ContentBrowser from './ContentBrowser';
 import StructureView from './StructureView';
 import SAAdminPanel from './SAAdminPanel';
-import SAPreferences from './SAPreferences';
+import SAPreferences,{openPreferences} from './SAPreferences';
 import SAHelp from './SAHelp';
 import HistoryPanel from './HistoryPanel';
 import SAQueryEditor from './SAQueryEditor';
@@ -240,14 +240,14 @@ function Workspace({tab, connectionName, onClose, onNewTab, initialState}: {tab:
     return (
         <main className="app-shell" ref={workspaceRoot}>
             <header className="main-toolbar">
-                <strong className="connection-title" title={connectionName}>{connected ? `${serverVersion ? `(${serverVersion.includes('MariaDB') ? 'MariaDB' : 'MySQL'} ${serverVersion}) ` : ''}${connectionName}${selectedDB ? `/${selectedDB}` : ''}${selectedTable ? `/${selectedTable}` : ''}` : 'Sequel Rewrite'}</strong>
+                <strong className="connection-title" title={connectionName}>{connected ? `${serverVersion ? `(${serverVersion.includes('MariaDB') ? 'MariaDB' : 'MySQL'} ${serverVersion}) ` : ''}${connectionName}${selectedDB ? `/${selectedDB}` : ''}${selectedTable ? `/${selectedTable}` : ''}` : 'sequelx'}</strong>
                 <label className="database-picker"><select aria-label="Select Database" value={selectedDB} disabled={!connected || busy} onChange={e => void chooseDatabase(e.target.value)}><option value="" disabled>Choose Database…</option>{databases.map(name => <option key={name} value={name}>{name}</option>)}</select><span>Select Database</span></label>
                 <nav className="view-toolbar" aria-label="Database views">
                     {(['structure', 'content', 'relations', 'triggers', 'info', 'query'] as const).map((icon, i) => <button key={icon} disabled={!connected || busy || (icon !== 'query' && !selectedTable)} aria-current={icon === view && connected ? 'page' : undefined} title={`${['Structure','Content','Relations','Triggers','Table Info','Query'][i]} (⌘/Ctrl+${i+1})`} onClick={() => setView(icon)}><ToolbarIcon name={icon} /><span>{['Structure','Content','Relations','Triggers','Table Info','Query'][i]}</span></button>)}
                 </nav>
                 <div className="history-tools"><div><button disabled={busy || !connected || tableHistoryIndex <= 0} aria-label="Back" onClick={() => void visitTable('',tableHistoryIndex-1)}>‹</button><button disabled={busy || !connected || tableHistoryIndex >= tableHistory.length-1} aria-label="Forward" onClick={() => void visitTable('',tableHistoryIndex+1)}>›</button></div><span>Table History</span></div>
                 <button className="toolbar-item" disabled={!connected || busy} onClick={()=>setView('users')}><ToolbarIcon name="users"/><span>Users</span></button>
-                <button className="toolbar-item" disabled={!connected || busy} onClick={()=>setView('console')}><ToolbarIcon name="console"/><span>Console</span></button>
+                <button className="toolbar-item" disabled={!connected || busy} onClick={()=>setView('console')}><ToolbarIcon name="console"/><span>Console</span></button><button className="toolbar-item settings-button" aria-label="Settings" title="Settings (⌘/Ctrl+,)" onClick={openPreferences}><ToolbarIcon name="settings"/><span>Settings</span></button>
             </header>
             {showSQLImport && <SASQLImport tab={tab} busy={busy} operation={operation} onRefresh={reloadObjects} onClose={()=>setShowSQLImport(false)}/>}
             {showObjects && <SAObjectManager tab={tab} databaseName={selectedDB} table={selectedTable} busy={busy} operation={operation} onRefresh={reloadObjects} onClose={()=>setShowObjects(false)}/>}
@@ -318,7 +318,7 @@ function Workspace({tab, connectionName, onClose, onNewTab, initialState}: {tab:
 
 
 export default function App() {
-    const [connectionName, setConnectionName] = useState('Sequel Rewrite');
+    const [connectionName, setConnectionName] = useState('sequelx');
     const [nativeStates,setNativeStates]=useState<Record<string,nativefiles.SASession>>({});
     const [tabs, setTabs] = useState<string[]>([]);
     const [active, setActive] = useState('');
@@ -352,11 +352,11 @@ export default function App() {
             }}>Query {id}</button><button aria-label={`Close Query ${id}`} title="Close session; uncommitted transactions are not preserved" disabled={busy} onClick={() => void closeTab(id)}>×</button></div>)}</div><button disabled={busy || tabs.length >= 16} onClick={() => void addTab()} aria-label="New query tab">＋</button><button disabled={busy} onClick={() => { void Disconnect().then(() => { setTabs([]); setActive(''); }).catch(e => setMessage(String(e))); }}>Disconnect all</button></div>
             {tabs.map(id => <div className="tab-pane" key={id} id={`pane-${id}`} role="tabpanel" aria-labelledby={`tab-${id}`} hidden={id !== active}><Workspace tab={id} initialState={nativeStates[id]} connectionName={connectionName} onClose={() => closeTab(id)} onNewTab={() => { if (tabs.length < 16 && !busy) void addTab(); }} /></div>)}
         </> : <div className="app-shell"><header className="main-toolbar">
-                <strong className="connection-title">Sequel Rewrite</strong>
+                <strong className="connection-title">sequelx</strong>
                 <label className="database-picker"><select aria-label="Select Database" disabled><option>Choose Database…</option></select><span>Select Database</span></label>
                 <nav className="view-toolbar" aria-label="Database views">{(['structure','content','relations','triggers','info','query'] as const).map((icon, i) => <button key={icon} disabled><ToolbarIcon name={icon}/><span>{['Structure','Content','Relations','Triggers','Table Info','Query'][i]}</span></button>)}</nav>
                 <div className="history-tools"><div><button disabled aria-label="Back">‹</button><button disabled aria-label="Forward">›</button></div><span>Table History</span></div>
-                <button className="toolbar-item" disabled><ToolbarIcon name="users"/><span>Users</span></button><button className="toolbar-item" disabled><ToolbarIcon name="console"/><span>Console</span></button>
+                <button className="toolbar-item" disabled><ToolbarIcon name="users"/><span>Users</span></button><button className="toolbar-item" disabled><ToolbarIcon name="console"/><span>Console</span></button><button className="toolbar-item settings-button" aria-label="Settings" title="Settings (⌘/Ctrl+,)" onClick={openPreferences}><ToolbarIcon name="settings"/><span>Settings</span></button>
             </header><ConnectionForm busy={busy} onConnect={connect} sidebarWidth={sidebarWidth} onSidebarResize={setSidebarWidth} /></div>}
         {message && <div className="notice" role="alert">{message}</div>}
     </div>;

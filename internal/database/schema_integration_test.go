@@ -99,6 +99,43 @@ func TestSchemaEditingIntegration(t *testing.T) {
 	if !found {
 		t.Fatal(after)
 	}
+
+	// Inline dropdowns edit the server definition, retaining defaults and comments.
+	attributeChange := change("edit", "column", "label", "label", "ignored client definition", "")
+	attributeChange.ColumnEdits = map[string]string{"length": "80", "encoding": "latin1", "collation": "latin1_bin"}
+	apply(attributeChange)
+	catalog := snapshot()
+	if len(catalog.Charsets.Rows) == 0 || len(catalog.Collations.Rows) < 10 {
+		t.Fatal("missing server dropdown options")
+	}
+	for _, object := range catalog.Objects {
+		if object.Kind == "column" && object.Name == "label" {
+			upper := strings.ToUpper(object.Definition)
+			for _, part := range []string{"VARCHAR(80)", "CHARACTER SET LATIN1", "COLLATE LATIN1_BIN", "COMMENT 'KEEP ALL'"} {
+				if !strings.Contains(upper, part) {
+					t.Fatal("inline edit lost attributes", object.Definition)
+				}
+			}
+			if !strings.Contains(object.Definition, "a,b") {
+				t.Fatal("inline edit lost default", object.Definition)
+			}
+		}
+	}
+	apply(change("add", "column", "plain", "", "VARCHAR(12) NULL DEFAULT 'keep'", ""))
+	inherited := change("edit", "column", "plain", "plain", "", "")
+	inherited.ColumnEdits = map[string]string{"encoding": "latin1", "collation": "latin1_bin", "comment": "quotes' and \\ slash"}
+	apply(inherited)
+	apply(change("drop", "column", "", "plain", "", ""))
+	apply(change("add", "column", "derived", "", "INT GENERATED ALWAYS AS ((`id` + 3)) STORED COMMENT 'preserve expression'", ""))
+	generatedChange := change("edit", "column", "derived", "derived", "", "")
+	generatedChange.ColumnEdits = map[string]string{"type": "BIGINT"}
+	apply(generatedChange)
+	for _, object := range snapshot().Objects {
+		if object.Name == "derived" && (!strings.Contains(object.Definition, "STORED") || !strings.Contains(object.Definition, "`id`") || !strings.Contains(object.Definition, "preserve expression")) {
+			t.Fatal("generated expression lost", object)
+		}
+	}
+	apply(change("drop", "column", "", "derived", "", ""))
 	apply(change("add", "index", "PRIMARY", "", "(`id`)", "PRIMARY"))
 	apply(change("edit", "index", "PRIMARY", "PRIMARY", "(`id`, `parent_id`)", "PRIMARY"))
 	apply(change("drop", "index", "", "PRIMARY", "", ""))

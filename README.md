@@ -1,4 +1,7 @@
-# Sequel Rewrite
+# sequelx
+
+Previously named Sequel Rewrite. Older draft packages retain their original
+`sequel-rewrite` filenames; the commands below describe new sequelx builds.
 
 A desktop MySQL and MariaDB client built with Go, Wails, React, and TypeScript,
 with a UI modeled after Sequel Ace. This is a separate implementation of the
@@ -21,12 +24,12 @@ by downloading and extracting its OS-specific artifact.
 
 | Platform | File suffix | Installation and launch |
 | --- | --- | --- |
-| macOS, Apple Silicon | `macos-arm64.dmg` | Open the disk image, drag `sequel-rewrite.app` to Applications, then open it. A `macos-arm64.zip` alternative includes the app, README, and license. |
+| macOS, Apple Silicon | `macos-arm64.dmg` | Open the disk image, drag `sequelx.app` to Applications, then open it. A `macos-arm64.zip` alternative includes the app, README, and license. |
 | Windows 10/11, x64 | `windows-amd64-setup.exe` | Run the installer. It can install WebView2 if missing. A `windows-amd64-portable.zip` alternative can be extracted and run without installing the app; the [WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) is still required. |
-| Ubuntu 24.04, x64 | `linux-amd64.tar.gz` | Install the runtime packages below, extract the archive, then run `./sequel-rewrite`. |
+| Ubuntu 24.04, x64 | `linux-amd64.tar.gz` | Install the runtime packages below, extract the archive, then run `./sequelx`. |
 
 Filenames include the version, for example
-`sequel-rewrite-v0.1.0-alpha.1-macos-arm64.dmg`. CI artifacts for ordinary branch
+`sequelx-v0.1.0-alpha.1-macos-arm64.dmg`. CI artifacts for ordinary branch
 builds use `dev-<commit>` instead. The archive downloaded from GitHub Actions
 wraps the actual distribution files; extract it first.
 
@@ -38,10 +41,10 @@ packages, then launch from the folder containing the downloaded archive
 ```sh
 sudo apt-get update
 sudo apt-get install -y libgtk-3-0t64 libwebkit2gtk-4.1-0
-mkdir sequel-rewrite
-tar -xzf sequel-rewrite-v0.1.0-alpha.1-linux-amd64.tar.gz -C sequel-rewrite
-cd sequel-rewrite
-./sequel-rewrite
+mkdir sequelx
+tar -xzf sequelx-v0.1.0-alpha.1-linux-amd64.tar.gz -C sequelx
+cd sequelx
+./sequelx
 ```
 
 The Linux executable needs a graphical desktop session. Password storage also
@@ -246,9 +249,9 @@ and writes the application to `build/bin/`:
 
 | OS | Output | Launch from the repository root |
 | --- | --- | --- |
-| macOS | `build/bin/sequel-rewrite.app` | `open build/bin/sequel-rewrite.app` |
-| Windows | `build/bin/sequel-rewrite.exe` | `& .\build\bin\sequel-rewrite.exe` in PowerShell |
-| Linux | `build/bin/sequel-rewrite` | `./build/bin/sequel-rewrite` |
+| macOS | `build/bin/sequelx.app` | `open build/bin/sequelx.app` |
+| Windows | `build/bin/sequelx.exe` | `& .\build\bin\sequelx.exe` in PowerShell |
+| Linux | `build/bin/sequelx` | `./build/bin/sequelx` |
 
 See the [Wails build guide](https://wails.io/docs/gettingstarted/building/) for
 additional packaging options.
@@ -333,6 +336,11 @@ implemented. Database TLS verification remains enabled independently of SSH.
   while ordinary AUTO_INCREMENT advances do not. Coordinate external schema
   changes during apply. Identifiers require quoted SHOW CREATE output
   (`sql_quote_show_create=1`).
+  Column rows now expose native-style Type/Extra dropdowns, server-provided
+  Encoding/Collation choices and attribute checkboxes. Edits remain drafts until
+  **Review column changes → Preview schema SQL → Apply schema change**;
+  Cancel discards the draft. Collation choices follow the selected charset.
+
 - **Sessions and transactions:** the sidebar connection-actions menu opens a new
   query tab, disconnects, and exposes Begin/Commit/Rollback. Each tab has its own
   database session, up to 16 tabs. A single session hides the tab strip. Closing
@@ -633,7 +641,8 @@ Connection settings include local UNIX sockets (absolute path, no TLS/SSH), serv
 session timezone, SSH agent (`SSH_AUTH_SOCK`) and pre-entered keyboard-interactive
 answers. Named zones require MySQL timezone tables. Folder paths and colors are
 saved with favorites. Preferences offers dark/light/system, editor font/size/wrap;
-Cmd/Ctrl+1–6 switches views and Cmd/Ctrl+, opens preferences.
+Cmd/Ctrl+1–6 switches views. The Settings gear beside Console or Cmd/Ctrl+, opens the preferences dialog;
+there is no extra preferences toolbar row. A native Settings menu is also available.
 
 AWS IAM needs `aws` available in the app environment with configured credentials;
 select region/profile and verified database TLS. Tokens are generated for each new

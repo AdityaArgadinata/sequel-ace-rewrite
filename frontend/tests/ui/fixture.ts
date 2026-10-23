@@ -100,8 +100,14 @@ export async function openApp(page: Page) {
             Structure:async () => {
                 if ((window as any).schemaReloadError && (window as any).schemaApplies?.length) throw new Error('Fixture metadata reload failed');
                 const metadata={
-                    columns:result([{name:'COLUMN_NAME',type:'VARCHAR'},{name:'COLUMN_TYPE',type:'VARCHAR'},{name:'IS_NULLABLE',type:'VARCHAR'}],schemaObjects.filter(o=>o.kind==='column').map(o=>[cell(o.name),cell(o.definition),cell(o.definition.includes('NOT NULL') ? 'NO' : 'YES')])),
-                    indexes:result([{name:'INDEX_NAME',type:'VARCHAR'},{name:'NON_UNIQUE',type:'INT'},{name:'COLUMN_NAME',type:'VARCHAR'}],schemaObjects.filter(o=>o.kind==='index').flatMap(o=>[...o.definition.matchAll(/`([^`]+)`/g)].map(m=>[cell(o.name),cell(o.indexKind==='INDEX' ? '1' : '0'),cell(m[1])]))),
+                    charsets:result(['Charset','Description','Default collation'].map(name=>({name,type:'TEXT'})),[['utf8','UTF-8 Unicode','utf8_general_ci'],['utf8mb4','UTF-8 Unicode','utf8mb4_general_ci'],['latin1','cp1252 West European','latin1_swedish_ci']].map(row=>row.map(cell))),
+                    collations:result(['Collation','Charset','Default'].map(name=>({name,type:'TEXT'})),[['utf8_general_ci','utf8','Yes'],['utf8_bin','utf8',''],['utf8mb4_general_ci','utf8mb4','Yes'],['utf8mb4_unicode_ci','utf8mb4',''],['utf8mb4_bin','utf8mb4',''],['latin1_swedish_ci','latin1','Yes'],['latin1_bin','latin1','']].map(row=>row.map(cell))),
+                    columns:result(['COLUMN_NAME','COLUMN_TYPE','IS_NULLABLE','COLUMN_DEFAULT','COLUMN_KEY','EXTRA','CHARACTER_SET_NAME','COLLATION_NAME','COLUMN_COMMENT','GENERATION_EXPRESSION'].map(name=>({name,type:'VARCHAR'})),schemaObjects.filter(o=>o.kind==='column').map(o=>{
+                        const type=o.definition.match(/^[A-Z]+(?:\s+PRECISION)?(?:\(.*?\))?(?:\s+UNSIGNED)?/i)?.[0] ?? 'INT';
+                        const text=/^(?:VARCHAR|CHAR|ENUM|SET|.*TEXT)/.test(type);
+                        return [o.name,type,o.definition.includes('NOT NULL')?'NO':'YES',null,o.name==='id'?'PRI':'',o.definition.includes('AUTO_INCREMENT')?'auto_increment':o.definition.includes('ON UPDATE')?'on update CURRENT_TIMESTAMP':'',text?'utf8mb4':null,text?'utf8mb4_general_ci':null,o.name==='id'?'keep all':'',''].map(cell);
+                    })),
+                    indexes:result(['INDEX_NAME','NON_UNIQUE','COLUMN_NAME','SEQ_IN_INDEX','COLLATION','CARDINALITY','SUB_PART','PACKED','COMMENT'].map(name=>({name,type:'VARCHAR'})),schemaObjects.filter(o=>o.kind==='index').flatMap(o=>[...o.definition.matchAll(/`([^`]+)`/g)].map(m=>[cell(o.name),cell(o.indexKind==='INDEX' ? '1' : '0'),cell(m[1]),cell('1'),cell('A'),cell('6'),cell(null),cell(null),cell('')]))),
                     foreignKeys:result([{name:'CONSTRAINT_NAME',type:'VARCHAR'},{name:'COLUMN_NAME',type:'VARCHAR'},{name:'REFERENCED_TABLE_NAME',type:'VARCHAR'}],schemaObjects.filter(o=>o.kind==='foreignKey').map(o=>[cell(o.name),cell('parent_id'),cell('parent')])),
                     definition:result([{name:'Table',type:'VARCHAR'},{name:'Create Table',type:'TEXT'}],[[cell('db'),cell('CREATE TABLE `db` (`id` int PRIMARY KEY)')]]),
                     objects:schemaObjects,editable:!(window as any).schemaReadonly,reason:(window as any).schemaReadonly ? 'Fixture read-only view' : '',
@@ -112,6 +118,11 @@ export async function openApp(page: Page) {
             PrepareSchemaChange:async (_tab:string,request:any) => {
                 ((window as any).schemaPreviews ??= []).push(request);
                 if ((window as any).schemaPrepareError) throw new Error((window as any).schemaPrepareError);
+                if(request.columnEdits){
+                    request.definition=schemaObjects.find(o=>o.kind==='column' && o.name===request.original)?.definition ?? '';
+                    if(request.columnEdits.type)request.definition=request.definition.replace(/^[A-Z]+(?:\s+PRECISION)?/i,request.columnEdits.type);
+                    if('length' in request.columnEdits)request.definition=request.definition.replace(/^(\w+)(?:\(.*?\))?/i,`$1${request.columnEdits.length?'('+request.columnEdits.length+')':''}`);
+                }
                 const prefix=`ALTER TABLE \`${request.database}\`.\`${request.table}\` `;
                 let body=request.action==='drop' ? `DROP ${request.kind==='column' ? 'COLUMN' : request.kind==='index' ? 'INDEX' : 'FOREIGN KEY'} \`${request.original}\`` : request.kind==='column' ? `${request.action==='edit' ? 'CHANGE COLUMN \`'+request.original+'\`' : 'ADD COLUMN'} \`${request.name}\` ${request.definition}` : `ADD ${request.kind==='index' ? request.indexKind+' INDEX' : 'CONSTRAINT'} \`${request.name}\` ${request.definition}`;
                 schemaPending={request,token:crypto.randomUUID()};
@@ -151,7 +162,7 @@ export async function openApp(page: Page) {
             ListHistory:async () => savedHistory,
             ClearHistory:async () => {savedHistory=[];}, ClearHistorySQL:async () => {savedHistory=savedHistory.map(entry => ({...entry,sql:undefined}));}, ExportTableCSV:async () => ({cancelled:true}),
         };
-        Object.assign(window,{go:{main:{App:bridge}},runtime:{EventsOnMultiple:() => () => {},EventsOff:() => {},ClipboardSetText:async (text: string) => { (window as any).clipboard = text; return true; }}});
+        Object.assign(window,{go:{main:{App:bridge}},runtime:{EventsOnMultiple:(name:string,callback:any) => {((window as any).nativeEvents??={})[name]=callback;return ()=>{delete (window as any).nativeEvents[name];}},EventsOff:() => {},ClipboardSetText:async (text: string) => { (window as any).clipboard = text; return true; }}});
     });
     await page.goto('/');
     // A headless browser has no native behind-window material. Keep test text readable.

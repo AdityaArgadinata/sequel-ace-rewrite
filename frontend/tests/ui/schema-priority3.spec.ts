@@ -10,7 +10,7 @@ async function apply(page:Page){await ack(page).check();await button(page,'Apply
 
 test('Column edits preserve attributes, preview before apply, and support add and drop',async({page},info)=>{
  await openStructure(page);
- await page.locator('.structure-columns tbody tr').filter({hasText:'AUTO_INCREMENT'}).dblclick();
+ await page.locator('.structure-columns tbody tr').first().locator('td').nth(7).dblclick();
  await expect(definition(page)).toHaveValue("INT NOT NULL AUTO_INCREMENT COMMENT 'keep all'");
  await name(page).fill('new_id');await preview(page);
  await expect(page.getByLabel('Schema SQL preview')).toContainText('CHANGE COLUMN `id` `new_id`');
@@ -19,10 +19,10 @@ test('Column edits preserve attributes, preview before apply, and support add an
  await definition(page).fill("BIGINT NOT NULL AUTO_INCREMENT COMMENT 'keep all'");
  await expect(page.getByLabel('Schema SQL preview')).toHaveCount(0);await preview(page);
  await screenshot(page,info,'schema-column-preview');await apply(page);
- await expect(page.locator('.structure-columns tbody')).toContainText('new_id');
+ await expect(page.getByRole('textbox',{name:'Field for new_id',exact:true})).toHaveValue('new_id');
  expect(await page.evaluate(()=>(window as any).schemaApplies[0].definition)).toBe("BIGINT NOT NULL AUTO_INCREMENT COMMENT 'keep all'");
  await button(page,'Add column').click();await name(page).fill('state');await definition(page).fill("ENUM('a,b','é;😀') NULL DEFAULT 'a,b'");await preview(page);await apply(page);
- await page.locator('.structure-columns tbody tr').filter({hasText:'state'}).click();await button(page,'Drop column').click();await preview(page);
+ await page.getByRole('textbox',{name:'Field for state',exact:true}).click();await button(page,'Drop column').click();await preview(page);
  await expect(page.getByLabel('Schema SQL preview')).toContainText('DROP COLUMN `state`');await apply(page);
  await expect(page.locator('.structure-columns tbody')).not.toContainText('state');
 });
@@ -41,7 +41,7 @@ test('Primary keys and composite indexes can be added, changed and dropped',asyn
 });
 
 test('Foreign keys retain composite definitions and use a new replacement name',async({page},info)=>{
- await openStructure(page);await button(page,'Foreign keys').click();await button(page,'Add foreign key').click();await name(page).fill('parent_fk');
+ await openStructure(page);await page.getByLabel('More structure options',{exact:true}).click();await button(page,'Foreign keys').click();await button(page,'Add foreign key').click();await name(page).fill('parent_fk');
  const sql='(`parent_id`, `id`) REFERENCES `other_db`.`parent` (`parent_id`, `id`) ON DELETE CASCADE ON UPDATE RESTRICT';
  await definition(page).fill(sql);await preview(page);await apply(page);
  await page.locator('tbody tr').filter({hasText:'parent_fk'}).dblclick();await expect(definition(page)).toHaveValue(sql);await expect(name(page)).toHaveValue('parent_fk_edited');
@@ -94,4 +94,40 @@ test('A schema change refreshes Query completion metadata on the next visit',asy
  await button(page,'Add column').click();await name(page).fill('fresh_column');await preview(page);await apply(page);
  await button(page,'Query').click();
  await expect.poll(()=>page.evaluate(()=>(window as any).completionCalls)).toBe(before+1);
+});
+
+
+test('Native Structure embeds type, extra and server charset dropdowns; edits require review',async({page},info)=>{
+ await openStructure(page);
+ const headers=await page.locator('.structure-columns th').allTextContents();
+ expect(headers).toEqual(['Field','Type','Length','Unsigned','Zerofill','Binary','Allow Null','Key','Default','Extra','Encoding','Collation','Comment']);
+ const type=page.getByRole('combobox',{name:'Type for name',exact:true});
+ await expect(type).toHaveValue('VARCHAR');await expect(page.getByRole('textbox',{name:'Length for name',exact:true})).toHaveValue('255');expect(await type.locator('option').allTextContents()).toContain('GEOMETRYCOLLECTION');
+ await expect(page.getByRole('combobox',{name:'Extra for id',exact:true})).toHaveValue('auto_increment');
+ await expect(page.getByRole('combobox',{name:'Encoding for id',exact:true})).toBeDisabled();
+ await expect(page.getByRole('checkbox',{name:'Unsigned for name',exact:true})).toBeDisabled();
+ const encoding=page.getByRole('combobox',{name:'Encoding for name',exact:true});
+ await encoding.selectOption('latin1');
+ const collation=page.getByRole('combobox',{name:'Collation for name',exact:true});
+ await expect(collation).toHaveValue('latin1_swedish_ci');expect(await collation.locator('option').allTextContents()).not.toContain('utf8mb4_bin');
+ await collation.selectOption('latin1_bin');await expect(page.getByRole('checkbox',{name:'Binary for name',exact:true})).toBeChecked();
+ expect(await page.evaluate(()=>(window as any).schemaAttempts?.length ?? 0)).toBe(0);
+ await type.selectOption('TEXT');await expect(page.getByRole('textbox',{name:'Length for name',exact:true})).toBeDisabled();
+ await page.getByRole('button',{name:'Cancel column changes',exact:true}).click();await expect(type).toHaveValue('VARCHAR');
+ await type.selectOption('LONGTEXT');await type.blur();
+ await page.getByRole('button',{name:'Review column changes',exact:true}).click();await preview(page);
+ await expect(page.getByLabel('Schema SQL preview')).toContainText('LONGTEXT');
+ expect(await page.evaluate(()=>(window as any).schemaPreviews.at(-1).columnEdits)).toMatchObject({type:'LONGTEXT',length:''});
+ await screenshot(page,info,'structure-dropdown-preview');await apply(page);
+ await expect(page.getByRole('combobox',{name:'Type for name',exact:true})).toHaveValue('LONGTEXT');
+ await screenshot(page,info,'structure-native-grid');
+});
+
+test('Structure inputs keep focus and native row height while editing',async({page})=>{
+ await openStructure(page);
+ const field=page.getByRole('textbox',{name:'Field for name',exact:true});await field.click();await field.fill('display_name');
+ await expect(field).toBeFocused();await expect(field).toHaveValue('display_name');
+ const sizes=await page.locator('.structure-columns tbody tr').evaluateAll(rows=>rows.map(row=>row.getBoundingClientRect().height));
+ expect(new Set(sizes).size).toBe(1);expect(sizes[0]).toBe(22);
+ await field.press('Escape');await expect(field).toHaveValue('name');
 });

@@ -1,7 +1,7 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "sequel-rewrite",
-  "outputfilename": "sequel-rewrite",
+  "name": "sequelx",
+  "outputfilename": "sequelx",
   "frontend:install": "npm ci",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
@@ -12,7 +12,7 @@
   },
   "info": {
     "companyName": "Sequel Rewrite",
-    "productName": "Sequel Rewrite",
+    "productName": "sequelx",
     "productVersion": "0.1.0",
     "copyright": "Copyright Sequel Rewrite contributors. Includes software from Sequel Ace; see LICENSE.",
     "comments": "A desktop MySQL and MariaDB client."

@@ -180,3 +180,22 @@ test('A truncated statement result stops the rest of the script',async ({page}) 
  await expect(page.locator('.script-summary')).toContainText('Remaining statements were not executed');
  expect(await page.evaluate(() => (window as any).executedSQL.length)).toBe(1);
 });
+
+async function manualRows(page:Page){
+ await openQuery(page);
+ await page.evaluate(()=>{const app=(window as any).go.main.App,original=app.StreamPreparedQuery;app.StreamPreparedQuery=async(...args:any[])=>{await original(...args);return {columns:[{name:'id',type:'INT'},{name:'name',type:'VARCHAR'}],rows:[['1','Alpha'],['2',null],['3','Ω'],['4','line\nbreak']].map(row=>row.map(value=>({value:value??'',null:value===null,binary:false}))),truncated:false,durationMS:1};};});
+}
+test('Manual query results support Cmd and Ctrl select-all and copy loaded rows',async({page})=>{
+ await manualRows(page);await run(page);const grid=page.getByLabel('Query results',{exact:true});await expect(grid.locator('tbody tr')).toHaveCount(4);
+ for(const modifier of ['Meta','Control']){
+  await grid.locator('tbody tr').nth(1).click();await grid.press(`${modifier}+a`);await expect(grid.locator('tr[aria-selected=true]')).toHaveCount(4);await grid.press(`${modifier}+c`);await expect.poll(()=>page.evaluate(()=>(window as any).clipboard)).toBe('1\tAlpha\n2\tNULL\n3\tΩ\n4\tline\nbreak');
+ }
+ await grid.locator('tbody tr').first().click();await expect(grid.locator('tr[aria-selected=true]')).toHaveCount(1);
+ await grid.locator('tbody tr').nth(2).click({modifiers:['Shift']});await expect(grid.locator('tr[aria-selected=true]')).toHaveCount(3);
+ await run(page);await expect(grid.locator('tbody tr')).toHaveCount(4);await expect(grid.locator('tr[aria-selected=true]')).toHaveCount(0);
+});
+test('Switching retained manual results clears selection; context menu can select and clear all',async({page})=>{
+ await manualRows(page);await page.evaluate(()=>(window as any).fixtureStatements=[{sql:'SELECT 1',from:0,to:8,line:1},{sql:'SELECT 2',from:10,to:18,line:2}]);await page.getByRole('combobox',{name:'Execution scope',exact:true}).selectOption('all');await run(page);
+ const grid=page.getByLabel('Query results',{exact:true});await expect(page.getByRole('button',{name:/Statement 2 ·/})).toBeVisible();await grid.locator('td').first().click({button:'right'});await page.getByRole('menuitem',{name:'Select all rows on page',exact:true}).click();await expect(grid.locator('tr[aria-selected=true]')).toHaveCount(4);
+ await page.getByRole('button',{name:/Statement 1 ·/}).click();await expect(grid.locator('tr[aria-selected=true]')).toHaveCount(0);await grid.locator('td').first().click({button:'right'});await page.getByRole('menuitem',{name:'Select all rows on page',exact:true}).click();await grid.locator('td').first().click({button:'right'});await page.getByRole('menuitem',{name:'Clear selection',exact:true}).click();await expect(grid.locator('tr[aria-selected=true]')).toHaveCount(0);
+});

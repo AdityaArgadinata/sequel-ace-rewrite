@@ -586,6 +586,7 @@ export namespace database {
 	    name: string;
 	    indexKind: string;
 	    definition: string;
+	    columnEdits?: Record<string, string>;
 
 	    static createFrom(source: any = {}) {
 	        return new SASchemaChange(source);
@@ -601,6 +602,7 @@ export namespace database {
 	        this.name = source["name"];
 	        this.indexKind = source["indexKind"];
 	        this.definition = source["definition"];
+	        this.columnEdits = source["columnEdits"];
 	    }
 	}
 	export class SASchemaObject {
@@ -642,6 +644,8 @@ export namespace database {
 	    definition: Result;
 	    objects: SASchemaObject[];
 	    editable: boolean;
+	    charsets: Result;
+	    collations: Result;
 	    reason: string;
 
 	    static createFrom(source: any = {}) {
@@ -656,6 +660,8 @@ export namespace database {
 	        this.definition = this.convertValues(source["definition"], Result);
 	        this.objects = this.convertValues(source["objects"], SASchemaObject);
 	        this.editable = source["editable"];
+	        this.charsets = this.convertValues(source["charsets"], Result);
+	        this.collations = this.convertValues(source["collations"], Result);
 	        this.reason = source["reason"];
 	    }
 

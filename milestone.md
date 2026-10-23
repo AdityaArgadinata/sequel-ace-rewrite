@@ -1013,3 +1013,92 @@ prefix statement pertama dengan penanda truncation, bukan melewatkannya diam-dia
 - Akun AWS/Vault nyata, native file dialog/printing, macOS GUI ke server live,
   Windows/Linux GUI serta matriks MySQL/MariaDB lain belum diverifikasi.
   GitHub Release tetap menunggu instruksi pengguna.
+
+
+## Nama dan app icon — 2026-10-24
+
+- Nama produk, window title, UI dan output build diubah menjadi `sequelx`
+  (`build/bin/sequelx.app`, `sequelx.exe`, `sequelx`). Packaging CI mengikuti nama baru.
+- App icon memakai `rewrite/sequelx.png` dari pengguna melalui build/appicon.png,
+  ikon macOS/Windows hasil konversi dan window icon Linux. Ikon toolbar tetap SVG.
+- Direktori profil dan credential-service identifier tetap memakai identitas
+  lama. Bundle identifier macOS sekarang `com.adityaargadinata.sequelx` agar
+  identitas/icon sequelx tidak bercampur dengan bundle rewrite lama.
+- Build lokal diperbarui; tidak ada publikasi GitHub Release.
+
+Verifikasi perubahan nama/icon: build macOS ARM64, bundle name/display name/
+executable, identitas bundle lama, isi app icon hasil ICNS, Windows ICO serta
+codesign verification lulus. Source PNG awal berasal dari sequelx.png; revisi transparan memakai sequelx-icon.png.
+Tes output print dan lint English catalog lulus. Paket/GUI Windows/Linux dan
+suite UI penuh tidak diulang untuk perubahan branding ini.
+
+### Penyesuaian app icon transparan — 2026-10-24
+
+Latar putih di luar tile merah dihapus; logo putih di dalam tile tetap ada.
+Ikon ditempatkan pada kanvas persegi dengan margin transparan sehingga bidang
+utama menempati sekitar 83% lebar kanvas. Asset hasil edit `sequelx-icon.png`
+dipakai untuk build/appicon.png dan Windows ICO; `sequelx.png` asli dipertahankan.
+Build lokal macOS diperbarui. Ikon toolbar tidak diubah.
+
+### Preferences dan identitas build macOS — 2026-10-24
+
+Bar/tombol Preferences di atas toolbar dihapus. Menu native Settings →
+Preferences… dan shortcut Cmd/Ctrl+, membuka dialog modal yang bisa ditutup
+dengan Escape atau tombol Close. Menu App/Edit/Window macOS tetap dipertahankan.
+Bundle ID sequelx dipisah dari app rewrite lama untuk menghindari benturan
+registrasi/icon. Path build lama diarahkan ke build sequelx terbaru; salinan
+artifact lama disimpan sementara, bukan menjadi bundle kedua yang stale.
+
+Pengaturan lintas OS: tombol Settings dengan ikon gear ditempatkan tepat di
+sebelah Console pada toolbar, tersedia sebelum maupun sesudah koneksi di macOS,
+Linux dan Windows. Tombol membuka dialog Preferences yang sama; shortcut dan
+menu native tetap tersedia sebagai akses tambahan.
+
+Verifikasi Settings: seluruh tes Go lulus; 44 tes UI panel/layout Chromium dan
+WebKit lulus, termasuk gear sebelum/sesudah koneksi, viewport 800px, dialog,
+Escape, native-menu event dan shortcut. Build macOS lokal serta codesign lulus.
+GUI native Windows/Linux belum diuji pada perubahan ini.
+
+### Select All hasil query manual — 2026-10-24
+
+Grid hasil Query yang memakai seleksi internal kini mendukung Cmd/Ctrl+A untuk
+semua baris hasil yang dimuat, Cmd/Ctrl+C, Shift-range, toggle selection dan
+Select All/Clear melalui menu konteks. Seleksi dibersihkan ketika hasil query
+atau tab statement berganti. Seleksi Content dan metadata yang dikendalikan
+parent tetap menggunakan handler semula; shortcut di editor/field tidak diambil
+alih oleh grid. Tidak ada query tambahan atau perubahan database.
+
+Verifikasi: 60 tes UI Query/Content lulus; setelah pembatasan reset seleksi pada
+grid internal, 12 tes fokus Query/Content/metadata lulus. Dua shortcut Cmd/Ctrl+A
+dan Cmd/Ctrl+C, NULL/Unicode, pergantian hasil, menu konteks serta regresi editor
+diuji di Chromium/WebKit. 12 unit test frontend, TypeScript, build macOS dan
+codesign lulus. GUI native Windows/Linux belum diuji ulang.
+
+### Structure sesuai editor kolom asli — 2026-10-24
+
+- Mengacu pada `SPTableStructure.m`, `SPTableFieldValidation.m`, dan DBView.xib:
+  Field, Type, Length, Unsigned, Zerofill, Binary, Allow Null, Key, Default,
+  Extra, Encoding, Collation, Comment; panel INDEXES dan toolbar di bawah grid.
+- Dropdown Type/Extra mengikuti daftar asli; Encoding dan Collation dibaca dari
+  server. Collation mengikuti charset; checkbox dan field yang tidak berlaku
+  dinonaktifkan. Type Info menggunakan deskripsi asli. JSON memakai encoding
+  tetap; DEFAULT_GENERATED tidak disamakan dengan kolom generated.
+- Edit inline menjadi draft satu baris. Review → preview SQL → Apply memakai
+  token, validasi transaksi dan snapshot DDL yang sudah ada. Cancel membuang
+  draft; SQL editor lengkap tersedia lewat gear/double-click pada sel Key.
+  Atribut yang tidak diedit, termasuk ekspresi generated, tetap dipertahankan
+  dari SHOW CREATE server. Tidak ada perubahan otomatis pada database pengguna.
+- Verifikasi: 68 tes UI regresi Structure/Content/Query lulus, 36 tes
+  Structure/layout multiukuran lulus (sebagian tumpang tindih), dan 6 tes fokus
+  final Chromium/WebKit lulus. 14 unit frontend, TypeScript, seluruh tes Go
+  dengan MySQL 5.7 disposable, build macOS arm64 dan codesign lulus.
+  Kasus charset yang sebelumnya diwarisi tabel, kutip/backslash/default,
+  preservasi generated, pembatalan draft dan tinggi row 22px tercakup.
+- Build lokal: `rewrite/build/bin/sequelx.app`. Native GUI Windows/Linux belum
+  diuji ulang; menu dropdown mengikuti renderer platform. Tidak membuat Release.
+
+### Publikasi alpha.2 — 2026-10-24
+
+Pengguna telah mengizinkan push, build distribusi dan publish GitHub Release.
+Target: `v0.1.0-alpha.2` dengan nama sequelx, lima paket platform dan SHA256SUMS.
+Rilis dipublikasikan setelah pipeline desktop dan database lulus.

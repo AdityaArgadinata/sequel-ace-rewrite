@@ -70,7 +70,7 @@ test('row editor, errors, Structure and Query controls',async ({page},info) => {
     await expect(page.getByRole('status').filter({hasText:'Fixture request failed'})).toBeVisible();
     await screenshot(page,info,'error');
     await page.getByRole('button',{name:'Structure',exact:true}).click();
-    await expect(page.getByRole('button',{name:'Columns & Indexes',exact:true})).toBeVisible();
+    await expect(page.getByRole('combobox',{name:'Type for id',exact:true})).toBeVisible();
     await expect(page.locator('tbody tr')).toHaveCount(3);
     await screenshot(page,info,'structure');
     await page.getByRole('button',{name:'Query',exact:true}).click();

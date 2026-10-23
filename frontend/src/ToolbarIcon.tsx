@@ -1,8 +1,9 @@
-type Name = 'structure' | 'content' | 'relations' | 'triggers' | 'info' | 'query' | 'users' | 'console' | 'database' | 'table' | 'search' | 'add' | 'remove' | 'refresh' | 'eye' | 'more' | 'filter' | 'duplicate' | 'back' | 'forward' | 'edit';
+type Name = 'structure' | 'content' | 'relations' | 'triggers' | 'info' | 'query' | 'users' | 'console' | 'database' | 'table' | 'search' | 'add' | 'remove' | 'refresh' | 'eye' | 'more' | 'filter' | 'duplicate' | 'back' | 'forward' | 'edit' | 'settings';
 
 // Original view-mode symbols are named in SPDatabaseDocument+ViewMode.swift.
 // These portable SVG drawings are our own; Apple SF Symbols artwork is not bundled.
 const paths: Record<Name, string> = {
+    settings: 'M19.39 8.94L21.78 9.92L21.78 14.08L19.39 15.06L19.39 15.06L20.39 17.45L17.45 20.39L15.06 19.39L15.06 19.39L14.08 21.78L9.92 21.78L8.94 19.39L8.94 19.39L6.55 20.39L3.61 17.45L4.61 15.06L4.61 15.06L2.22 14.08L2.22 9.92L4.61 8.94L4.61 8.94L3.61 6.55L6.55 3.61L8.94 4.61L8.94 4.61L9.92 2.22L14.08 2.22L15.06 4.61L15.06 4.61L17.45 3.61L20.39 6.55L19.39 8.94zM8.5 12a3.5 3.5 0 1 0 7 0 3.5 3.5 0 0 0-7 0',
     structure: 'M12 6v7M12 13 5 18M12 13l7 5M10 3a2 2 0 1 0 4 0 2 2 0 0 0-4 0M3 20a2 2 0 1 0 4 0 2 2 0 0 0-4 0M17 20a2 2 0 1 0 4 0 2 2 0 0 0-4 0',
     content: 'M4 5h16M4 10h16M4 15h16M4 20h16',
     relations: 'M4 13V7a3 3 0 0 1 3-3h11M15 1l3 3-3 3M20 11v6a3 3 0 0 1-3 3H6M9 17l-3 3 3 3',
