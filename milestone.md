@@ -173,6 +173,15 @@ belum identik dengan aplikasi asli. Referensi dan perbedaan dicatat di
   `39896410477` (`b4b5fc3`) lulus desktop macOS 15, Windows Server 2022,
   Ubuntu 24.04, serta integration MySQL 8.4/MariaDB 11.4. Artifact tiga OS
   berhasil diunggah. GUI/overlay dan pengiriman shortcut native belum diuji.
+- [x] Tambahkan menu grid melalui Shift+F10/tombol Context Menu, navigasi
+  panah/Home/End, Escape dengan fokus kembali ke grid, dan ⌘/Ctrl+C untuk
+  menyalin baris terpilih. Event input/editor tidak diambil alih. Delapan test
+  frontend, unit Go dan build Mac lulus; delivery keyboard/clipboard native
+  terbaru belum diuji langsung.
+- [x] Bersihkan 60 deklarasi CSS yang tertimpa dan 3 selector tidak terpakai.
+  Pemeriksaan PostCSS mempertahankan deklarasi efektif per selector/media/
+  property sebelum menghapus style elemen yang sudah tidak dirender.
+  Ini pemeliharaan stylesheet, bukan bukti kesamaan visual tambahan.
 - [ ] Ikuti alur keyboard, pemilihan tabel/baris, resizing panel/kolom, serta
   menu konteks aplikasi asli untuk fitur yang sudah diimplementasikan.
 - [ ] Bandingkan screenshot berdampingan atau dengan overlay pada ukuran/skala
@@ -503,3 +512,15 @@ Tujuh test frontend, typecheck/build, unit Go dan build Mac lokal lulus.
 Perubahan GUI terkumpul sudah di-push ke origin rewrite. CI commit `b4b5fc3`
 lulus kelima job: https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39896410477.
 Ini bukti build/test lintas OS, bukan manual GUI Windows/Linux.
+
+### Lanjutan GUI 1A — menu grid dan stylesheet
+
+CSS App.css berkurang dari 777 menjadi 715 baris dengan menghapus deklarasi
+tertimpa dan style elemen lama. Menu grid dapat dibuka lewat keyboard, navigasi
+menu memakai batas indeks yang sama dengan grid, dan copy baris tetap mengirim
+teks asli (NULL eksplisit, angka tanpa konversi). Shift+F10 memakai kolom pertama
+pada baris terpilih; pointer tetap memakai sel yang diklik. Jika fokus sudah
+berpindah keluar grid saat clipboard selesai, fokus pengguna tidak direbut.
+Delapan test frontend, typecheck/build, unit Go dan build Mac lokal lulus.
+GUI native, light/dark overlay serta Windows/Linux masih perlu pemeriksaan.
+CI terakhir terverifikasi di atas tetap untuk b4b5fc3, bukan perubahan terbaru ini.

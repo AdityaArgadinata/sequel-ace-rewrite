@@ -409,3 +409,8 @@ Pada Mac, ⌥⌘F juga membuka filter Content sesuai menu Sequel Ace asli.
 Refresh/filter tidak mengganggu row editor atau konfirmasi delete yang terbuka.
 Jika hasil query baru lebih pendek, navigasi panah tetap dibatasi baris tersedia.
 Shortcut membutuhkan fokus di workspace; dukungan menu native penuh belum ada.
+
+Saat grid hasil fokus dan satu baris terpilih, ⌘/Ctrl+C menyalin baris sebagai
+teks dipisahkan tab. Shift+F10/tombol Context Menu membuka menu salin dari kolom
+pertama. Gunakan panah/Home/End untuk memilih aksi dan Escape untuk kembali ke
+grid. Copy dari editor SQL tetap memakai seleksi teks biasa.

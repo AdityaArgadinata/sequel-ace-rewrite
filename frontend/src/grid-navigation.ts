@@ -9,3 +9,9 @@ export function selectedRow(key: string, current: number, count: number): number
     }
 }
 export function columnWidth(width: number): number { return Math.max(48, Math.min(800, width)); }
+
+export function gridShortcut(event: Pick<KeyboardEvent, 'key' | 'altKey' | 'shiftKey' | 'ctrlKey' | 'metaKey' | 'repeat' | 'isComposing'>): 'copy' | 'menu' | undefined {
+    if (event.repeat || event.isComposing || event.altKey) return;
+    if (!event.shiftKey && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'c') return 'copy';
+    if (!event.ctrlKey && !event.metaKey && (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10'))) return 'menu';
+}

@@ -66,3 +66,21 @@ additional modifiers and unsupported views. Grid tests now also cover stale
 selection indices after a shorter result replaces the old one. Seven frontend
 tests, typecheck/build, Go unit tests and Mac package build passed locally.
 Native keyboard delivery, minimum size and Windows/Linux GUI remain unverified.
+
+## Keyboard context menu and CSS cleanup
+
+The focused grid accepts Shift+F10 or ContextMenu to open the copy menu for the
+selected row's first cell. Up/Down/Home/End select menu actions; Escape closes
+it and restores grid focus. Command/Control+C copies the selected row as raw
+tab-separated text; editor/input selections keep their normal copy behavior.
+Copy completion restores focus only if focus was still inside the grid.
+Native keyboard/clipboard delivery has not been manually verified for this pass.
+
+60 declarations overridden later in identical selector/at-rule contexts were
+removed using PostCSS. A one-off assert checked the last declaration value for
+each selector/media/property/importance stayed identical. Three unused selector
+rules for old row numbers/empty favorites were removed after checking component
+references. No stylesheet dependency or cleanup script was added to the product.
+App.css decreased from 777 to 715 lines. This is a conservative cascade cleanup,
+not a computed-style or pixel-overlay comparison. Eight frontend tests,
+TypeScript build, Go unit tests and Mac package build passed.
