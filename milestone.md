@@ -1107,3 +1107,7 @@ Saat persiapan publikasi, CI menemukan fixture akun prioritas 5 mengunci host
 ke 127.0.0.1 meskipun server container melihat alamat bridge runner. Fixture
 kini mengambil host dari USER() server; akun tes tetap dibatasi ke satu host
 dan dibersihkan sesudah tes. Tidak mengubah perilaku akun aplikasi.
+
+Suite UI penuh juga menemukan assertion Relations yang masih mencari tombol
+Foreign keys pada layout lama. Assertion kini memeriksa judul panel aktif dan
+kemampuan membuka editor FK, mengikuti layout Structure baru.

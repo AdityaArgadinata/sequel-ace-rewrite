@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';
 import {openApp,openContent,screenshot} from './fixture';
 
-test('Relations opens the existing reviewed foreign-key editor',async({page})=>{await openContent(page);await page.getByRole('button',{name:'Relations',exact:true}).click();await expect(page.getByRole('button',{name:'Foreign keys',exact:true})).toHaveAttribute('aria-pressed','true');await expect(page.getByRole('button',{name:'Add foreign key',exact:true})).toBeEnabled();});
+test('Relations opens the existing reviewed foreign-key editor',async({page})=>{await openContent(page);await page.getByRole('button',{name:'Relations',exact:true}).click();await expect(page.getByRole('region',{name:'Table structure',exact:true}).locator('.query-heading strong')).toHaveText('Foreign keys');await expect(page.getByRole('button',{name:'Add foreign key',exact:true})).toBeEnabled();});
 test('Triggers preview, acknowledge, create and drop without automatic replay',async({page},info)=>{
  await openContent(page);await page.getByRole('button',{name:'Triggers',exact:true}).click();await page.getByRole('textbox',{name:'Trigger name',exact:true}).fill('before_insert');await page.getByRole('textbox',{name:'Trigger body',exact:true}).fill('SET NEW.value = 1');
  await page.getByRole('button',{name:'Preview administration SQL'}).click();await expect(page.getByRole('button',{name:'Apply administration change'})).toBeDisabled();await screenshot(page,info,'trigger-preview');
