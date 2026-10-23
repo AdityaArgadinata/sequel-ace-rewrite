@@ -555,3 +555,15 @@ opaque. Sembilan test frontend, build frontend dan unit Go lulus. Preview PNG
 sebelumnya adalah bukti layout sebelum koreksi transparansi, bukan bukti efek
 wallpaper. Perbandingan visual native pada beberapa wallpaper masih terbuka.
 Build macOS arm64 terbaru dan pemeriksaan code signature juga lulus.
+
+### Distribution packages — 2026-10-23
+
+The workflow now prepares macOS ARM64 DMG/ZIP, Windows AMD64 NSIS installer and
+portable ZIP, and an Ubuntu 24.04 AMD64 tarball. Packages retain LICENSE and
+README; the Windows installer displays and installs LICENSE. Version tags or a
+manual `release_tag` request create a draft pre-release only after all desktop
+and database jobs pass, including SHA-256 checksums. Publisher signing and
+notarization are not configured. Workflow lint and local release-version checks
+passed; cross-platform package build verification is in progress.
+Local macOS production build, ZIP integrity/content check, code-signature check,
+and DMG creation/checksum verification also passed.

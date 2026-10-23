@@ -4,3 +4,6 @@
 /frontend/dist/
 .DS_Store
 /frontend/package.json.md5
+/dist/
+/staging/
+/build/windows/installer/tmp/

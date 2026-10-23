@@ -12,29 +12,34 @@ builds run in CI; manual GUI validation on those platforms remains open.
 ## Install a prebuilt application
 
 You do **not** need Go, Node.js, or the Wails CLI to run a prebuilt application.
-The current downloadable builds are CI artifacts, rather than signed release
-installers.
+Download the assets for your OS from [GitHub Releases](https://github.com/AdityaArgadinata/sequel-ace-rewrite/releases).
+Development releases are marked as pre-releases. If a release has not been
+published yet, repository collaborators can access its draft; other users can
+try a successful [GitHub Actions build](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/workflows/rewrite.yml)
+by downloading and extracting its OS-specific artifact.
 
-1. Open [GitHub Actions → Go desktop rewrite](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/workflows/rewrite.yml).
-2. Choose a **successful** run for the revision you want to try.
-3. Under **Artifacts**, download the package for your OS. Sign in to GitHub if
-   required to download artifacts.
-4. Extract the downloaded ZIP, then follow the matching instructions below.
-
-| Platform | Artifact | Installation and launch |
+| Platform | File suffix | Installation and launch |
 | --- | --- | --- |
-| macOS, Apple Silicon | `sequel-rewrite-macos-15` | Extract the inner `sequel-rewrite-macos.zip`, drag `sequel-rewrite.app` to Applications, then open it. |
-| Windows 10/11, x64 | `sequel-rewrite-windows-2022` | Extract `sequel-rewrite.exe` to a folder and run it. Install the [Microsoft WebView2 Evergreen Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) if it is missing. |
-| Ubuntu 24.04, x64 | `sequel-rewrite-ubuntu-24.04` | Extract the inner `sequel-rewrite-linux.tar.gz`, install the runtime packages below, then run `./sequel-rewrite`. |
+| macOS, Apple Silicon | `macos-arm64.dmg` | Open the disk image, drag `sequel-rewrite.app` to Applications, then open it. A `macos-arm64.zip` alternative includes the app, README, and license. |
+| Windows 10/11, x64 | `windows-amd64-setup.exe` | Run the installer. It can install WebView2 if missing. A `windows-amd64-portable.zip` alternative can be extracted and run without installing the app; the [WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) is still required. |
+| Ubuntu 24.04, x64 | `linux-amd64.tar.gz` | Install the runtime packages below, extract the archive, then run `./sequel-rewrite`. |
+
+Filenames include the version, for example
+`sequel-rewrite-v0.1.0-alpha.1-macos-arm64.dmg`. CI artifacts for ordinary branch
+builds use `dev-<commit>` instead. The archive downloaded from GitHub Actions
+wraps the actual distribution files; extract it first.
 
 For Ubuntu 24.04, install the [GTK 3](https://packages.ubuntu.com/noble/libgtk-3-0t64)
 and [WebKitGTK 4.1](https://packages.ubuntu.com/noble/libwebkit2gtk-4.1-0) runtime
-packages, then launch from the folder containing the extracted archive:
+packages, then launch from the folder containing the downloaded archive
+(replace the example version with yours):
 
 ```sh
 sudo apt-get update
 sudo apt-get install -y libgtk-3-0t64 libwebkit2gtk-4.1-0
-tar -xzf sequel-rewrite-linux.tar.gz
+mkdir sequel-rewrite
+tar -xzf sequel-rewrite-v0.1.0-alpha.1-linux-amd64.tar.gz -C sequel-rewrite
+cd sequel-rewrite
 ./sequel-rewrite
 ```
 
@@ -42,11 +47,50 @@ The Linux executable needs a graphical desktop session. Password storage also
 needs an unlocked Secret Service provider, such as GNOME Keyring, in that session.
 You can connect without saving passwords if no credential service is available.
 
-macOS artifacts are not Developer ID signed/notarized, and Windows artifacts do
+Release assets include `SHA256SUMS.txt`. Download all five package files beside
+it and run `shasum -a 256 -c SHA256SUMS.txt` on macOS, or
+`sha256sum -c SHA256SUMS.txt` on Linux. For an individual file, compare its SHA-256
+with its line in the checksum file; PowerShell provides `Get-FileHash -Algorithm SHA256`.
+
+macOS packages are not Developer ID signed/notarized, and Windows packages do
 not carry a publisher signature. Some systems may block these development
-builds. There is no automatic updater: download a newer artifact to update.
+builds. There is no automatic updater: download a newer package to update.
 Other macOS architectures, Linux distributions, and Windows ARM64 are not part
 of the current artifact matrix.
+
+## Create distribution files and a draft release
+
+The **Go desktop rewrite** workflow builds macOS DMG/ZIP, a Windows NSIS
+installer/portable ZIP, and a Linux tarball, each containing the license. It
+runs the frontend and Go checks plus MySQL/MariaDB integration tests before
+creating a release. The release job alone has repository write permission.
+
+To create a version from GitHub:
+
+1. Push your changes and open **Actions → Go desktop rewrite → Run workflow**.
+2. Choose the branch/commit to build and enter a new `release_tag`, such as
+   `v0.1.0-alpha.1`. Leave it empty for an ordinary CI build without a release.
+3. Wait for every build and database test to pass. The final job uploads all
+   five packages and checksums to a **draft pre-release**.
+4. Open **Releases**, inspect the draft and try the packages. Edit the notes as
+   needed, then click **Publish release** when ready.
+
+Alternatively, push a version tag on the desired commit:
+
+```sh
+git tag v0.1.0-alpha.1
+git push origin v0.1.0-alpha.1
+```
+
+An existing tag must point to the same commit being built. Version numbers
+must have the form `vMAJOR.MINOR.PATCH` with an optional suffix such as
+`-alpha.1`; numeric components must be at most 65535 for Windows metadata.
+Numeric app metadata uses `MAJOR.MINOR.PATCH`; filenames and release tags retain
+the suffix. Existing releases are not overwritten: use a new version, or remove
+an incomplete draft deliberately before retrying that release job.
+
+A successful build creates downloadable packages; it does not establish that
+GUI installation and database operations work on every target machine.
 
 ## Build and run from source
 

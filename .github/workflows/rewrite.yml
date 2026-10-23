@@ -4,13 +4,62 @@ on:
   pull_request:
   push:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Optional draft release version, e.g. v0.1.0-alpha.1'
+        required: false
+        type: string
 
 permissions:
   contents: read
 
 jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+      label: ${{ steps.version.outputs.label }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate version and release target
+        id: version
+        shell: bash
+        env:
+          REQUESTED_TAG: ${{ inputs.release_tag }}
+        run: |
+          tag="$REQUESTED_TAG"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+          fi
+          version=0.1.0
+          label="dev-${GITHUB_SHA:0:7}"
+          if [[ -n "$tag" ]]; then
+            if [[ ! "$tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$ ]]; then
+              echo 'Expected a version such as v0.1.0 or v0.1.0-alpha.1' >&2
+              exit 1
+            fi
+            parts=( "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" )
+            for part in "${parts[@]}"; do
+              if (( ${#part} > 5 || 10#$part > 65535 )); then
+                echo 'Version components must be at most 65535 for Windows metadata' >&2
+                exit 1
+              fi
+            done
+            version="${parts[0]}.${parts[1]}.${parts[2]}"
+            if git show-ref --verify --quiet "refs/tags/$tag"; then
+              test "$(git rev-parse "$tag^{commit}")" = "$GITHUB_SHA"
+            fi
+            label="$tag"
+          fi
+          printf 'tag=%s\nversion=%s\nlabel=%s\n' "$tag" "$version" "$label" >> "$GITHUB_OUTPUT"
+
   desktop:
     name: Desktop (${{ matrix.os }})
+    needs: prepare
     strategy:
       fail-fast: false
       matrix:
@@ -37,6 +86,15 @@ jobs:
       - name: Install Linux desktop dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config gnome-keyring dbus-x11
+      - name: Install Windows installer tools
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          choco install nsis --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $nsis = Join-Path ${env:ProgramFiles(x86)} 'NSIS'
+          if (!(Test-Path (Join-Path $nsis 'makensis.exe'))) { throw 'NSIS is missing' }
+          $nsis | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Install pinned Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.0
       - name: Install frontend dependencies
@@ -94,27 +152,87 @@ jobs:
             printf %s rewrite-ci-only | gnome-keyring-daemon --unlock --components=secrets
             SEQUEL_TEST_KEYRING=1 go test ./internal/credentials -run TestNativeVault -v -count=1
           '
+      - name: Set application version
+        env:
+          BUILD_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          node -e 'const fs = require("fs"); const p = "wails.json"; const config = JSON.parse(fs.readFileSync(p)); config.info.productVersion = process.env.BUILD_VERSION; fs.writeFileSync(p, JSON.stringify(config, null, 2) + "\n");'
       - name: Build desktop application
         run: |
           if [ "$RUNNER_OS" = Linux ]; then
-            wails build -tags webkit2_41
+            wails build -platform linux/amd64 -tags webkit2_41
+          elif [ "$RUNNER_OS" = Windows ]; then
+            wails build -platform windows/amd64 -nsis
+            test -f build/bin/sequel-rewrite-amd64-installer.exe
           else
-            wails build
+            wails build -platform darwin/arm64
           fi
-      - name: Package macOS bundle preserving permissions
-        if: runner.os == 'macOS'
-        run: ditto -c -k --keepParent build/bin/sequel-rewrite.app build/bin/sequel-rewrite-macos.zip
-      - name: Package Linux executable preserving permissions
-        if: runner.os == 'Linux'
-        run: tar -czf build/bin/sequel-rewrite-linux.tar.gz -C build/bin sequel-rewrite
+      - name: Package distribution files
+        env:
+          BUILD_LABEL: ${{ needs.prepare.outputs.label }}
+        run: |
+          mkdir -p dist staging/sequel-rewrite
+          cp LICENSE README.md staging/sequel-rewrite/
+          base="sequel-rewrite-$BUILD_LABEL"
+          if [ "$RUNNER_OS" = macOS ]; then
+            ditto build/bin/sequel-rewrite.app staging/sequel-rewrite/sequel-rewrite.app
+            codesign --verify --deep staging/sequel-rewrite/sequel-rewrite.app
+            ditto -c -k --keepParent staging/sequel-rewrite "dist/$base-macos-arm64.zip"
+            ln -s /Applications staging/sequel-rewrite/Applications
+            hdiutil create -volname 'Sequel Rewrite' -srcfolder staging/sequel-rewrite -ov -format UDZO "dist/$base-macos-arm64.dmg"
+            hdiutil verify "dist/$base-macos-arm64.dmg"
+          elif [ "$RUNNER_OS" = Windows ]; then
+            cp build/bin/sequel-rewrite.exe staging/sequel-rewrite/
+            cp build/bin/sequel-rewrite-amd64-installer.exe "dist/$base-windows-amd64-setup.exe"
+            powershell.exe -NoProfile -Command 'Compress-Archive -Path staging/sequel-rewrite -DestinationPath ("dist/sequel-rewrite-" + $env:BUILD_LABEL + "-windows-amd64-portable.zip")'
+          else
+            cp build/bin/sequel-rewrite staging/sequel-rewrite/
+            tar -czf "dist/$base-linux-amd64.tar.gz" -C staging/sequel-rewrite .
+            tar -tzf "dist/$base-linux-amd64.tar.gz"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: sequel-rewrite-${{ matrix.os }}
           if-no-files-found: error
-          path: |
-            build/bin/*.zip
-            build/bin/*.exe
-            build/bin/*.tar.gz
+          path: dist/*
+
+  release:
+    name: Create draft distribution release
+    needs: [prepare, desktop, database-integration]
+    if: needs.prepare.outputs.tag != ''
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: release-${{ needs.prepare.outputs.tag }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sequel-rewrite-*
+          merge-multiple: true
+          path: dist
+      - name: Verify packages and write checksums
+        env:
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          base="sequel-rewrite-$RELEASE_TAG"
+          for suffix in macos-arm64.zip macos-arm64.dmg windows-amd64-setup.exe windows-amd64-portable.zip linux-amd64.tar.gz; do
+            test -s "dist/$base-$suffix"
+          done
+          cd dist
+          sha256sum -- *.zip *.dmg *.exe *.tar.gz > SHA256SUMS.txt
+          sha256sum --check SHA256SUMS.txt
+      - name: Create draft release with all packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/* --target "$GITHUB_SHA" --draft --prerelease --title "Sequel Rewrite $RELEASE_TAG" --notes-file docs/release-notes.md
 
   database-integration:
     name: Database (${{ matrix.image }})

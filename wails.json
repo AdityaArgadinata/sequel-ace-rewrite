@@ -9,5 +9,12 @@
   "author": {
     "name": "Aditya Argadinata",
     "email": "93075183+AdityaArgadinata@users.noreply.github.com"
+  },
+  "info": {
+    "companyName": "Sequel Rewrite",
+    "productName": "Sequel Rewrite",
+    "productVersion": "0.1.0",
+    "copyright": "Copyright Sequel Rewrite contributors. Includes software from Sequel Ace; see LICENSE.",
+    "comments": "A desktop MySQL and MariaDB client."
   }
 }
