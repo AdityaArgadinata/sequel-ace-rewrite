@@ -1,416 +1,418 @@
 # Sequel Rewrite
 
-Fondasi desktop Go + Wails + React/TypeScript untuk rewrite Sequel Ace.
-Alur awal koneksi dan query database sudah tersedia. Repo ini adalah implementasi
-Go terpisah; Sequel Ace menjadi referensi perilaku dan fitur.
+A desktop MySQL and MariaDB client built with Go, Wails, React, and TypeScript,
+with a UI modeled after Sequel Ace. This is a separate implementation of the
+original macOS application, targeting macOS, Windows, and Linux.
 
-## Toolchain dan target
+**Status: in development.** Connection profiles, SSH connections, SQL queries,
+Content browsing and editing, read-only Structure, and CSV export are available.
+Full Sequel Ace feature and visual parity are still in progress. Windows/Linux
+builds run in CI; manual GUI validation on those platforms remains open.
 
-- Go 1.25.3 (direktif modul minimum 1.25.0), Wails **2.17.0**.
-- Node **24.4.1**; gunakan `npm ci` dengan `package-lock.json` yang dikomit.
-- CI: macOS 15 arm64, Windows Server 2022 x64 untuk build Windows, Ubuntu 24.04 x64.
-- Target penggunaan awal: macOS arm64, Windows 10/11 x64, Ubuntu 24.04 x64.
-  Build di Windows Server tidak menggantikan manual QA Windows 10/11.
-- Matriks database yang direncanakan untuk milestone 1: MySQL 8.4 dan MariaDB
-  11.4. Versi lebih lama belum diklaim kompatibel.
+## Install a prebuilt application
 
-Dependensi Go dikunci melalui `go.mod`/`go.sum`; frontend melalui lockfile.
+You do **not** need Go, Node.js, or the Wails CLI to run a prebuilt application.
+The current downloadable builds are CI artifacts, rather than signed release
+installers.
 
-## Menjalankan dari Mac
+1. Open [GitHub Actions → Go desktop rewrite](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/workflows/rewrite.yml).
+2. Choose a **successful** run for the revision you want to try.
+3. Under **Artifacts**, download the package for your OS. Sign in to GitHub if
+   required to download artifacts.
+4. Extract the downloaded ZIP, then follow the matching instructions below.
 
-Pasang Go, Node dan Xcode Command Line Tools, lalu:
+| Platform | Artifact | Installation and launch |
+| --- | --- | --- |
+| macOS, Apple Silicon | `sequel-rewrite-macos-15` | Extract the inner `sequel-rewrite-macos.zip`, drag `sequel-rewrite.app` to Applications, then open it. |
+| Windows 10/11, x64 | `sequel-rewrite-windows-2022` | Extract `sequel-rewrite.exe` to a folder and run it. Install the [Microsoft WebView2 Evergreen Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) if it is missing. |
+| Ubuntu 24.04, x64 | `sequel-rewrite-ubuntu-24.04` | Extract the inner `sequel-rewrite-linux.tar.gz`, install the runtime packages below, then run `./sequel-rewrite`. |
+
+For Ubuntu 24.04, install the [GTK 3](https://packages.ubuntu.com/noble/libgtk-3-0t64)
+and [WebKitGTK 4.1](https://packages.ubuntu.com/noble/libwebkit2gtk-4.1-0) runtime
+packages, then launch from the folder containing the extracted archive:
+
+```sh
+sudo apt-get update
+sudo apt-get install -y libgtk-3-0t64 libwebkit2gtk-4.1-0
+tar -xzf sequel-rewrite-linux.tar.gz
+./sequel-rewrite
+```
+
+The Linux executable needs a graphical desktop session. Password storage also
+needs an unlocked Secret Service provider, such as GNOME Keyring, in that session.
+You can connect without saving passwords if no credential service is available.
+
+macOS artifacts are not Developer ID signed/notarized, and Windows artifacts do
+not carry a publisher signature. Some systems may block these development
+builds. There is no automatic updater: download a newer artifact to update.
+Other macOS architectures, Linux distributions, and Windows ARM64 are not part
+of the current artifact matrix.
+
+## Build and run from source
+
+The instructions below assume a fresh checkout of the standalone
+`sequel-ace-rewrite` repository. All commands after cloning run from its root,
+which contains `go.mod`, `wails.json`, and `frontend/`. If you are working in the
+original Sequel Ace checkout with this project inside `rewrite/`, use that
+`rewrite/` folder instead. This Go application does not use the Xcode project.
+
+### 1. Install the toolchain
+
+Use the versions pinned in this project's CI:
+
+| Tool | Version | Download |
+| --- | --- | --- |
+| Git | Available on your PATH | [Git downloads](https://git-scm.com/downloads) |
+| Go | 1.25.3 | [Go downloads](https://go.dev/dl/) |
+| Node.js with npm | 24.4.1 | [Node.js 24.4.1](https://nodejs.org/download/release/v24.4.1/) |
+| Wails CLI | 2.17.0 | Installed in step 2 below |
+
+The Go module declares a minimum of Go 1.25.0; 1.25.3 is the CI reference.
+Dependencies are locked in `go.mod`, `go.sum`, and `frontend/package-lock.json`.
+The first installation/build needs internet access to download them.
+
+**macOS:** install Apple's Xcode Command Line Tools, then complete the installer:
+
+```sh
+xcode-select --install
+```
+
+If they are already installed, continue. The current macOS build target is
+Apple Silicon; CI uses macOS 15. Full Xcode is not needed for this Go rewrite.
+
+**Windows:** install Git, Go, Node.js, and the
+[WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+Use **PowerShell** for the Windows commands below. Reopen your terminal after
+installing the toolchain so its PATH changes take effect.
+
+**Ubuntu 24.04:** install the native build dependencies:
+
+```sh
+sudo apt-get update
+sudo apt-get install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev gnome-keyring dbus-x11
+```
+
+Ubuntu 24.04 uses WebKitGTK 4.1. Include `-tags webkit2_41` in the Wails and Go
+commands shown below. See the [Wails installation guide](https://wails.io/docs/gettingstarted/installation/)
+for platform dependency details.
+
+### 2. Clone the repository and install dependencies
+
+These commands work in macOS/Linux terminals and Windows PowerShell:
 
 ```sh
 git clone https://github.com/AdityaArgadinata/sequel-ace-rewrite.git
 cd sequel-ace-rewrite
 go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.0
+npm --prefix frontend ci
 ```
 
-Pastikan direktori `go env GOPATH` + `/bin` ada di PATH. Selanjutnya:
+Add the default Go executable directory to your current terminal's PATH.
+
+macOS/Linux:
 
 ```sh
+export PATH="$(go env GOPATH)/bin:$PATH"
 wails doctor
-cd frontend
-npm ci
-cd ..
-wails dev
 ```
 
-Isi host, port, user, dan password, lalu klik **Hubungkan**. TLS terverifikasi
-aktif secara default; tempel sertifikat PEM pada CA khusus jika diperlukan.
-Password dikosongkan dari form setelah submit. Penyimpanan rahasia bersifat opt-in melalui vault OS, terpisah dari profil JSON.
-Browser Vite saja tidak memiliki backend Wails; gunakan jendela desktop.
-Untuk build produksi jalankan `wails build`, lalu buka `.app` di `build/bin/`.
+Windows PowerShell:
 
-## Pemeriksaan lokal
+```powershell
+$env:Path += ";" + (Join-Path (go env GOPATH) "bin")
+wails doctor
+```
+
+If you have a custom `GOBIN`, add that directory instead. To make the PATH
+change persistent, add the directory to your shell configuration or Windows
+user PATH. Resolve missing platform dependencies reported by `wails doctor`.
+On Ubuntu 24.04, a WebKitGTK **4.0** warning can occur despite having 4.1
+installed; use the `webkit2_41` tag rather than substituting the 4.0 package.
+
+### 3. Prepare the assets and generated bindings
+
+Go embeds `frontend/dist`, so the directory must exist before Wails generates
+bindings on a clean checkout. Create a placeholder, then generate the bindings.
+The production frontend build replaces this placeholder.
+
+macOS:
 
 ```sh
 mkdir -p frontend/dist
 touch frontend/dist/index.html
 wails generate module
-cd frontend
-npm ci
-npm run build
-cd ..
+```
+
+Windows PowerShell:
+
+```powershell
+New-Item -ItemType Directory -Force frontend/dist | Out-Null
+if (!(Test-Path frontend/dist/index.html)) {
+    New-Item -ItemType File frontend/dist/index.html | Out-Null
+}
+wails generate module
+```
+
+Ubuntu 24.04:
+
+```sh
+mkdir -p frontend/dist
+touch frontend/dist/index.html
+wails generate module -tags webkit2_41
+```
+
+Bindings live in `frontend/wailsjs/`. Regenerate them after changing exported
+Go methods or models used by the frontend.
+
+### 4. Start the desktop application
+
+macOS / Windows:
+
+```sh
+wails dev
+```
+
+Ubuntu 24.04:
+
+```sh
+wails dev -tags webkit2_41
+```
+
+Use the desktop window that Wails opens. Running only `npm run dev` in the
+frontend starts a browser preview without the Go backend; database connections,
+OS credential storage, and native dialogs require Wails.
+
+### 5. Create a production build
+
+macOS / Windows:
+
+```sh
+wails build
+```
+
+Ubuntu 24.04:
+
+```sh
+wails build -tags webkit2_41
+```
+
+Build on the target OS for the documented workflow. Wails builds the frontend
+and writes the application to `build/bin/`:
+
+| OS | Output | Launch from the repository root |
+| --- | --- | --- |
+| macOS | `build/bin/sequel-rewrite.app` | `open build/bin/sequel-rewrite.app` |
+| Windows | `build/bin/sequel-rewrite.exe` | `& .\build\bin\sequel-rewrite.exe` in PowerShell |
+| Linux | `build/bin/sequel-rewrite` | `./build/bin/sequel-rewrite` |
+
+See the [Wails build guide](https://wails.io/docs/gettingstarted/building/) for
+additional packaging options.
+
+## Connect to a database
+
+1. Open the app and choose **TCP/IP** for a direct connection, or **SSH** for a
+   tunnel.
+2. Enter the database host, port (normally `3306`), username, and password.
+3. **TLS is enabled by default and verifies the server certificate.** For a
+   private CA, open the custom CA field and paste its PEM certificate. The
+   certificate must match the database host name. A local server without TLS
+   needs a deliberate change to the TLS option before connecting.
+4. Click **Connect**, choose a database using **Select Database**, then select
+   a table in the sidebar to open **Content**.
+5. For SQL, select **Query**, enter one statement, and click **Run Query** or
+   press **Cmd+Enter** on macOS / **Ctrl+Enter** on Windows/Linux.
+
+To save a connection, enter a name and click **Add to Favorites**. Subsequent
+edits use **Save Changes**. Passwords are not included in profile JSON. Open
+**Password storage** to opt into the OS credential store, load saved passwords,
+or forget them. macOS uses Keychain, Windows uses Credential Manager, and Linux
+uses Secret Service. Passwords are cleared from the form after connecting.
+
+For SSH, provide the SSH host, port, username, and password or absolute private
+key path. Encrypted keys need a passphrase. The database host is resolved from
+the SSH server. An empty Known Hosts field uses `~/.ssh/known_hosts`; unknown or
+changed host keys are rejected. SSH agent and keyboard-interactive auth are not
+implemented. Database TLS verification remains enabled independently of SSH.
+
+## Workspace and current features
+
+- **Content:** select rows, filter using the controls above the grid, and click
+  **Apply Filter(s)**. The bottom ellipsis menu contains sorting, page size,
+  and **Export entire table CSV**. Pages contain 25–200 rows. Select a unique
+  sort column for stable ordering; concurrent writes can still shift pages.
+- **Editing:** Insert/Edit/Delete are available for eligible InnoDB base tables
+  with a primary key. Select a row by clicking it. NULL and empty strings stay
+  distinct; binary values use hex. Generated columns are not writable. Delete
+  requires confirmation; update/delete detect changes to the original row.
+  Arbitrary Query results, views, and ineligible tables remain read-only.
+- **Structure:** inspect Columns, Indexes / Primary key, Foreign keys, and CREATE
+  statement. Structure editing is not implemented.
+- **Sessions and transactions:** the sidebar connection-actions menu opens a new
+  query tab, disconnects, and exposes Begin/Commit/Rollback. Each tab has its own
+  database session, up to 16 tabs. A single session hides the tab strip. Closing
+  a session discards uncommitted transactional work. Manual SQL may leave
+  transaction state unverified; resolve it with Commit/Rollback.
+- **History:** enable **Record** in Query to store execution metadata. Open
+  **History (metadata)** there, or use the connection-actions menu. History
+  keeps up to 100 entries and supports clearing. SQL text, cell values, database
+  names, connection identifiers, and raw errors are not stored; replay is not
+  available. The separate Console feature is not implemented.
+- **Appearance:** the workspace uses a dark theme. macOS sidebars expose native
+  wallpaper blur/transparency; their tint depends on the background. Other
+  platforms use a neutral fallback. Disabled toolbar items mark unavailable
+  features. Exact visual parity is tracked in [GUI parity](docs/gui-parity.md).
+
+### Query limits and cancellation
+
+Queries execute one statement at a time on a pinned session; do not paste a
+multi-statement SQL script. Results stream into the grid and preserve numeric,
+date, binary, and NULL values without converting them to JavaScript numbers.
+The limit is **500 rows / 4 MiB of cell content**, with a **10-second connection
+timeout** and **60-second operation timeout**. The driver reads a complete row
+before the content limit is checked, so a very large BLOB can exceed that limit
+in temporary memory.
+
+Cancellation or timeout discards the session and clears partial query results.
+Reaching a result limit also discards the session; any displayed truncated
+result is incomplete. Reconnect explicitly; sessions and SQL are never replayed
+automatically. A cancelled write is not guaranteed to have rolled back: verify
+the server before repeating it. Rollback protects transactional engines, not
+external effects or writes to nontransactional tables.
+
+After manual `USE` or DDL, use **Refresh databases and tables** in the sidebar
+to reload metadata. That action issues queries and can change session diagnostics
+such as `ROW_COUNT()`. Metadata is not refreshed automatically after SQL.
+
+### CSV export format
+
+**Export entire table CSV** writes the entire selected table/view, ignoring
+Content filters, sorting, and pagination. Choose a new filename; existing files
+are not overwritten. Export streams through Go and is not limited to 500 rows,
+but retains the operation timeout and 4 MiB encoded-row limit. A filesystem
+supporting hard links is required to publish the completed file.
+
+The **Sequel CSV v1** format uses UTF-8 without BOM, comma separators, a header,
+and standard CSV quoting, with these cell encodings:
+
+| Database value | CSV cell content |
+| --- | --- |
+| SQL NULL | `\N` |
+| Empty text | `\E` |
+| Binary | `\B` followed by hex; empty binary is `\B` |
+| Literal backslash | `\\` |
+| CR / LF / tab in text | `\r` / `\n` / `\t` |
+| Other text, numbers, dates, decimals | Original server text |
+
+For example, literal text `\N` becomes `\\N`, distinct from SQL NULL. This is a
+loss-preserving database format; spreadsheet applications may interpret formula
+prefixes. CSV import and favorites import are not implemented.
+
+## Keyboard shortcuts
+
+Use **Cmd** on macOS or **Ctrl** on Windows/Linux with focus in the workspace.
+
+| Shortcut | Action |
+| --- | --- |
+| Cmd/Ctrl+1 | Structure for the selected table |
+| Cmd/Ctrl+2 | Content for the selected table |
+| Cmd/Ctrl+6 | Query |
+| Cmd/Ctrl+R | Reload Content/Structure; does not rerun SQL in Query |
+| Cmd/Ctrl+F | Show and focus the Content filter |
+| Cmd/Ctrl+Enter | Run one SQL statement from the editor |
+| Cmd/Ctrl+C | Copy the selected row when the result grid has focus |
+| Shift+F10 / Context Menu key | Open the grid copy menu |
+| Arrow keys / Home / End | Navigate grid rows or copy-menu actions |
+| Escape | Close the grid copy menu |
+
+Option+Cmd+F also focuses the Content filter on macOS. Refresh/filter shortcuts
+leave an open row editor or delete confirmation alone.
+
+## Development checks
+
+After installing dependencies and generating bindings, build the real embedded
+assets before running Go checks.
+
+macOS / Windows:
+
+```sh
+npm --prefix frontend test
+npm --prefix frontend run build
 go test ./...
 go vet ./...
 wails build
 ```
 
-Unit test database berjalan tanpa server. Integration test dilewati jika
-`SEQUEL_TEST_PORT` tidak diisi; hasil skip bukan bukti kompatibilitas server.
-Binding `frontend/wailsjs/` dihasilkan Wails dan dapat diregenerasi.
-`frontend/dist/` harus dibuat sebelum test/build Go karena di-embed oleh aplikasi.
-
-## Windows dan Ubuntu
-
-Windows memerlukan toolchain Go/Node serta WebView2 Runtime. Ubuntu memerlukan:
-
-```sh
-sudo apt-get update
-sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config
-```
-
-Gunakan `wails build -tags webkit2_41` pada Ubuntu 24.04; gunakan tag yang sama
-untuk `go test` dan `go vet`. Hasil Linux bergantung pada runtime GTK/WebKitGTK;
-artifact CI belum merupakan installer mandiri.
-
-## CI
-
-Workflow `.github/workflows/rewrite.yml` membangun aplikasi pada macOS 15,
-Windows Server 2022, dan Ubuntu 24.04, serta menjalankan integration test pada
-MySQL 8.4/MariaDB 11.4. Buka tab **Actions → Go desktop rewrite** untuk melihat
-hasil dan mengunduh artifact. Build hijau belum menggantikan manual QA GUI.
-Paket belum ditandatangani dengan identitas penerbit; Linux masih memerlukan
-runtime GTK/WebKitGTK. Ikon scaffold berasal dari Wails dan belum final.
-
-## Batas arsitektur
-
-`main.go` mengatur lifecycle/jendela dan embed frontend. `app.go` menjadi adapter
-Wails. Logika database ditempatkan di `internal/database`
-tanpa import Wails agar integration test dapat berjalan tanpa desktop.
-UI hanya memanggil operasi adapter, bukan mengelola koneksi SQL secara langsung.
-
-## Catatan verifikasi
-
-Verifikasi lokal 2026-10-21: unit/integration test dengan race detector pada
-MySQL 5.7.44 terisolasi lulus, termasuk TLS dengan CA khusus dan penolakan CA
-tak dipercaya, presisi tipe, sesi/transaksi, error SQL, batas hasil, dan cancel.
-Test streaming mencakup urutan batch, kesamaan snapshot akhir, batas hasil, dan
-cancel dari callback. Build frontend, Go vet, serta build produksi macOS berhasil. Desktop dicoba
-untuk connect melalui TLS, pilih database/tabel, tampilkan hasil, dan cancel
-`SELECT SLEEP(20)`: UI kembali offline dan meminta koneksi ulang.
-Smoke test streaming tambahan: query lambat menampilkan 9 baris saat masih
-berjalan; cancel membersihkan hasil parsial. Setelah reconnect, query cepat
-selesai dengan 41 baris tanpa duplikasi.
-
-CI terverifikasi 2026-10-21 pada commit kode `2a36ee6`:
-
-| Job | Hasil |
-| --- | --- |
-| Desktop macOS 15 | Test, vet, build, dan artifact lulus |
-| Desktop Windows Server 2022 x64 | Test, vet, build .exe, dan artifact lulus |
-| Desktop Ubuntu 24.04 x64 | Test, vet, build, dan artifact lulus |
-| MySQL 8.4 | Integration test dengan race detector lulus |
-| MariaDB 11.4 | Integration test dengan race detector lulus |
-
-[Run CI dan artifact](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39542207475).
-Workflow diperiksa dengan actionlint. Checkout bersih juga diuji lokal, termasuk
-cross-build Windows x64. `.gitattributes` menjaga LF agar pemeriksaan format Go
-konsisten pada checkout Windows. Uji TLS positif masih hanya diuji lokal dengan
-`SEQUEL_TEST_CA_FILE`; CI database dasar memakai koneksi fixture tanpa TLS.
-
-CLI/cache sementara sesi ini berada di `/private/tmp/sequel-rewrite-*`;
-untuk sesi berikutnya pasang CLI sesuai langkah di atas.
-
-Manual QA GUI Windows/Linux masih harus dijalankan. Sebelum beta,
-jalankan smoke test GUI pada Windows dan Ubuntu melalui VM, remote desktop,
-atau tester. Tidak perlu membeli laptop lain untuk memulai pengembangan.
-
-## Batas alur query awal
-
-- Satu sesi/query per tab, maksimum 16 tab dengan koneksi terpisah. Tidak ada retry atau reconnect otomatis.
-- Batas waktu koneksi 10 detik; operasi 60 detik.
-- Hasil maksimal 500 baris dan 4 MiB isi sel (bukan batas ukuran JSON keseluruhan).
-  Nilai dikirim sebagai string; binary sebagai hex dan NULL ditandai terpisah.
-  Driver membaca satu baris utuh sebelum batas diperiksa; satu BLOB sangat besar
-  masih dapat memakai memori besar. Pembatasan memori keras belum tersedia.
-- Hasil query tampil bertahap melalui event Wails: baris pertama segera setelah
-  diterima driver, lalu flush pada 50 baris, 64 KiB isi sel, atau 100 ms ketika
-  baris berikutnya dibaca. Satu baris besar tetap dikirim utuh. Ini bukan timer
-  independen: server/driver yang belum mengirim baris tetap dapat menunda tampilan.
-- ID query dan offset memisahkan batch. Snapshot akhir menggantikan hasil parsial
-  sehingga event terlambat tidak menggandakan hasil. Snapshot akhir juga memuat
-  seluruh hasil terbatas; transfer terakhir belum dioptimalkan untuk menghindari
-  pengiriman ulang. Hasil parsial dibersihkan jika query gagal/cancel.
-- Cancel/timeout/hasil terpotong memutus sesi. Hubungkan ulang secara eksplisit;
-  transaksi dan temporary table lama tidak diteruskan. Untuk write yang terputus,
-  periksa hasil di server sebelum mengulang; cancel bukan jaminan rollback.
-- Satu statement; jangan menempel script SQL. Jika CALL memberi result set
-  tambahan, hanya set pertama ditampilkan dan sesi dibuang dengan status terpotong.
-- Statement tanpa result set ditampilkan sebagai selesai tanpa data; jumlah
-  affected rows belum tersedia. Ini belum merupakan editor baris tabel.
-- Metadata tidak dimuat ulang setelah query agar ROW_COUNT()/diagnostik sesi tidak
-  terganggu. Klik **Segarkan daftar** setelah USE/DDL manual jika perlu; tindakan
-  ini menjalankan query metadata sehingga dapat mengubah diagnostik sesi.
-- Import/export belum tersedia. Row editor Content dibatasi ke tabel InnoDB ber-primary key; hasil SQL bebas tetap read-only.
-
-## Integration test pada server disposable
-
-Jalankan hanya pada server khusus pengujian. Test membuat dan menghapus schema
-unik `sequel_rewrite_test_*`; user fixture memerlukan hak tersebut. Jangan gunakan
-server produksi atau kredensial pengguna aplikasi. Dari root repo:
-
-```sh
-SEQUEL_TEST_PORT=13367 go test -race ./internal/database -v -count=1
-```
-
-Isi `SEQUEL_TEST_PASSWORD` lewat environment jika server fixture memakai password.
-Untuk test TLS tambahan, isi `SEQUEL_TEST_CA_FILE` dengan path CA fixture; sertifikat
-server harus valid untuk `127.0.0.1` dan ditandatangani CA tersebut. Koneksi tanpa CA
-harus gagal, sedangkan koneksi dengan CA harus berhasil. Fixture TLS tidak boleh
-memakai CA yang sudah dipercaya sistem, agar pemeriksaan negatif tetap bermakna.
-Test integrasi dasar memakai koneksi tanpa TLS ke server disposable localhost;
-GUI tetap menyalakan TLS secara default.
-
-## Mencoba artifact desktop
-
-Buka run CI di atas, lalu unduh artifact OS yang diinginkan. Pengguna artifact
-tidak perlu memasang Go atau Node.
-
-- Windows: ekstrak artifact `sequel-rewrite-windows-2022` dan jalankan
-  `sequel-rewrite.exe`. WebView2 Runtime tetap diperlukan.
-- Ubuntu 24.04 x64: ekstrak ZIP artifact, lalu ekstrak `sequel-rewrite-linux.tar.gz`.
-  Pastikan runtime GTK 3 dan WebKitGTK 4.1 tersedia, lalu jalankan `./sequel-rewrite`.
-- macOS: ekstrak ZIP artifact, lalu ZIP bundle di dalamnya untuk mendapatkan `.app`.
-
-Ini artifact pengujian, belum installer rilis bertanda tangan. Build/test CI tidak
-membuktikan interaksi GUI pada Windows/Linux; catat hasil uji startup, koneksi,
-query, cancel, clipboard, dan tampilan pada OS tujuan sebelum beta.
-
-## Profil koneksi
-
-Form koneksi menyediakan **Simpan profil**, **Simpan perubahan**, dan **Hapus
-profil** dengan konfirmasi. Memilih **Koneksi baru** menyiapkan form kosong;
-memilih profil mengisi host/port/user/TLS/CA dan mengosongkan password. Nama profil
-tidak wajib untuk koneksi sekali pakai. Profil dimuat ulang saat aplikasi dibuka.
-
-Hanya nama, host, port, user, TLS, dan sertifikat CA yang disimpan. Model profil
-terpisah dari model koneksi dan tidak mempunyai field password. Private key tidak
-diterima dalam input CA. Password dapat disimpan secara eksplisit di credential store OS; lihat bagian penggunaan harian.
-
-Lokasi file JSON versi 1 (satu file per ID profil):
-
-- macOS: `~/Library/Application Support/SequelRewrite/profiles/`
-- Windows: `%AppData%\SequelRewrite\profiles\`
-- Linux: `$XDG_CONFIG_HOME/SequelRewrite/profiles/`, atau
-  `~/.config/SequelRewrite/profiles/` jika XDG_CONFIG_HOME tidak diisi.
-
-Penulisan memakai file sementara di direktori yang sama lalu rename, sehingga
-error tidak menghapus file lama. Pada POSIX, file dibuat dengan mode 0600 dan
-folder baru 0700; Windows memakai ACL direktori konfigurasi pengguna. File rusak,
-versi tak dikenal, atau symlink dilaporkan dan tidak ditimpa/dihapus melalui UI.
-Koneksi tanpa profil tetap tersedia bila penyimpanan tidak dapat dibaca.
-Mengedit profil yang sama dari dua proses mengikuti penulisan terakhir; penggabungan
-perubahan antarproses belum tersedia.
-
-Verifikasi lokal 2026-10-21: unit test dengan race detector mencakup CRUD, muat
-ulang, password tidak terserialisasi, data rusak/versi asing, traversal ID, CA yang
-berisi private key, write failure, dan penyimpanan bersamaan. Smoke test desktop
-Mac mencakup simpan, ubah, restart/pilih ulang dengan password kosong, dan batal
-hapus. Test store memverifikasi penghapusan berhasil. Profil QA sementara sudah
-dibersihkan. Build frontend, Go vet, dan paket desktop macOS lulus.
-
-CI fitur profil pada commit `500495d` lulus di macOS 15, Windows Server 2022,
-dan Ubuntu 24.04, termasuk test CRUD/persistensi. Regresi database juga lulus.
-[Run CI fitur profil dan artifact](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39543659071).
-Manual QA GUI Windows/Linux tetap belum dilakukan.
-
-## GUI menuju Sequel Ace asli
-
-Milestone 1A sedang dikerjakan. Layout awal mengikuti layar koneksi Sequel Ace:
-sidebar favorites, toolbar ikon, form vertikal, serta workspace Query dengan
-sidebar tabel dan grid hasil. Fitur yang belum tersedia tampil disabled. SSL tetap
-aktif secara default. [Referensi dan perbedaan](docs/gui-parity.md) mencatat scope
-dan batasnya; hasil ini **belum sama persis**. Smoke test Mac dengan data sintetis
-memverifikasi favorites, koneksi TLS, pemilih database/tabel, query dan NULL/DECIMAL,
-streaming, shortcut run, serta cancel. Light mode, overlay piksel, shortcut/menu
-lengkap, dan GUI Windows/Linux belum tervalidasi.
-
-[CI layout awal dan artifact desktop](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39545854229)
-lulus untuk commit `ff149bd` pada ketiga OS dan kedua database. Milestone 1A
-tetap sedang dikerjakan karena kesetaraan visual/interaksi belum selesai.
-
-## Penggunaan harian — milestone 2
-
-- **Password:** isi nama profil dan centang **Save passwords in OS credential
-  store** untuk menyimpan saat save/connect. **Use saved passwords** memuatnya;
-  **Forget saved passwords** menghapusnya. Bundle terikat konfigurasi profil:
-  setelah profil berubah, password perlu disimpan ulang. Tidak ada fallback file
-  plaintext. Jika vault tidak tersedia/ditolak, nonaktifkan save dan masukkan
-  password manual. Hapus profil meminta pembersihan vault terlebih dahulu; jika
-  gagal, profil dipertahankan agar credential tidak ditinggalkan diam-diam.
-- **Vault OS:** Keychain di macOS, Credential Manager di Windows, Secret Service
-  melalui D-Bus di Linux (misalnya GNOME Keyring yang sedang terbuka), memakai
-  [go-keyring v0.2.6](https://github.com/zalando/go-keyring).
-- **SSH:** pilih SSH lalu isi host/port/user SSH dan password atau path absolut
-  private key. Key terenkripsi memakai Passphrase. Host database ditafsirkan dari
-  server SSH. Known Hosts kosong memakai `~/.ssh/known_hosts`. Host asing/berubah
-  ditolak: verifikasi identitasnya melalui cara tepercaya sebelum memperbarui
-  file itu. Tidak ada trust otomatis, SSH agent atau keyboard-interactive. TLS
-  MySQL tetap memverifikasi nama Host database, bukan alamat server SSH.
-- **Tab:** **＋** membuka koneksi baru ke server workspace yang sama. Tiap tab
-  memiliki editor/hasil/database aktif terpisah. Menutup tab membuang koneksi dan
-  transaksi belum commit. Setelah cancel/putus, tutup tab lalu buka tab baru atau
-  hubungkan ulang via form. Tidak ada replay SQL atau pemulihan sesi otomatis.
-  Credential workspace hanya ditahan di memori hingga semua tab ditutup.
-- **Content:** pilih database/tabel, sort dan filter/operator/nilai, lalu **Apply**.
-  Nilai filter memakai parameter; contains memperlakukan `%`, `_`, `!` sebagai
-  teks. Halaman 25–200 baris memakai Previous/Next/Reload. Perubahan filter/sort
-  perlu Apply sebelum pindah halaman. Pilih kolom unik untuk urutan stabil;
-  perubahan data bersamaan tetap dapat menggeser pagination offset. Batas 4 MiB
-  tetap berlaku dan dapat memutus sesi jika halaman terlalu besar.
-- **History:** centang **Record history (metadata only)** per tab. Panel History
-  memuat 100 eksekusi terakhir, dengan Clear history. Hanya waktu, jenis statement
-  dari allowlist, jumlah baris, durasi dan status yang disimpan. SQL, nilai,
-  identifier database/koneksi dan error tidak disimpan; history tidak mendukung
-  replay SQL. `history.json` berada di folder konfigurasi SequelRewrite, dengan
-  permission 0600 pada POSIX.
-
-Verifikasi lokal: unit/race/integration MySQL 5.7.44, TLS, SSH forwarding,
-password/key terenkripsi, penolakan host asing/password salah, isolasi tab,
-rollback saat tutup tab dan cancel terisolasi lulus. Native Keychain diuji dengan
-credential dummy yang dibersihkan setelah test. GUI Mac fixture memverifikasi
-Content, halaman 50+46 baris, sorting/filter, dua tab terpisah dan history metadata.
-CI menguji build tiga OS dan vault native masing-masing. Manual QA GUI Windows/
-Linux tetap diperlukan sebelum milestone 2 dinyatakan tervalidasi sepenuhnya.
-
-Pemeriksaan tambahan (hanya server/vault disposable):
+Ubuntu 24.04:
 
 ```sh
 npm --prefix frontend test
-SEQUEL_TEST_PORT=13367 go test -race ./internal/database ./internal/workspace ./internal/tunnel -count=1 -timeout=180s
-SEQUEL_TEST_KEYRING=1 go test ./internal/credentials -run TestNativeVault -v -count=1
+npm --prefix frontend run build
+go test -tags webkit2_41 ./...
+go vet -tags webkit2_41 ./...
+wails build -tags webkit2_41
 ```
 
-Fixture MySQL memerlukan `max_allowed_packet` setidaknya 8 MiB untuk test baris
-besar. Native vault test hanya menyimpan credential dummy ber-ID acak. Test SSH
-membuat listener loopback sementara; file key/known_hosts dibersihkan setelah test.
+Unit tests run without a database. Database integration tests are skipped when
+`SEQUEL_TEST_PORT` is unset. A skipped integration suite does not establish
+server compatibility. CI builds on macOS 15, Windows Server 2022, and Ubuntu
+24.04, and runs database integration tests against MySQL 8.4 and MariaDB 11.4.
+Local fixture testing has also covered MySQL 5.7.44. A successful CI build does
+not replace manual GUI tests; see [milestones](milestone.md),
+[GUI parity](docs/gui-parity.md), [daily-use QA](docs/milestone-2-qa.md), and
+[row-editing QA](docs/milestone-3-qa.md) for evidence and remaining work.
 
-CI milestone 2 pada commit `62c4750` lulus untuk build/test/vet desktop macOS,
-Windows dan Ubuntu, test vault native masing-masing OS, serta integration MySQL
-8.4/MariaDB 11.4 (SSH forwarding, isolasi tab, filter/pagination dan cancel).
-[Run dan artifact milestone 2](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39549139051).
-[Checklist manual QA yang masih terbuka](docs/milestone-2-qa.md).
+### Optional database integration tests
 
-## Pengubahan data — milestone 3
+Use a **disposable localhost database server**. Tests create and delete uniquely
+named `sequel_rewrite_test_*` schemas and require a fixture `root` account with
+those permissions. Do not point them at production databases.
 
-Content menyediakan Insert row/Edit row/Delete row pada tabel dasar InnoDB
-ber-primary key. Klik nomor baris untuk memilih; centang kolom yang ingin ditulis.
-Kolom insert yang tidak dipilih memakai default server. NULL berbeda dari teks
-kosong, binary memakai 0x hex, generated columns tidak dapat ditulis. Delete
-memerlukan konfirmasi yang menampilkan primary key; trigger/cascade server tetap
-berlaku. View, tabel tanpa PK/non-InnoDB dan invisible columns tetap read-only.
+macOS/Linux shell, with a fixture listening on port `13367`:
 
-Update/delete membandingkan seluruh snapshot baris dan composite key. Konflik atau
-nilai tak berubah meminta reload. Tidak ada retry write otomatis; jika koneksi
-putus saat write/commit, periksa keadaan server sebelum mengulang. Mutasi mandiri
-memakai transaksi pendek dan menahan metadata lock selama validasi/write, mengikuti
-[metadata locking MySQL](https://dev.mysql.com/doc/refman/8.0/en/metadata-locking.html).
+```sh
+export SEQUEL_TEST_PORT=13367
+# Set SEQUEL_TEST_PASSWORD in your environment if the fixture requires one.
+go test -race ./internal/database ./internal/workspace ./internal/tunnel -v -count=1 -timeout=180s
+```
 
-Begin/Commit/Rollback tersedia per tab dengan status terlihat. Perubahan editor
-dalam transaksi terkelola belum permanen sampai Commit. SQL manual membuat
-status unverified, sehingga row editor/Begin menunggu Commit/Rollback. DDL/CALL
-serta SQL pengubah transaksi ditolak di transaksi terkelola; SELECT/INSERT/UPDATE/
-DELETE diperbolehkan. Error transaksi meminta Rollback sebelum melanjutkan.
-Rollback hanya melindungi storage engine transaksional; efek trigger ke engine
-nontransaksional atau sistem eksternal tidak dijamin dapat dibatalkan.
+PowerShell:
 
-Test lokal mencakup composite key, binary/NULL/quotes, konflik dua sesi termasuk
-perubahan huruf besar/kecil, insert/update/delete, commit/rollback, serta simulasi
-koneksi terputus tanpa replay. GUI Windows/Linux tetap perlu diuji langsung.
+```powershell
+$env:SEQUEL_TEST_PORT = "13367"
+# Set $env:SEQUEL_TEST_PASSWORD if the fixture requires one.
+go test -race ./internal/database ./internal/workspace ./internal/tunnel -v -count=1 -timeout=180s
+```
 
-## Struktur tabel — milestone 4
+Race-detector testing also needs a working C toolchain; Windows contributors
+should use the appropriate Go-supported GCC toolchain or use the Linux CI job.
+Set `SEQUEL_TEST_CA_FILE` to a private fixture CA file for the optional TLS tests.
+Its server certificate must cover `127.0.0.1`; the CA must not already be trusted
+by the OS so the rejection test remains meaningful. The fixture also needs
+`max_allowed_packet` of at least 8 MiB for large-row tests.
 
-Pilih database/tabel, lalu klik **Structure**. Subbagian Columns, Indexes / Primary
-key, Foreign keys, serta CREATE statement bersifat read-only. **Reload structure**
-memuat metadata terbaru, termasuk urutan composite foreign key dan aturan
-ON UPDATE/DELETE. Functional index dapat memiliki COLUMN_NAME NULL; lihat CREATE
-statement untuk ekspresi lengkapnya. View juga didukung sesuai izin server.
+Native credential-vault tests are opt-in via `SEQUEL_TEST_KEYRING=1` and use
+random dummy credentials. See the CI workflow for isolated vault setup on each OS.
 
-Batas metadata tetap 500 baris / 4 MiB per query. Jika terpotong, aplikasi menolak
-menampilkan snapshot lengkap dan meminta reconnect. Catalog dibaca dalam beberapa
-query, bukan snapshot transaksional saat concurrent DDL. CSV export/import dan
-importer favorites belum tersedia. Test fixture lokal mencakup batas hasil,
-identifier ber-backtick, generated column, prefix index, FK composite dan view.
+## Troubleshooting
 
-## Export CSV — milestone 4
-
-Di Content, klik **Export entire table CSV**, lalu pilih nama file baru. Seluruh
-tabel/view diekspor; filter, sort dan halaman UI tidak diterapkan. Export berjalan
-bertahap di Go tanpa mengumpulkan seluruh tabel atau mengirimkannya ke React.
-Import CSV belum tersedia.
-
-Format **Sequel CSV v1**: UTF-8 tanpa BOM, separator koma, header nama kolom,
-quoting standar CSV. Nilai sel memakai penanda berikut agar round-trip tidak
-menggabungkan tipe yang berbeda:
-
-| Nilai | Representasi |
+| Problem | What to check |
 | --- | --- |
-| SQL NULL | `\N` |
-| Teks kosong | `\E` |
-| Binary | `\B` diikuti hex; binary kosong adalah `\B` |
-| Backslash teks | `\\` |
-| CR / LF / tab pada teks | `\r` / `\n` / `\t` |
-| Angka/date/decimal/teks lain | Teks server tanpa konversi floating point |
+| `wails: command not found` / command not recognized | Run the PATH command in step 2; check `go env GOPATH` and a custom `GOBIN`. |
+| Missing `frontend/dist` / `pattern all:frontend/dist: no matching files found` | Complete step 3, then build the frontend before Go checks. |
+| Missing `frontend/wailsjs` imports | Regenerate bindings with `wails generate module`; include the Linux tag on Ubuntu 24.04. |
+| Ubuntu cannot find WebKitGTK 4.0 | Install `libwebkit2gtk-4.1-dev` and use `-tags webkit2_41`. |
+| Windows opens a blank window or reports a missing webview | Install WebView2 Evergreen Runtime, then reopen the app. |
+| Browser preview reports that the backend is unavailable | Start `wails dev` and use its desktop window. |
+| Certificate verification fails | Verify the host name, server certificate, and custom CA. An SSH tunnel does not disable database TLS verification. |
+| Password vault is unavailable | Unlock the OS credential service or connect with manual passwords without saving them. |
+| Session becomes inactive after cancellation or a large result | Close that session and connect again; reduce the query/page size before retrying. |
 
-Contoh: teks literal `\N` menjadi `\\N`, berbeda dari SQL NULL. Penanda teks
-kosong juga menjaga baris satu kolom kosong agar tidak hilang sebagai blank line.
-Format ini untuk pertukaran data database, bukan mode spreadsheet-safe: aplikasi
-spreadsheet dapat menafsirkan nilai yang dimulai dengan tanda formula.
+## Project layout and license
 
-File sementara mode 0600 pada POSIX ditulis/sync/close dahulu, kemudian
-dipublikasikan tanpa overwrite melalui hard link di direktori yang sama.
-Filesystem tanpa hard-link support (misalnya beberapa volume FAT) tidak didukung;
-pilih filesystem yang mendukungnya. File yang sudah ada ditolak. Error/cancel
-menghapus file sementara; sesi dibuang jika masih ada hasil database yang belum
-dibaca. Export mengikuti timeout operasi 60 detik, tanpa batas total 500 baris UI.
-Batas isi sel ter-encode satu baris 4 MiB diperiksa setelah driver membaca baris;
-satu BLOB besar tetap dapat memakai memori sementara lebih besar dari batas itu.
-Status sesi unverified harus diselesaikan dengan Commit/Rollback sebelum export.
-Jika transaksi aktif, file dapat memuat perubahan sesi yang belum di-commit.
-Timeout database tidak menjamin I/O filesystem yang macet langsung terhenti.
+`main.go` configures the native window and embeds the frontend. `app.go` and
+`export.go` bridge the UI to Go. Database/session code lives in
+`internal/database`, with separate packages for profiles, credentials, history,
+SSH tunnels, workspace sessions, and export files. React UI code lives in
+`frontend/src`. The database layer does not depend on Wails.
 
-Test lokal menguji 2.048 baris, NULL/empty/bytes/escape/angka presisi, file race,
-writer failure/cancel, cleanup dan oversized row. Dialog save native dan export
-melalui GUI pada ketiga OS masih perlu diverifikasi. Test Structure juga menerima
-[default literal ber-kutip MariaDB](https://mariadb.com/docs/server/reference/system-tables/information-schema/information-schema-tables/information-schema-columns-table)
-sesuai representasi asli server.
-
-[CI export CSV dan regresi Structure](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39748176141)
-untuk commit `81b6f11`: MySQL/MariaDB dan desktop macOS/Windows lulus; Ubuntu
-masih berjalan saat catatan ini dibuat. Uji dialog dan export langsung di GUI
-ketiga OS masih terbuka.
-
-## Shortcut workspace
-
-Gunakan ⌘ pada Mac atau Ctrl pada Windows/Linux:
-
-| Shortcut | Aksi |
-| --- | --- |
-| ⌘/Ctrl+1 | Structure pada tabel terpilih |
-| ⌘/Ctrl+2 | Content pada tabel terpilih |
-| ⌘/Ctrl+6 | Query |
-| ⌘/Ctrl+R | Reload Content/Structure; tidak menjalankan ulang SQL Query |
-| ⌘/Ctrl+F | Buka dan fokuskan filter saat berada di Content |
-| ⌘/Ctrl+Enter | Jalankan satu statement di editor Query |
-
-Pada Mac, ⌥⌘F juga membuka filter Content sesuai menu Sequel Ace asli.
-Refresh/filter tidak mengganggu row editor atau konfirmasi delete yang terbuka.
-Jika hasil query baru lebih pendek, navigasi panah tetap dibatasi baris tersedia.
-Shortcut membutuhkan fokus di workspace; dukungan menu native penuh belum ada.
-
-Saat grid hasil fokus dan satu baris terpilih, ⌘/Ctrl+C menyalin baris sebagai
-teks dipisahkan tab. Shift+F10/tombol Context Menu membuka menu salin dari kolom
-pertama. Gunakan panah/Home/End untuk memilih aksi dan Escape untuk kembali ke
-grid. Copy dari editor SQL tetap memakai seleksi teks biasa.
+See [LICENSE](LICENSE) for the MIT license and retained Sequel Ace attribution.
