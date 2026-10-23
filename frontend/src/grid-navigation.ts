@@ -15,3 +15,13 @@ export function gridShortcut(event: Pick<KeyboardEvent, 'key' | 'altKey' | 'shif
     if (!event.shiftKey && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'c') return 'copy';
     if (!event.ctrlKey && !event.metaKey && (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10'))) return 'menu';
 }
+
+// Size Content columns without parsing or changing database values.
+export function fittedColumnWidth(column: {name: string; type: string}, cells: ReadonlyArray<{value: string; null?: boolean}>): number {
+    return Math.min(260, Math.max(
+        48,
+        column.name.length * 6 + column.type.length * 4.5 + 26,
+        /(?:VAR)?CHAR/i.test(column.type) ? 170 : /DATETIME|TIMESTAMP/i.test(column.type) ? 156 : 0,
+        ...cells.map(cell => (cell.null ? 4 : cell.value.length) * 7 + 14),
+    ));
+}

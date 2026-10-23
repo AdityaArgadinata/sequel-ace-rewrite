@@ -249,3 +249,67 @@ Ubuntu 24.04, MySQL 8.4 and MariaDB 11.4. Desktop artifact upload succeeded.
 This supersedes earlier pending CI notes for those code changes. It does not
 supersede unperformed manual GUI checks, native shortcut delivery, light/dark
 same-scale overlays or the recorded CUA frame errors.
+
+## Supplied Content screenshot — 2026-10-23
+
+The user's dark Content screenshot is now the visual reference for the Go
+rewrite. Default window size is 1408×1024 logical pixels. The workspace uses a
+52 px toolbar, 20.5% initial sidebar (approximately 289 px), a 29 px Content
+filter, 28 px column header, 22 px rows and a 25 px bottom action strip.
+Dark colors now follow this reference regardless of OS appearance; this
+supersedes the earlier OS-following palette notes above.
+
+The title shows the actual server version, host, database and table. Table
+icons use a yellow grid, sidebar search has a magnifying glass, and the extra
+TABLES heading is removed. A single session hides the session tab strip; the
+sidebar's connection-actions menu retains New query tab, Disconnect, history
+metadata and transaction controls. Multiple sessions still expose the tab bar.
+Busy/error messages appear above the bottom strip when needed.
+
+Content filters are visible initially. The checkbox enables/disables the
+single existing filter; editing its controls enables it. Initial loading does
+not implicitly filter the first column. Additional filter rules stay disabled.
+Sort, page size, export and Content information remain in the bottom ellipsis
+menu. The row count explicitly describes the current page rather than claiming
+a whole-table count. Column headers include type metadata; initial column
+widths account for visible values and allow manual resizing. Selection fills
+the remaining row canvas. Console stays disabled; existing history metadata is
+accurately labeled in the connection menu and Query controls.
+
+[Layout preview before the transparency correction below](screenshots/content-dark.png) uses six synthetic rows and a
+mock Wails bridge, not a database connection. Headless Chrome checks passed at
+1408×1024 and 800×600: full-width row selection, insert eligibility after initial
+load, filter enable/apply/disable, sort parameters, error visibility/recovery,
+opening/closing sessions and toolbar fit. Nine frontend tests and TypeScript /
+production frontend build passed. Go unit tests passed, including loopback
+fixtures; database integration suites remain environment-skipped.
+
+This is a visual implementation against the supplied image, not a pixel-overlay
+certification. Portable SVG symbols, opaque sidebar gradient and platform font
+rendering still differ from native AppKit/SF Symbols/vibrancy. Actual Wails
+WebKit rendering with a live MySQL/MariaDB connection and Windows/Linux manual
+GUI checks remain open. Earlier light-mode QA is superseded by this dark-only
+reference pass; full milestone 1A remains open.
+
+Packaged darwin/arm64 production build also passed with Wails 2.17.0; the updated
+application is in `build/bin/sequel-rewrite.app`. No native Sequel Ace sources,
+project settings, user profiles or database contents were changed.
+
+
+## Wallpaper transparency correction — 2026-10-23
+
+The user clarified that the sidebar's green tint comes from wallpaper through
+native transparency. The previous fixed green gradient has been removed.
+macOS now enables Wails `WebviewIsTransparent` and `WindowIsTranslucent`, which
+in the pinned 2.17.0 implementation inserts an `NSVisualEffectView` with
+behind-window blending. Dark Aqua matches the current dark workspace.
+The window background is clear, and the HTML root/sidebar stay transparent
+only inside the native macOS runtime. Other platforms and browser previews
+use a neutral sidebar fallback. The connection form and result surfaces remain
+opaque so the native backdrop is exposed through the sidebars.
+
+The earlier PNG demonstrates layout only and predates this transparency fix;
+it must not be treated as proof of wallpaper-dependent rendering. Frontend
+build and nine tests, plus Go unit tests passed. Native visual comparison
+against different wallpapers and Windows/Linux GUI QA remain open.
+The updated darwin/arm64 app also built and passed code-signature verification.

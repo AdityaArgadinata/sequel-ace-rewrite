@@ -528,3 +528,30 @@ CI terakhir terverifikasi di atas tetap untuk b4b5fc3, bukan perubahan terbaru i
 CI perubahan menu/CSS `95580b0` sudah dipicu:
 https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39897440014.
 Status saat pencatatan: queued; belum dicentang lulus untuk perubahan ini.
+
+### Referensi screenshot Content — 2026-10-23
+
+Layout dark disesuaikan dengan screenshot pengguna: toolbar 52 px, sidebar
+20,5%, filter terlihat di atas grid, header nama/tipe kolom, baris 22 px,
+selection penuh dan action strip 25 px. Tab sesi tunggal disembunyikan;
+transaksi/history dan sort/pagination/export tetap tersedia melalui menu.
+Ukuran jendela awal 1408×1024. Preview data sintetis tersimpan di
+`docs/screenshots/content-dark.png`; detail bukti dan batas di `docs/gui-parity.md`.
+Sembilan test frontend, production frontend build dan unit Go lulus. Browser
+check mencakup filter/sort/selection/error/tab serta toolbar pada 800×600.
+Ini belum membuktikan pixel-identik, render native Wails dengan database live,
+atau QA Windows/Linux; milestone 1A tetap terbuka.
+Build produksi aplikasi macOS arm64 juga lulus; hasil di
+`build/bin/sequel-rewrite.app` sudah diperbarui.
+
+
+### Koreksi transparansi sidebar — 2026-10-23
+
+Warna hijau pada referensi berasal dari wallpaper, bukan warna sidebar tetap.
+Gradasi hijau dihapus; macOS menggunakan transparansi WebView dan visual-effect
+native di belakang jendela. Root/sidebar transparan hanya di runtime macOS;
+platform lain memakai fallback abu-abu netral. Form koneksi dan grid tetap
+opaque. Sembilan test frontend, build frontend dan unit Go lulus. Preview PNG
+sebelumnya adalah bukti layout sebelum koreksi transparansi, bukan bukti efek
+wallpaper. Perbandingan visual native pada beberapa wallpaper masih terbuka.
+Build macOS arm64 terbaru dan pemeriksaan code signature juga lulus.

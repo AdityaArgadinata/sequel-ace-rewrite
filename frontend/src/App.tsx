@@ -12,12 +12,14 @@ import HistoryPanel from './HistoryPanel';
 import ResultGrid from './ResultGrid';
 import {workspaceShortcut} from './workspace-shortcuts';
 
-function Workspace({tab, connectionName, onClose}: {tab: string; connectionName: string; onClose: () => Promise<void>}) {
-    const [sidebarWidth, setSidebarWidth] = useState(214 / 12);
+function Workspace({tab, connectionName, onClose, onNewTab}: {tab: string; connectionName: string; onClose: () => Promise<void>; onNewTab: () => void}) {
+    const [sidebarWidth, setSidebarWidth] = useState(20.5);
     const [editorHeight, setEditorHeight] = useState(32);
     const lineNumbers = useRef<HTMLDivElement>(null);
     const [transaction, setTransaction] = useState('idle');
     const [connected, setConnected] = useState(true);
+    const [serverVersion, setServerVersion] = useState('');
+    const [problem, setProblem] = useState(false);
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState('Hubungkan server untuk memulai.');
     const [databases, setDatabases] = useState<string[]>([]);
@@ -33,11 +35,13 @@ function Workspace({tab, connectionName, onClose}: {tab: string; connectionName:
 
     async function operation(work: () => Promise<void>, mayWrite = false) {
         setBusy(true);
+        setProblem(false);
         setMessage('Memproses…');
         try {
             await work();
             setMessage(previous => previous === 'Memproses…' ? 'Selesai.' : previous);
         } catch (error) {
+            setProblem(true);
             setMessage(String(error));
         } finally {
             try {
@@ -49,7 +53,7 @@ function Workspace({tab, connectionName, onClose}: {tab: string; connectionName:
                     setMessage(previous => `${previous} Sesi tab ini tidak aktif; tutup tab lalu hubungkan ulang.${mayWrite ? " Periksa hasil query pengubah data sebelum mengulang; tidak ada retry otomatis." : ""}`);
                 }
             } catch {
-                setConnected(false); setTransaction('disconnected');
+                setConnected(false); setTransaction('disconnected'); setProblem(true);
                 setMessage('Backend tidak tersedia. Jalankan jendela desktop melalui Wails.');
             }
             setBusy(false);
@@ -58,6 +62,8 @@ function Workspace({tab, connectionName, onClose}: {tab: string; connectionName:
 
     useEffect(() => {
         void operation(async () => {
+            const version = await Query(tab, 'SELECT VERSION()');
+            setServerVersion(version.rows[0]?.[0]?.value ?? '');
             const list = await Databases(tab);
             setDatabases(list.rows.map(row => row[0].value));
             setMessage('Terhubung. Tiap tab memakai sesi database terpisah.');
@@ -142,22 +148,38 @@ function Workspace({tab, connectionName, onClose}: {tab: string; connectionName:
             if (!busy && connected && (action === 'query' || selectedTable)) setView(action);
         }}>
             <header className="main-toolbar">
-                <strong className="connection-title" title={connectionName}>{connected ? connectionName : 'Sequel Rewrite'}</strong>
+                <strong className="connection-title" title={connectionName}>{connected ? `${serverVersion ? `(${serverVersion.includes('MariaDB') ? 'MariaDB' : 'MySQL'} ${serverVersion}) ` : ''}${connectionName}${selectedDB ? `/${selectedDB}` : ''}${selectedTable ? `/${selectedTable}` : ''}` : 'Sequel Rewrite'}</strong>
                 <label className="database-picker"><select aria-label="Select Database" value={selectedDB} disabled={!connected || busy} onChange={e => void chooseDatabase(e.target.value)}><option value="" disabled>Choose Database…</option>{databases.map(name => <option key={name} value={name}>{name}</option>)}</select><span>Select Database</span></label>
                 <nav className="view-toolbar" aria-label="Database views">
                     {(['structure', 'content', 'relations', 'triggers', 'info', 'query'] as const).map((icon, i) => <button key={icon} disabled={(icon !== 'query' && icon !== 'content' && icon !== 'structure') || !connected || busy || (icon !== 'query' && !selectedTable)} aria-current={icon === view && connected ? 'page' : undefined} title={icon === 'query' ? 'Query (⌘/Ctrl+6)' : icon === 'content' ? 'Content (⌘/Ctrl+2)' : icon === 'structure' ? 'Structure (⌘/Ctrl+1)' : 'Not available yet'} onClick={() => { if (icon === 'query' || icon === 'content' || icon === 'structure') setView(icon); }}><ToolbarIcon name={icon} /><span>{['Structure','Content','Relations','Triggers','Table Info','Query'][i]}</span></button>)}
                 </nav>
                 <div className="history-tools"><div><button disabled aria-label="Back">‹</button><button disabled aria-label="Forward">›</button></div><span>Table History</span></div>
                 <button className="toolbar-item" disabled title="User Manager is not available yet"><ToolbarIcon name="users"/><span>Users</span></button>
-                <button className="toolbar-item" onClick={() => setShowHistory(v => !v)} title="Query history (metadata only)"><ToolbarIcon name="console"/><span>History</span></button>
+                <button className="toolbar-item" disabled title="Console is not available yet"><ToolbarIcon name="console"/><span>Console</span></button>
             </header>
             {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} />}
             <div className="workspace">
                 <aside id={`tables-panel-${tab}`} className="tables-sidebar" aria-label="Tables" style={{flexBasis: `${sidebarWidth}%`}}>
-                    <input className="table-search" type="search" aria-label="Filter tables" placeholder="Filter" value={tableFilter} onChange={e => setTableFilter(e.target.value)} />
-                    <h2>TABLES</h2>
-                    <div className="table-list">{tables.filter(name => name.toLowerCase().includes(tableFilter.toLowerCase())).map(name => <button key={name} className={`table-name ${selectedTable === name ? 'selected' : ''}`} disabled={busy} onClick={() => { setSelectedTable(name); setSQL(`SELECT * FROM \`${selectedDB.replaceAll('`', '``')}\`.\`${name.replaceAll('`', '``')}\` LIMIT 100;`); setView(previous => previous === 'structure' ? 'structure' : 'content'); }}><ToolbarIcon name="content"/><span>{name}</span></button>)}</div>
-                    <div className="sidebar-bottom"><button disabled aria-label="Add table unavailable">＋</button><button title="Refresh databases and tables" aria-label="Refresh databases and tables" disabled={busy} onClick={() => void refreshSchema()}>↻</button><button title="Disconnect" disabled={busy} onClick={() => void onClose()}>Disconnect</button></div>
+                    <label className="table-search-field"><ToolbarIcon name="search"/><input className="table-search" type="search" aria-label="Filter tables" placeholder="Filter" value={tableFilter} onChange={e => setTableFilter(e.target.value)} /></label>
+                    <div className="table-list">{tables.filter(name => name.toLowerCase().includes(tableFilter.toLowerCase())).map(name => <button key={name} className={`table-name ${selectedTable === name ? 'selected' : ''}`} disabled={busy} onClick={() => { setSelectedTable(name); setSQL(`SELECT * FROM \`${selectedDB.replaceAll('`', '``')}\`.\`${name.replaceAll('`', '``')}\` LIMIT 100;`); setView(previous => previous === 'structure' ? 'structure' : 'content'); }}><ToolbarIcon name="table"/><span>{name}</span></button>)}</div>
+                    <div className="sidebar-bottom">
+                        <button disabled aria-label="Add table unavailable"><ToolbarIcon name="add"/></button>
+                        <details className="sidebar-menu"><summary aria-label="Connection actions" title="Connection actions"><ToolbarIcon name="more"/><span className="menu-chevron">⌄</span></summary><div className="sidebar-menu-content">
+                            <button disabled={busy} onClick={onNewTab}>New query tab</button>
+                            <button disabled={busy} onClick={() => void onClose()}>Disconnect</button>
+                            <button onClick={() => setShowHistory(v => !v)}>Query history (metadata)</button>
+                            <details className="transaction-menu"><summary>Transaction: {transaction}</summary><div className="transaction-controls" aria-label="Transaction controls">
+                                <span role="status">Transaction: {transaction === 'unverified' ? 'unverified after SQL/error — use Commit/Rollback' : transaction}</span>
+                                <button disabled={busy || !connected || transaction !== 'idle'} onClick={() => void transactionAction('begin')}>Begin</button>
+                                <button disabled={busy || !connected || transaction === 'idle'} onClick={() => void transactionAction('commit')}>Commit</button>
+                                <button disabled={busy || !connected || transaction === 'idle'} onClick={() => void transactionAction('rollback')}>Rollback</button>
+                                <span>Rollback applies to transactional tables. Closing a session discards uncommitted work.</span>
+                            </div></details>
+                        </div></details>
+                        <button title="Refresh databases and tables" aria-label="Refresh databases and tables" disabled={busy} onClick={() => void refreshSchema()}><ToolbarIcon name="refresh"/></button>
+                        <button disabled aria-label="Table information unavailable"><ToolbarIcon name="eye"/></button>
+                        <span className="sidebar-grip" aria-hidden="true">Ⅲ</span>
+                    </div>
                 </aside>
                 <Splitter label="Tables sidebar width" controls={`tables-panel-${tab}`} axis="x" value={sidebarWidth} min={15} max={35} onChange={setSidebarWidth} />
                 {view === 'structure' && connected && selectedTable ? <StructureView key={`${selectedDB}:${selectedTable}`} tab={tab} databaseName={selectedDB} table={selectedTable} busy={busy} operation={operation} /> : view === 'content' && connected && selectedTable ? <ContentBrowser key={`${selectedDB}:${selectedTable}`} tab={tab} databaseName={selectedDB} table={selectedTable} busy={busy} operation={operation} /> : <section className="query-workspace" aria-label="Query">
@@ -169,14 +191,9 @@ function Workspace({tab, connectionName, onClose}: {tab: string; connectionName:
                     <div className="results-footer"><span>{result ? `${result.rows.length} rows loaded` : '0 rows'}{result ? (busy ? ' · running' : ` · ${result.durationMS} ms`) : ''}</span><span>Read-only result grid</span></div>
                 </section>}
             </div>
-            <footer className="status-bar">
-                <details className="transaction-menu"><summary>Transaction: {transaction}</summary><div className="transaction-controls" aria-label="Transaction controls">
-                <span role="status">Transaction: {transaction === 'unverified' ? 'unverified after SQL/error — use Commit/Rollback' : transaction}</span>
-                <button disabled={busy || !connected || transaction !== 'idle'} onClick={() => void transactionAction('begin')}>Begin</button>
-                <button disabled={busy || !connected || transaction === 'idle'} onClick={() => void transactionAction('commit')}>Commit</button>
-                <button disabled={busy || !connected || transaction === 'idle'} onClick={() => void transactionAction('rollback')}>Rollback</button>
-                <span>Rollback applies to transactional tables. Closing a session discards uncommitted work.</span>
-            </div></details><span className={`connection-dot ${connected ? 'online' : ''}`} /><span role="status" title={message}>{message}</span>{busy && <button aria-label="Cancel operation" onClick={() => { void Cancel(tab).catch(error => setMessage(String(error))); }}>Cancel</button>}</footer>
+            {(busy || problem || !connected) && <footer className="status-bar operation-status">
+                <span className={`connection-dot ${connected ? 'online' : ''}`} /><span role="status" title={message}>{message}</span>{busy && <button aria-label="Cancel operation" onClick={() => { void Cancel(tab).catch(error => { setProblem(true); setMessage(String(error)); }); }}>Cancel</button>}
+            </footer>}
         </main>
     );
 }
@@ -191,7 +208,7 @@ export default function App() {
     const [sidebarWidth, setSidebarWidth] = useState(100 / 6);
     async function connect(connection: database.Connection) {
         setBusy(true); setMessage('');
-        try { const id = await Connect(connection); setConnectionName(`${connection.user}@${connection.host}`); setTabs([id]); setActive(id); }
+        try { const id = await Connect(connection); setConnectionName(connection.host); setTabs([id]); setActive(id); }
         catch (error) { setMessage(String(error)); }
         finally { setBusy(false); }
     }
@@ -210,17 +227,17 @@ export default function App() {
     }
     return <div className="desktop-root">
         {tabs.length > 0 ? <>
-            <div className="query-tabs"><div role="tablist" aria-label="Query sessions">{tabs.map(id => <div key={id} className="query-tab"><button id={`tab-${id}`} role="tab" aria-selected={active === id} aria-controls={`pane-${id}`} onClick={() => setActive(id)} onKeyDown={e => {
+            <div className={`query-tabs ${tabs.length === 1 ? 'single-session' : ''}`}><div role="tablist" aria-label="Query sessions">{tabs.map(id => <div key={id} className="query-tab"><button id={`tab-${id}`} role="tab" aria-selected={active === id} aria-controls={`pane-${id}`} onClick={() => setActive(id)} onKeyDown={e => {
                 if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
                 e.preventDefault(); const next = tabs[(tabs.indexOf(id) + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length]; setActive(next); document.getElementById(`tab-${next}`)?.focus();
             }}>Query {id}</button><button aria-label={`Close Query ${id}`} title="Close session; uncommitted transactions are not preserved" disabled={busy} onClick={() => void closeTab(id)}>×</button></div>)}</div><button disabled={busy || tabs.length >= 16} onClick={() => void addTab()} aria-label="New query tab">＋</button><button disabled={busy} onClick={() => { void Disconnect().then(() => { setTabs([]); setActive(''); }).catch(e => setMessage(String(e))); }}>Disconnect all</button></div>
-            {tabs.map(id => <div className="tab-pane" key={id} id={`pane-${id}`} role="tabpanel" aria-labelledby={`tab-${id}`} hidden={id !== active}><Workspace tab={id} connectionName={connectionName} onClose={() => closeTab(id)} /></div>)}
+            {tabs.map(id => <div className="tab-pane" key={id} id={`pane-${id}`} role="tabpanel" aria-labelledby={`tab-${id}`} hidden={id !== active}><Workspace tab={id} connectionName={connectionName} onClose={() => closeTab(id)} onNewTab={() => { if (tabs.length < 16 && !busy) void addTab(); }} /></div>)}
         </> : <div className="app-shell"><header className="main-toolbar">
                 <strong className="connection-title">Sequel Rewrite</strong>
                 <label className="database-picker"><select aria-label="Select Database" disabled><option>Choose Database…</option></select><span>Select Database</span></label>
                 <nav className="view-toolbar" aria-label="Database views">{(['structure','content','relations','triggers','info','query'] as const).map((icon, i) => <button key={icon} disabled><ToolbarIcon name={icon}/><span>{['Structure','Content','Relations','Triggers','Table Info','Query'][i]}</span></button>)}</nav>
                 <div className="history-tools"><div><button disabled aria-label="Back">‹</button><button disabled aria-label="Forward">›</button></div><span>Table History</span></div>
-                <button className="toolbar-item" disabled><ToolbarIcon name="users"/><span>Users</span></button><button className="toolbar-item" disabled><ToolbarIcon name="console"/><span>History</span></button>
+                <button className="toolbar-item" disabled><ToolbarIcon name="users"/><span>Users</span></button><button className="toolbar-item" disabled><ToolbarIcon name="console"/><span>Console</span></button>
             </header><ConnectionForm busy={busy} onConnect={connect} sidebarWidth={sidebarWidth} onSidebarResize={setSidebarWidth} /></div>}
         {message && <div className="notice" role="alert">{message}</div>}
     </div>;

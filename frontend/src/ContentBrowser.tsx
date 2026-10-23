@@ -3,13 +3,15 @@ import {Browse, TableDetails, Mutate, ExportTableCSV} from '../wailsjs/go/main/A
 import {database} from '../wailsjs/go/models';
 import ResultGrid from './ResultGrid';
 import RowEditor from './RowEditor';
+import ToolbarIcon from './ToolbarIcon';
 import {workspaceShortcut} from './workspace-shortcuts';
 
 type Props = {tab: string; databaseName: string; table: string; busy: boolean; operation: (work: () => Promise<void>) => Promise<void>};
 export default function ContentBrowser({tab, databaseName, table, busy, operation}: Props) {
     const filterControl = useRef<HTMLSelectElement>(null);
     const focusFilter = useRef(false);
-    const [showFilter, setShowFilter] = useState(false);
+    const [showFilter, setShowFilter] = useState(true);
+    const [filterEnabled, setFilterEnabled] = useState(false);
     const [details, setDetails] = useState<database.TableDetails | null>(null);
     const [selected, setSelected] = useState(-1);
     const [editor, setEditor] = useState<'insert' | 'update' | null>(null);
@@ -25,13 +27,14 @@ export default function ContentBrowser({tab, databaseName, table, busy, operatio
     const [value, setValue] = useState('');
     const [sort, setSort] = useState('');
     const [descending, setDescending] = useState(false);
-    const signature = JSON.stringify([limit, column, operator, value, sort, descending]);
+    const activeColumn = filterEnabled ? column || columns[0]?.name || '' : '';
+    const signature = JSON.stringify([limit, activeColumn, operator, value, sort, descending]);
     const dirty = signature !== applied;
     async function load(next: number) {
         setResult(null); setSelected(-1); setEditor(null); setConfirmDelete(false);
         await operation(async () => {
             setDetails(await TableDetails(tab, databaseName, table));
-            const output = await Browse(tab, new database.BrowseRequest({database: databaseName, table, offset: next, limit, column, operator, value, sort, descending}));
+            const output = await Browse(tab, new database.BrowseRequest({database: databaseName, table, offset: next, limit, column: activeColumn, operator, value, sort, descending}));
             setResult(output); setColumns(output.columns); setOffset(next); setApplied(signature);
         });
     }
@@ -64,7 +67,7 @@ export default function ContentBrowser({tab, databaseName, table, busy, operatio
                 throw error;
             }
             try {
-                const output = await Browse(tab, new database.BrowseRequest({database: databaseName, table, offset, limit, column, operator, value, sort, descending}));
+                const output = await Browse(tab, new database.BrowseRequest({database: databaseName, table, offset, limit, column: activeColumn, operator, value, sort, descending}));
                 setResult(output); setColumns(output.columns); setApplied(signature);
             } catch (error) {
                 setWriteMessage(previous => `${previous} Refresh failed; reload separately. Do not repeat the write.`);
@@ -87,29 +90,41 @@ export default function ContentBrowser({tab, databaseName, table, busy, operatio
     }}>
 
         <fieldset hidden={!showFilter} id={`content-filter-${tab}`} className="content-controls" disabled={!!editor || confirmDelete}><form className="content-filter" onSubmit={e => { e.preventDefault(); void load(0); }}>
-            <select ref={filterControl} aria-label="Filter column" disabled={busy} value={column} onChange={e => setColumn(e.target.value)}><option value="">No filter</option>{columns.map((c, i) => <option key={i}>{c.name}</option>)}</select>
-            <select aria-label="Filter operator" disabled={busy || !column} value={operator} onChange={e => setOperator(e.target.value)}>{['=','!=','<','>','<=','>=','contains','is null','is not null'].map(op => <option key={op}>{op}</option>)}</select>
-            <input aria-label="Filter value" disabled={busy || !column || operator.startsWith('is ')} value={value} onChange={e => setValue(e.target.value)} />
-            <select aria-label="Sort column" disabled={busy} value={sort} onChange={e => setSort(e.target.value)}><option value="">Server order</option>{columns.map((c, i) => <option key={i}>{c.name}</option>)}</select>
-            <label><input type="checkbox" disabled={busy} checked={descending} onChange={e => setDescending(e.target.checked)} /> Desc</label>
-            <button disabled={busy}>Apply</button>
+            <input type="checkbox" aria-label="Enable content filter" disabled={busy} checked={filterEnabled} onChange={e => setFilterEnabled(e.target.checked)} />
+            <select ref={filterControl} aria-label="Filter column" disabled={busy} value={column || columns[0]?.name || ''} onChange={e => { setColumn(e.target.value); setFilterEnabled(true); }}>{columns.map((c, i) => <option key={i}>{c.name}</option>)}</select>
+            <select aria-label="Filter operator" disabled={busy} value={operator} onChange={e => { setOperator(e.target.value); setFilterEnabled(true); }}>{['=','!=','<','>','<=','>=','contains','is null','is not null'].map(op => <option key={op}>{op}</option>)}</select>
+            <input aria-label="Filter value" disabled={busy || operator.startsWith('is ')} value={value} onChange={e => { setValue(e.target.value); setFilterEnabled(true); }} />
+            <div className="filter-rule-actions"><button type="button" title="Disable filter" aria-label="Disable filter" disabled={busy || !filterEnabled} onClick={() => setFilterEnabled(false)}><ToolbarIcon name="remove"/></button><button type="button" disabled title="Additional filter rules are not available yet" aria-label="Add filter rule unavailable"><ToolbarIcon name="add"/></button></div>
+            <button className="primary" disabled={busy}>Apply Filter(s)</button>
         </form></fieldset>
         {confirmDelete && <div className="delete-confirmation" role="alert"><p>Delete the selected row from {databaseName}.{table}? Verify the selected primary key below. Related rows may be affected by database triggers or foreign-key cascades.</p><dl>{details?.columns.map((c, i) => c.primary && result?.rows[selected] ? <div key={c.name}><dt>{c.name}</dt><dd>{result.rows[selected][i].value}</dd></div> : null)}</dl><button disabled={busy} onClick={() => void write('delete')}>Confirm delete</button> <button disabled={busy} onClick={() => setConfirmDelete(false)}>Cancel</button></div>}
         {editor && details && <RowEditor key={`${editor}:${selected}`} details={details} row={editor === 'update' ? result!.rows[selected] : null} busy={busy} onSave={values => void write(editor, values)} onCancel={() => setEditor(null)} />}
         {writeMessage && <p className="form-note" role="status">{writeMessage}</p>}
-        <ResultGrid result={result} busy={busy || !!editor || confirmDelete} selected={selected} onSelect={setSelected} />
+        <ResultGrid result={result} busy={busy || !!editor || confirmDelete} selected={selected} onSelect={setSelected} showColumnTypes />
         <div className="content-bottom-bar">
             <div className="content-actions">
-            <button disabled={busy || !details?.editable || !!editor || confirmDelete || dirty} onClick={() => { setEditor('insert'); setWriteMessage(''); }} title="Insert row" aria-label="Insert row">＋</button>
-
-            <button disabled={busy || !details?.editable || selected < 0 || !!editor || confirmDelete || dirty} onClick={() => setConfirmDelete(true)} title="Delete selected row" aria-label="Delete row">−</button>
-            <button disabled aria-label="Duplicate row unavailable" title="Duplicate row is not available yet">⧉</button>
-            <button disabled={busy || !!editor || confirmDelete} aria-label="Reload content" title="Reload content (⌘/Ctrl+R)" onClick={() => void load(0)}>↻</button>
-            <button disabled={busy || !details?.editable || selected < 0 || !!editor || confirmDelete || dirty} onClick={() => { setEditor('update'); setWriteMessage(''); }} title="Edit selected row" aria-label="Edit row">✎</button>
-            <button disabled={busy || !!editor || confirmDelete} onClick={() => void exportCSV()} title="Export entire table CSV (ignores filters and pagination)" aria-label="Export entire table CSV">CSV ↗</button>
-            {!details?.editable && <span>{details?.reason}</span>}
+                <button disabled={busy || !details?.editable || !!editor || confirmDelete || dirty} onClick={() => { setEditor('insert'); setWriteMessage(''); }} title="Insert row" aria-label="Insert row"><ToolbarIcon name="add"/></button>
+                <button disabled={busy || !details?.editable || selected < 0 || !!editor || confirmDelete || dirty} onClick={() => setConfirmDelete(true)} title="Delete selected row" aria-label="Delete row"><ToolbarIcon name="remove"/></button>
+                <button disabled aria-label="Duplicate row unavailable" title="Duplicate row is not available yet"><ToolbarIcon name="duplicate"/></button>
+                <button disabled={busy || !!editor || confirmDelete} aria-label="Reload content" title="Reload content (⌘/Ctrl+R)" onClick={() => void load(dirty ? 0 : offset)}><ToolbarIcon name="refresh"/></button>
+                <button disabled={busy || !details?.editable || selected < 0 || !!editor || confirmDelete || dirty} onClick={() => { setEditor('update'); setWriteMessage(''); }} title="Edit selected row" aria-label="Edit row"><ToolbarIcon name="edit"/></button>
+                <button className="filter-toggle" title="Filter Content (⌘/Ctrl+F)" aria-label="Toggle content filter" aria-expanded={showFilter} aria-controls={`content-filter-${tab}`} disabled={busy || !!editor || confirmDelete} onClick={() => setShowFilter(open => !open)}><ToolbarIcon name="filter"/></button>
+            </div>
+            <span className="content-row-count" role="status">{result?.rows.length ?? 0} rows on page{selected >= 0 ? '; 1 row selected' : ''}{dirty ? ' · Filter changed' : ''}</span>
+            <fieldset className="content-controls pagination" disabled={!!editor || confirmDelete}>
+                <button aria-label="Previous page" title="Previous page" disabled={busy || dirty || offset === 0} onClick={() => void load(Math.max(0, offset-limit))}><ToolbarIcon name="back"/></button>
+                <details className="content-options"><summary aria-label="Content options" title="Content options"><ToolbarIcon name="more"/></summary><div className="content-options-panel">
+                    <label>Sort column<select aria-label="Sort column" disabled={busy} value={sort} onChange={e => setSort(e.target.value)}><option value="">Server order</option>{columns.map((c, i) => <option key={i}>{c.name}</option>)}</select></label>
+                    <label><input type="checkbox" disabled={busy} checked={descending} onChange={e => setDescending(e.target.checked)} /> Descending</label>
+                    <label>Rows per page<select aria-label="Rows per page" disabled={busy} value={limit} onChange={e => { setLimit(Number(e.target.value)); setResult(null); setOffset(0); }}>{[25,50,100,200].map(n => <option key={n} value={n}>{n} rows</option>)}</select></label>
+                    <button disabled={busy} onClick={() => void load(0)}>Apply sort / page size</button>
+                    <button disabled={busy} onClick={() => void exportCSV()}>Export entire table CSV</button>
+                    <p>Offset {offset} · {result?.durationMS ?? 0} ms. Choose a unique sort column for stable pages. Concurrent changes can shift rows between pages.</p>
+                    <p>CSV uses Sequel CSV v1. Export includes the entire table, ignoring filters. Spreadsheet apps may interpret formulas.</p>
+                    {!details?.editable && <p>{details?.reason}</p>}
+                </div></details>
+                <button aria-label="Next page" title="Next page" disabled={busy || dirty || !result || result.rows.length < limit || offset+limit>10000000} onClick={() => void load(offset+limit)}><ToolbarIcon name="forward"/></button>
+            </fieldset>
         </div>
-            <button className="filter-toggle" title="Filter Content (⌘/Ctrl+F)" aria-expanded={showFilter} aria-controls={`content-filter-${tab}`} disabled={busy || !!editor || confirmDelete} onClick={() => setShowFilter(open => !open)}>Filter / Sort{dirty ? " *" : ""}</button><span className="content-row-count">{result?.rows.length ?? 0} rows</span><fieldset className="content-controls" disabled={!!editor || confirmDelete}><button aria-label="Previous page" title="Previous page" disabled={busy || dirty || offset === 0} onClick={() => void load(Math.max(0, offset-limit))}>◀</button> <button aria-label="Next page" title="Next page" disabled={busy || dirty || !result || result.rows.length < limit || offset+limit>10000000} onClick={() => void load(offset+limit)}>▶</button> <select aria-label="Rows per page" disabled={busy} value={limit} onChange={e => { setLimit(Number(e.target.value)); setResult(null); setOffset(0); }} >{[25,50,100,200].map(n => <option key={n} value={n}>{n} rows</option>)}</select></fieldset><span className="page-status">Offset {offset} · {result?.rows.length ?? 0} rows · {result?.durationMS ?? 0} ms</span></div>
-        <details className="content-info"><summary aria-label="Content information" title="Content information">ⓘ</summary><p>CSV uses Sequel CSV v1 for database round-trip; spreadsheet apps may interpret formulas. Export includes the entire table, ignoring filters. Choose a unique sort column for stable pages. Concurrent changes can shift rows between pages.</p></details>
     </section>;
 }
