@@ -567,3 +567,14 @@ notarization are not configured. Workflow lint and local release-version checks
 passed; cross-platform package build verification is in progress.
 Local macOS production build, ZIP integrity/content check, code-signature check,
 and DMG creation/checksum verification also passed.
+
+Distribution verification completed for code commit `745f4d0`:
+[workflow run 39905593443](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/39905593443)
+passed all seven jobs (version validation, three desktop builds, two database
+integration jobs, and draft release upload). Draft `v0.1.0-alpha.1` contains
+five packages plus `SHA256SUMS.txt`. All assets were downloaded again; SHA-256,
+ZIP contents, LICENSE/README inclusion, macOS 0.1.0 app metadata, binary CPU
+architectures, Linux executable permissions, and the released DMG checksum
+were verified. Files are also available locally in `dist/from-github/` (ignored
+by Git). Native installation/GUI tests on Windows/Linux and publisher signing /
+notarization remain open. The release is a draft pending the owner's publication.
