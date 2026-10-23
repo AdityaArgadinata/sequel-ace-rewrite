@@ -1102,3 +1102,8 @@ codesign lulus. GUI native Windows/Linux belum diuji ulang.
 Pengguna telah mengizinkan push, build distribusi dan publish GitHub Release.
 Target: `v0.1.0-alpha.2` dengan nama sequelx, lima paket platform dan SHA256SUMS.
 Rilis dipublikasikan setelah pipeline desktop dan database lulus.
+
+Saat persiapan publikasi, CI menemukan fixture akun prioritas 5 mengunci host
+ke 127.0.0.1 meskipun server container melihat alamat bridge runner. Fixture
+kini mengambil host dari USER() server; akun tes tetap dibatasi ke satu host
+dan dibersihkan sesudah tes. Tidak mengubah perilaku akun aplikasi.

@@ -59,9 +59,11 @@ func TestPriority5Integration(t *testing.T) {
 		}
 		return r
 	}
+	// Container servers see the bridge address, not the client's loopback address.
+	accountHost := run("SELECT SUBSTRING_INDEX(USER(), '@', -1)").Rows[0][0].Value
 	run("CREATE DATABASE " + quoteIdentifier(db))
 	defer run("DROP DATABASE " + quoteIdentifier(db))
-	defer run("DROP USER IF EXISTS " + adminString(user, "") + "@'127.0.0.1'")
+	defer run("DROP USER IF EXISTS " + adminString(user, "") + "@" + adminString(accountHost, ""))
 	run("CREATE TABLE " + qualified(db, "t") + " (id INT PRIMARY KEY, value INT)")
 	apply := func(r SAAdminRequest) {
 		t.Helper()
@@ -107,13 +109,13 @@ func TestPriority5Integration(t *testing.T) {
 	if err != nil || len(r.Rows) != 1 {
 		t.Fatal(r, err)
 	}
-	account := SAAdminRequest{Kind: "user", Action: "create", User: user, Host: "127.0.0.1", Password: "p'a\\ss"}
+	account := SAAdminRequest{Kind: "user", Action: "create", User: user, Host: accountHost, Password: "p'a\\ss"}
 	apply(account)
 	account.Action = "grant"
 	account.Database = db
 	account.Privileges = []string{"SELECT", "INSERT"}
 	apply(account)
-	r, err = s.Panel("grants", "", "", user, "127.0.0.1")
+	r, err = s.Panel("grants", "", "", user, accountHost)
 	if err != nil || len(r.Rows) == 0 {
 		t.Fatal(r, err)
 	}
