@@ -1111,3 +1111,21 @@ dan dibersihkan sesudah tes. Tidak mengubah perilaku akun aplikasi.
 Suite UI penuh juga menemukan assertion Relations yang masih mencari tombol
 Foreign keys pada layout lama. Assertion kini memeriksa judul panel aktif dan
 kemampuan membuka editor FK, mengikuti layout Structure baru.
+
+### Release alpha.2 dipublikasikan — 2026-10-24
+
+[sequelx v0.1.0-alpha.2](https://github.com/AdityaArgadinata/sequel-ace-rewrite/releases/tag/v0.1.0-alpha.2)
+telah dipublikasikan sebagai pre-release (bukan draft), source commit
+`0e34219fff0e0f7e30274c84f55c7a35fa99001b`.
+[Pipeline 40006541954](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/40006541954)
+lulus seluruh tujuh job: prepare, tiga desktop, MySQL 8.4, MariaDB 11.4,
+dan upload release. Job Linux diulang pada runner baru karena mirror Ubuntu
+sangat lambat; hasil macOS/Windows tetap dipertahankan.
+
+Lima paket (macOS ARM64 DMG/ZIP, Windows AMD64 installer/portable ZIP,
+Linux AMD64 tar.gz) dan SHA256SUMS.txt tersedia. Semua aset diunduh kembali;
+checksum, integritas arsip, penyertaan LICENSE/README, arsitektur executable,
+versi/bundle ID macOS, permission executable Linux dan validitas DMG lulus.
+162 tes UI Chromium/WebKit lulus pada setiap platform; native GUI install
+Windows/Linux serta publisher signing/notarization tetap belum divalidasi.
+Salinan paket terverifikasi tersimpan di `dist/from-github/v0.1.0-alpha.2/`.
