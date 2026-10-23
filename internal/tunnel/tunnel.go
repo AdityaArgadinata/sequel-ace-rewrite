@@ -14,21 +14,25 @@ import (
 	"time"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 // Settings contains no secrets and may be stored in a connection profile.
 type Settings struct {
-	Host       string `json:"host"`
-	Port       int    `json:"port"`
-	User       string `json:"user"`
-	KeyFile    string `json:"keyFile"`
-	KnownHosts string `json:"knownHosts"`
+	UseAgent            bool   `json:"useAgent,omitempty"`
+	KeyboardInteractive bool   `json:"keyboardInteractive,omitempty"`
+	Host                string `json:"host"`
+	Port                int    `json:"port"`
+	User                string `json:"user"`
+	KeyFile             string `json:"keyFile"`
+	KnownHosts          string `json:"knownHosts"`
 }
 type Options struct {
-	Settings      Settings `json:"settings"`
-	Password      string   `json:"password"`
-	KeyPassphrase string   `json:"keyPassphrase"`
+	ChallengeAnswers []string `json:"challengeAnswers,omitempty"`
+	Settings         Settings `json:"settings"`
+	Password         string   `json:"password"`
+	KeyPassphrase    string   `json:"keyPassphrase"`
 }
 
 func Validate(s Settings) error {
@@ -56,6 +60,30 @@ func Open(ctx context.Context, options Options) (*ssh.Client, error) {
 		return nil, fmt.Errorf("read SSH known_hosts: %w", err)
 	}
 	auth := []ssh.AuthMethod{}
+	if s.UseAgent {
+		socket := os.Getenv("SSH_AUTH_SOCK")
+		if socket == "" {
+			return nil, errors.New("SSH_AUTH_SOCK is not available to the app")
+		}
+		connection, err := (&net.Dialer{Timeout: 10 * time.Second}).DialContext(ctx, "unix", socket)
+		if err != nil {
+			return nil, fmt.Errorf("connect SSH agent: %w", err)
+		}
+		defer connection.Close()
+		_ = connection.SetDeadline(time.Now().Add(10 * time.Second))
+		auth = append(auth, ssh.PublicKeysCallback(agent.NewClient(connection).Signers))
+	}
+	if s.KeyboardInteractive {
+		answers := append([]string(nil), options.ChallengeAnswers...)
+		auth = append(auth, ssh.KeyboardInteractive(func(user, instruction string, questions []string, echo []bool) ([]string, error) {
+			if len(questions) > len(answers) {
+				return nil, errors.New("not enough keyboard-interactive answers; enter one answer per challenge")
+			}
+			response := append([]string(nil), answers[:len(questions)]...)
+			answers = answers[len(questions):]
+			return response, nil
+		}))
+	}
 	if options.Password != "" {
 		auth = append(auth, ssh.Password(options.Password))
 	}
@@ -81,7 +109,7 @@ func Open(ctx context.Context, options Options) (*ssh.Client, error) {
 		auth = append(auth, ssh.PublicKeys(signer))
 	}
 	if len(auth) == 0 {
-		return nil, errors.New("provide SSH password or private key")
+		return nil, errors.New("provide SSH password, private key, agent or keyboard-interactive authentication")
 	}
 	config := &ssh.ClientConfig{User: s.User, Auth: auth, HostKeyCallback: func(host string, remote net.Addr, key ssh.PublicKey) error {
 		if err := verify(host, remote, key); err != nil {

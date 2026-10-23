@@ -5,7 +5,8 @@ with a UI modeled after Sequel Ace. This is a separate implementation of the
 original macOS application, targeting macOS, Windows, and Linux.
 
 **Status: in development.** Connection profiles, SSH connections, SQL queries,
-Content browsing and editing, read-only Structure, and CSV export are available.
+Content browsing/editing, a Structure schema editor, table/database operations,
+CSV/SQL/XML transfer, and native favorites/SPF migration are available.
 Full Sequel Ace feature and visual parity are still in progress. Windows/Linux
 builds run in CI; manual GUI validation on those platforms remains open.
 
@@ -263,8 +264,9 @@ additional packaging options.
    needs a deliberate change to the TLS option before connecting.
 4. Click **Connect**, choose a database using **Select Database**, then select
    a table in the sidebar to open **Content**.
-5. For SQL, select **Query**, enter one statement, and click **Run Query** or
-   press **Cmd+Enter** on macOS / **Ctrl+Enter** on Windows/Linux.
+5. For SQL, select **Query**, enter SQL, choose **Current statement**, **Selection**,
+   or **All statements**, and click **Run Query**. Cmd/Ctrl+Enter runs the selection
+   when present, otherwise the current statement; Cmd/Ctrl+Shift+Enter runs all.
 
 To save a connection, enter a name and click **Add to Favorites**. Subsequent
 edits use **Save Changes**. Passwords are not included in profile JSON. Open
@@ -281,37 +283,170 @@ implemented. Database TLS verification remains enabled independently of SSH.
 ## Workspace and current features
 
 - **Content:** select rows, filter using the controls above the grid, and click
-  **Apply Filter(s)**. The bottom ellipsis menu contains sorting, page size,
-  and **Export entire table CSV**. Pages contain 25–200 rows. Select a unique
+  **Apply Filter(s)** on the last row. Each checkbox enables its own condition;
+  + inserts a condition below that row, and − removes it. Choose All (AND) or
+  Any (OR) in the bottom ellipsis menu. Click a column header to sort ascending; click
+  again for descending. A different column starts ascending. The bottom ellipsis
+  menu contains sorting, page size,
+  **Go to page**, and **Export entire table CSV**. Pages contain 25–200 rows. Select a unique
   sort column for stable ordering; concurrent writes can still shift pages.
-- **Editing:** Insert/Edit/Delete are available for eligible InnoDB base tables
-  with a primary key. Select a row by clicking it. NULL and empty strings stay
+- **Editing:** Insert/Edit/Delete are available for eligible InnoDB and MyISAM base tables
+  with a primary key or a complete NOT NULL unique key. Select a row by clicking it, or double-click a cell to edit
+  just that value in place, with its text selected. Enter saves; Escape or
+  clicking away discards the draft. Shift+Enter inserts a newline. Use the row
+  editor for explicit NULL/hex controls.
+  Tab/Shift+Tab save and move across editable cells; Enter saves and moves down.
+  Use Shift-click or Cmd/Ctrl-click for multiple rows, or Cmd/Ctrl+A for all rows
+  on the page. Edit applies checked values to the selection; identity columns
+  cannot be mass-edited. Bulk delete requires confirmation. Rows are processed
+  individually and stop on the first error; earlier writes may already be saved.
+  Duplicate opens a draft with auto-increment omitted and generated fields excluded.
+  Sorting and filtering are locked until that edit is saved or cancelled. NULL and empty strings stay
   distinct; binary values use hex. Generated columns are not writable. Delete
   requires confirmation; update/delete detect changes to the original row.
-  Arbitrary Query results, views, and ineligible tables remain read-only.
+  MyISAM writes acquire a table write lock and take effect immediately; they
+  cannot be rolled back. Finish any active managed transaction before editing
+  MyISAM. The account needs LOCK TABLES permission. Arbitrary Query results,
+  views, and ineligible tables remain read-only.
+- **Grid context menu:** copy cell/row/selection, headers, CSV or SQL INSERT
+  (with/without auto-increment), select/clear, edit, insert, duplicate, delete,
+  set NULL, prepare a cell filter and refresh. SQL copy excludes generated columns.
+- **Table History:** Back/Forward restores table/database/view per session,
+  keeping up to 100 entries; navigating elsewhere clears the forward branch.
+  It reloads data without replaying user SQL; filter/editor drafts are not restored.
 - **Structure:** inspect Columns, Indexes / Primary key, Foreign keys, and CREATE
-  statement. Structure editing is not implemented.
+  statement. Select a row and Edit/Drop, or double-click to edit. Add opens a new
+  object form. Name + Definition SQL preserve the server's complete type and
+  attributes; definitions can include defaults, comments, generated expressions,
+  FIRST/AFTER, composite/prefix indexes, and foreign-key reference/actions. Index
+  types include INDEX, UNIQUE, PRIMARY, FULLTEXT and SPATIAL (server support applies).
+  Preview SQL, review it, check the confirmation, then Apply. A foreign-key edit
+  uses a new constraint name so replacement stays in one ALTER on MySQL 5.7.
+  DDL can lock/rebuild the table, discard data and implicitly commit; Rollback
+  cannot undo it. Active/unverified transactions, autocommit off, views and
+  incomplete definitions are blocked. Metadata reloads after acknowledged DDL;
+  up to 20 server warnings and reload failures are shown separately. No automatic
+  retry occurs. Definitions are limited to 64 KiB, one clause, with no SQL comments
+  or separators outside quoted text. Existing version-comment attributes require
+  manual review in Query; CHECK constraints have no dedicated editor yet.
+  Preview checks are optimistic: changed schema/SQL_MODE invalidates the plan,
+  while ordinary AUTO_INCREMENT advances do not. Coordinate external schema
+  changes during apply. Identifiers require quoted SHOW CREATE output
+  (`sql_quote_show_create=1`).
 - **Sessions and transactions:** the sidebar connection-actions menu opens a new
   query tab, disconnects, and exposes Begin/Commit/Rollback. Each tab has its own
   database session, up to 16 tabs. A single session hides the tab strip. Closing
   a session discards uncommitted transactional work. Manual SQL may leave
   transaction state unverified; resolve it with Commit/Rollback.
-- **History:** enable **Record** in Query to store execution metadata. Open
-  **History (metadata)** there, or use the connection-actions menu. History
-  keeps up to 100 entries and supports clearing. SQL text, cell values, database
-  names, connection identifiers, and raw errors are not stored; replay is not
-  available. The separate Console feature is not implemented.
+- **SQL editor:** syntax highlighting, line numbers, undo/search and schema completion
+  (Ctrl+Space). Refresh completion after schema changes. Table names use the loaded
+  catalog; column completion reads at most 2,000 columns from the active database.
+  Open/Save SQL uses native file dialogs and protects unsaved editor contents when
+  loading another query. Files must be UTF-8, without NUL, at most 4 MiB.
+- **Query Favorites:** save, update, load and delete named SQL locally. Up to 100
+  favorites, 1 MiB each, 8 MiB total. SQL is plain text and can contain secrets.
+- **History:** choose **Off** (default), **Metadata only**, or **Include SQL text
+  (local)**. The last option explicitly stores SQL as local plain text. Up to 100
+  entries / 4 MiB are retained; statements over 32 KiB keep metadata only. Loading
+  SQL from history/favorites opens it for review and never executes it. Clear all
+  history or remove saved SQL while retaining metadata. Changing back to Off or
+  Metadata only stops new SQL recording; existing SQL requires explicit removal.
+  The separate Console feature is not implemented.
 - **Appearance:** the workspace uses a dark theme. macOS sidebars expose native
   wallpaper blur/transparency; their tint depends on the background. Other
   platforms use a neutral fallback. Disabled toolbar items mark unavailable
   features. Exact visual parity is tracked in [GUI parity](docs/gui-parity.md).
 
+### Table/database operations and transfer
+
+Open **Manage tables/databases** from Connection actions, or the sidebar +.
+Create, rename, copy or drop tables/databases; truncate applies to tables. Preview
+SQL and confirm before applying. Destructive actions require the exact source
+name. Multi-step copy/move reports acknowledged steps and stops on the first
+error/warning/cancel without retry or automatic cleanup. DDL cannot be rolled back.
+
+Database copy/move supports at most 1,000 base tables without visible triggers,
+views/sequences, routines or events. Use an account with full metadata visibility.
+Internal FKs are restored after table/data creation; external grants and SQL
+references require separate migration. MySQL has no direct RENAME DATABASE:
+rename creates a destination, moves tables together, then drops the empty source.
+There is no cross-session lock during review or consistent database snapshot;
+coordinate concurrent writers/schema changes. Partial destinations remain visible
+for review. Targets must be new. [MySQL RENAME TABLE](https://dev.mysql.com/doc/refman/8.4/en/rename-table.html)
+describes cross-database trigger/view restrictions.
+
+In Content options, **Import CSV** reads UTF-8 (comma/semicolon/tab, optional
+header), previews 20 records and maps fields to non-generated table columns.
+Unmapped columns use defaults. Limits: 8 MiB, 20,000 records, 200,000 cells. Choose
+Plain CSV for literal text or Sequel CSV v1 for explicit NULL/empty/binary escapes.
+Every record is prevalidated before insertion; server errors/warnings stop the
+row-by-row autocommit import. Earlier rows can already be saved. Views and engines
+other than InnoDB/MyISAM are not supported for CSV import.
+
+**Import SQL dump** in Connection actions accepts up to 64 MiB / 100,000 statements
+and 4 MiB per statement, with the same comment/string/DELIMITER parser as Query.
+Review the full file before confirming: the UI sample is limited to 100 statements
+and 256 KiB. Parsing completes before the first write. Error, warning, cancel or
+SQL_MODE changes stop later statements. There is no automatic COMMIT/ROLLBACK or
+replay. Session state remains unverified after arbitrary imported SQL until resolved
+through the transaction controls. Normal server Notes such as absent DROP IF EXISTS
+are not treated as coercion warnings. Interactive Query limits remain unchanged.
+
+**Export data** in Content/Query offers CSV, SQL INSERT and XML. Content can export
+entire tables, all applied filtered rows, the current filtered page, loaded rows or
+selected loaded rows. Query exports only its retained loaded result and never
+reruns SQL. SQL table export can include CREATE TABLE and omits generated columns
+from INSERT; triggers/routines/events are not included. Specify target table/database
+for SQL exports of arbitrary query results. Partial UI results export only loaded
+rows. XML encodes NULL separately and binary/control text with explicit base64.
+Streaming exports bypass the 500-row UI limit but retain the 60-second operation
+and 4 MiB row bounds. Loaded snapshots remain limited to 500 rows / 4 MiB. Completed
+files require a new filename and are published atomically; no overwrite or incomplete
+file is published. Exports can exceed this app's import limits; split large files
+or use a dedicated database tool. Review SQL_MODE and target names before importing
+SQL structure from another session/server.
+
+### Sequel Ace favorites and sessions
+
+On the connection form, **Import Sequel Ace favorites** reads XML/binary
+Favorites.plist or exported SPConnectionFavorites files, previews supported entries,
+and creates only selected profiles. Group names are flattened; existing favorites
+are preserved and repeated imports can create duplicates. Database defaults and
+TCP/SSH settings are retained. Passwords/Keychain IDs are ignored; SSH key paths
+are metadata only and are not opened during parsing/import. Review TLS/SSH paths
+and settings before Connect. Socket, IAM/Vault, special auth plugins, remote SSH
+sockets and certificate-path settings require manual setup. Timezone, color and
+native folder layout are not migrated.
+
+**Open SPF session** loads unencrypted v1 connection/session data for review.
+Only explicit Connect opens a connection; restored SQL is loaded into the editor
+without executing. Selected database/table and Structure/Content/Query view are
+restored when available. XML/binary plist and native compressed query text are
+supported (8 MiB file, 4 MiB editor text). Opaque archived selection/history/filter
+and layout state are ignored, without unarchiving arbitrary classes.
+
+**Save SPF session** in Connection actions writes the current connection settings,
+database/table/view and SQL using Sequel Ace's unencrypted data-dictionary format,
+without passwords/Keychain IDs and with auto_connect=false. Large XML can fall back
+to binary plist. SQL text can itself contain secrets: review before sharing.
+Encrypted SPF, custom CA PEM and custom known_hosts need manual native setup and
+are rejected rather than saving incomplete verification settings. This implements
+the connection/editor subset, not every native session/preference field.
+
 ### Query limits and cancellation
 
-Queries execute one statement at a time on a pinned session; do not paste a
-multi-statement SQL script. Results stream into the grid and preserve numeric,
+Scripts execute sequentially on a pinned session after parsing comments, strings,
+and MySQL client DELIMITER directives (up to 1,000 statements / 4 MiB). Current
+runs the statement at the caret; Selection parses only the selected text; All
+validates the entire script before executing. Scripts stop at the first error,
+cancellation, truncated result or SQL_MODE change. Earlier changes may already
+be saved; execution never retries or commits automatically. Five recent statement
+results remain selectable. Results stream into the grid and preserve numeric,
 date, binary, and NULL values without converting them to JavaScript numbers.
-The limit is **500 rows / 4 MiB of cell content**, with a **10-second connection
+The query limit is **500 rows / 4 MiB of cell content**. Database/table catalogs
+use a separate limit of **50,000 entries / 4 MiB**, so a database with more than
+500 tables does not disconnect merely when its table list is loaded. Incomplete
+catalogs fail explicitly. Connections have a **10-second connection
 timeout** and **60-second operation timeout**. The driver reads a complete row
 before the content limit is checked, so a very large BLOB can exceed that limit
 in temporary memory.
@@ -344,12 +479,13 @@ and standard CSV quoting, with these cell encodings:
 | Empty text | `\E` |
 | Binary | `\B` followed by hex; empty binary is `\B` |
 | Literal backslash | `\\` |
-| CR / LF / tab in text | `\r` / `\n` / `\t` |
+| CR / LF / tab / NUL in text | `\r` / `\n` / `\t` / `\0` |
 | Other text, numbers, dates, decimals | Original server text |
 
 For example, literal text `\N` becomes `\\N`, distinct from SQL NULL. This is a
 loss-preserving database format; spreadsheet applications may interpret formula
-prefixes. CSV import and favorites import are not implemented.
+prefixes. NUL text is escaped as `\0`. Use **Sequel CSV v1** when importing these
+files; Plain CSV treats every field literally, including `\N`.
 
 ## Keyboard shortcuts
 
@@ -362,7 +498,9 @@ Use **Cmd** on macOS or **Ctrl** on Windows/Linux with focus in the workspace.
 | Cmd/Ctrl+6 | Query |
 | Cmd/Ctrl+R | Reload Content/Structure; does not rerun SQL in Query |
 | Cmd/Ctrl+F | Show and focus the Content filter |
-| Cmd/Ctrl+Enter | Run one SQL statement from the editor |
+| Cmd/Ctrl+Enter | Run selection, otherwise current statement |
+| Cmd/Ctrl+Shift+Enter | Run all editor statements |
+| Ctrl+Space | Show SQL/schema completion |
 | Cmd/Ctrl+C | Copy the selected row when the result grid has focus |
 | Shift+F10 / Context Menu key | Open the grid copy menu |
 | Arrow keys / Home / End | Navigate grid rows or copy-menu actions |
@@ -480,3 +618,31 @@ SSH tunnels, workspace sessions, and export files. React UI code lives in
 `frontend/src`. The database layer does not depend on Wails.
 
 See [LICENSE](LICENSE) for the MIT license and retained Sequel Ace attribution.
+
+
+## Additional panels and connection options
+
+Relations edits foreign keys; Triggers supports reviewed create/drop; Table Info
+shows metadata and changes engine/default collation/comment. Users provides basic
+account/password and database/table privilege management and requires server admin
+permissions. SQL Console retains up to 500 verb/initial-response events in memory,
+without query text or parameters. Changes may implicitly commit; there is no
+automatic replay or undo. Advanced native privilege/trigger controls remain open.
+
+Connection settings include local UNIX sockets (absolute path, no TLS/SSH), server
+session timezone, SSH agent (`SSH_AUTH_SOCK`) and pre-entered keyboard-interactive
+answers. Named zones require MySQL timezone tables. Folder paths and colors are
+saved with favorites. Preferences offers dark/light/system, editor font/size/wrap;
+Cmd/Ctrl+1–6 switches views and Cmd/Ctrl+, opens preferences.
+
+AWS IAM needs `aws` available in the app environment with configured credentials;
+select region/profile and verified database TLS. Tokens are generated for each new
+session. Vault uses HTTPS token auth to `/v1/<mount>/creds/<role>`, an optional
+namespace and verified database TLS. Vault tokens/issued secrets are not profile
+fields; OIDC and lease renewal are not implemented. SPF export refuses these
+additional connection settings until they can round-trip faithfully.
+
+Query exposes server HELP. **Save print view** exports the loaded result as HTML;
+open it in a browser and choose **Print / Save PDF**. It never reruns SQL and marks
+truncated results. Native print dialogs and external AWS/Vault account QA are still
+open. See [milestone.md](milestone.md) for all remaining parity/verification work.

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>auto_connect</key>
+	<true/>
+	<key>data</key>
+	<dict>
+		<key>connection</key>
+		<dict>
+			<key>database</key>
+			<string>sample</string>
+			<key>host</key>
+			<string>fixture.invalid</string>
+			<key>kcid</key>
+			<string>never-follow</string>
+			<key>name</key>
+			<string>Fixture</string>
+			<key>password</key>
+			<string>must-not-import</string>
+			<key>port</key>
+			<string>3307</string>
+			<key>type</key>
+			<string>SPTCPIPConnection</string>
+			<key>useSSL</key>
+			<true/>
+			<key>user</key>
+			<string>fixture</string>
+		</dict>
+		<key>session</key>
+		<dict>
+			<key>contentSelection</key>
+			<data>
+			b3BhcXVlIGtleWVkIGFyY2hpdmUgaW50ZW50aW9uYWxseSBpZ25v
+			cmVk
+			</data>
+			<key>queries</key>
+			<data>
+			eJwLdvVxdQ5RUD+80vrD/BkN6tYANz8GuA==
+			</data>
+			<key>table</key>
+			<string>people</string>
+			<key>view</key>
+			<string>SP_VIEW_CONTENT</string>
+		</dict>
+	</dict>
+	<key>encrypted</key>
+	<false/>
+	<key>format</key>
+	<string>connection</string>
+	<key>rdbms_type</key>
+	<string>mysql</string>
+	<key>version</key>
+	<integer>1</integer>
+</dict>
+</plist>

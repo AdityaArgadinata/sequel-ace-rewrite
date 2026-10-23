@@ -40,4 +40,5 @@ require (
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.39.0 // indirect
+	howett.net/plist v1.0.2-0.20250314012144-ee69052608d9
 )

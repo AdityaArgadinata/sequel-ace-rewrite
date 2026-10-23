@@ -35,3 +35,4 @@ button:disabled { opacity:.38; }
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible {
     outline:3px solid var(--focus); outline-offset:1px;
 }
+:root[data-theme="light"] {color-scheme:light;--surface:#f1f2f3;--workspace:#fff;--sidebar:#e6e8e9;--toolbar:#eceeef;--field:#fff;--border:#a8adb0;--separator:rgba(0,0,0,.13);--text:#202426;--muted:#60686c;--selection:#d5e4f7;--stripe:#f0f3f5;--accent:#006ad6;}

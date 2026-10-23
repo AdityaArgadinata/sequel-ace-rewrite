@@ -8,16 +8,23 @@ import (
 	"sequel-rewrite/internal/credentials"
 	"sequel-rewrite/internal/database"
 	"sequel-rewrite/internal/history"
+	"sequel-rewrite/internal/nativefiles"
 	"sequel-rewrite/internal/profiles"
+	"sequel-rewrite/internal/queryfavorites"
 	"sequel-rewrite/internal/workspace"
+	"sync"
 )
 
 type App struct {
-	workspace   workspace.Manager
-	ctx         context.Context
-	profiles    *profiles.Store
-	credentials *credentials.Store
-	history     history.Store
+	workspace        workspace.Manager
+	ctx              context.Context
+	profiles         *profiles.Store
+	credentials      *credentials.Store
+	history          history.Store
+	queryFavorites   queryfavorites.Store
+	nativeMu         sync.Mutex
+	nativeToken      string
+	nativeCandidates []nativefiles.SACandidate
 }
 
 func NewApp() *App                                                      { return &App{profiles: profiles.NewStore(""), credentials: credentials.New()} }
@@ -106,6 +113,13 @@ func (a *App) Browse(tab string, r database.BrowseRequest) (database.Result, err
 	return s.Browse(r)
 }
 func (a *App) StreamQuery(tab, id, statement string, recordHistory bool) (database.Result, error) {
+	privacy := "off"
+	if recordHistory {
+		privacy = "metadata"
+	}
+	return a.streamQuery(tab, id, statement, privacy)
+}
+func (a *App) streamQuery(tab, id, statement, privacy string) (database.Result, error) {
 	if a.ctx == nil || id == "" || len(id) > 128 {
 		return database.Result{}, errors.New("query stream requires desktop and request ID")
 	}
@@ -119,8 +133,8 @@ func (a *App) StreamQuery(tab, id, statement string, recordHistory bool) (databa
 			Batch database.Batch `json:"batch"`
 		}{id, batch})
 	})
-	if recordHistory {
-		if historyErr := a.history.Add(statement, len(output.Rows), output.DurationMS, err == nil); historyErr != nil {
+	if privacy != "off" {
+		if historyErr := a.history.AddWithSQL(statement, len(output.Rows), output.DurationMS, err == nil, privacy == "sql"); historyErr != nil {
 			wailsruntime.EventsEmit(a.ctx, "history:error", "History could not be saved; query outcome is unchanged.")
 		}
 	}
@@ -164,4 +178,27 @@ func (a *App) Structure(tab, db, table string) (database.Structure, error) {
 		return database.Structure{}, err
 	}
 	return s.Structure(db, table)
+}
+
+func (a *App) WorkspaceInfo(tab string) (database.Result, error) {
+	s, err := a.workspace.Session(tab)
+	if err != nil {
+		return database.Result{}, err
+	}
+	return s.WorkspaceInfo()
+}
+
+func (a *App) PrepareSchemaChange(tab string, change database.SASchemaChange) (database.SASchemaPlan, error) {
+	s, err := a.workspace.Session(tab)
+	if err != nil {
+		return database.SASchemaPlan{}, err
+	}
+	return s.PrepareSchemaChange(change)
+}
+func (a *App) ApplySchemaChange(tab, token string) (string, error) {
+	s, err := a.workspace.Session(tab)
+	if err != nil {
+		return "", err
+	}
+	return s.ApplySchemaChange(token)
 }

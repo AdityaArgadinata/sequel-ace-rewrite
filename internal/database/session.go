@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"golang.org/x/crypto/ssh"
 	"net"
+	"path/filepath"
+	"sequel-rewrite/internal/authproviders"
 	"sequel-rewrite/internal/tunnel"
 	"strconv"
 	"strings"
@@ -24,17 +26,21 @@ import (
 
 const (
 	MaxRows        = 500
+	MaxCatalogRows = 50000
 	MaxResultBytes = 4 * 1024 * 1024
 )
 
 type Connection struct {
-	Host     string          `json:"host"`
-	Port     int             `json:"port"`
-	User     string          `json:"user"`
-	Password string          `json:"password"`
-	TLS      bool            `json:"tls"`
-	CAPEM    string          `json:"caPEM"`
-	SSH      *tunnel.Options `json:"ssh"`
+	Auth     *authproviders.SAOptions `json:"auth,omitempty"`
+	Socket   string                   `json:"socket,omitempty"`
+	TimeZone string                   `json:"timeZone,omitempty"`
+	Host     string                   `json:"host"`
+	Port     int                      `json:"port"`
+	User     string                   `json:"user"`
+	Password string                   `json:"password"`
+	TLS      bool                     `json:"tls"`
+	CAPEM    string                   `json:"caPEM"`
+	SSH      *tunnel.Options          `json:"ssh"`
 }
 
 type Cell struct {
@@ -67,24 +73,48 @@ type Batch struct {
 // Cancellation/timeout discards the session: session variables and transactions
 // cannot be silently reconstructed on a new connection.
 type Session struct {
-	op           sync.Mutex
-	mu           sync.Mutex
-	cancel       context.CancelFunc
-	db           *sql.DB
-	conn         *sql.Conn
-	transaction  bool
-	txUnverified bool
-	failed       bool
-	tunnel       *ssh.Client
+	op               sync.Mutex
+	mu               sync.Mutex
+	cancel           context.CancelFunc
+	db               *sql.DB
+	conn             *sql.Conn
+	transaction      bool
+	txUnverified     bool
+	failed           bool
+	schemaPending    *saSchemaPending
+	objectPending    *saObjectPending
+	csvPending       *saCSVPending
+	sqlImportPending *saSQLImportPending
+	adminPending     *saAdminPending
+	activity         []SAActivity
+	tunnel           *ssh.Client
 }
 
 func config(c Connection) (*mysql.Config, error) {
-	if strings.TrimSpace(c.Host) == "" || c.Port < 1 || c.Port > 65535 || c.User == "" {
+	if c.User == "" || (c.Socket == "" && (strings.TrimSpace(c.Host) == "" || c.Port < 1 || c.Port > 65535)) {
 		return nil, errors.New("host, port (1–65535), and user are required")
 	}
 	cfg := mysql.NewConfig()
 	cfg.Net = "tcp"
 	cfg.Addr = net.JoinHostPort(strings.TrimSpace(c.Host), strconv.Itoa(c.Port))
+	if c.Socket != "" {
+		if !filepath.IsAbs(c.Socket) || strings.ContainsRune(c.Socket, 0) || len(c.Socket) > 103 || c.SSH != nil || c.TLS || c.CAPEM != "" {
+			return nil, errors.New("UNIX socket requires an absolute path up to 103 bytes, with SSH and TLS disabled")
+		}
+		cfg.Net, cfg.Addr = "unix", c.Socket
+	}
+	if len(c.TimeZone) > 64 || strings.ContainsRune(c.TimeZone, 0) || !utf8.ValidString(c.TimeZone) {
+		return nil, errors.New("invalid time zone")
+	}
+	if c.Auth != nil {
+		if err := authproviders.Validate(c.Auth.Settings); err != nil {
+			return nil, err
+		}
+		if !c.TLS || c.Socket != "" {
+			return nil, errors.New("AWS/Vault authentication requires verified MySQL TLS")
+		}
+		cfg.AllowCleartextPasswords = c.Auth.Settings.Provider == "aws"
+	}
 	cfg.User, cfg.Passwd = c.User, c.Password
 	cfg.Timeout = 10 * time.Second
 	cfg.ReadTimeout, cfg.WriteTimeout = 60*time.Second, 15*time.Second
@@ -160,6 +190,13 @@ func (s *Session) Connect(c Connection) error {
 			return tunnel.Dial(ctx, client, address)
 		}
 	}
+	if c.Auth != nil {
+		user, password, err := authproviders.Resolve(ctx, *c.Auth, c.Host, c.Port, c.User)
+		if err != nil {
+			return err
+		}
+		cfg.User, cfg.Passwd = user, password
+	}
 	connector, err := mysql.NewConnector(cfg)
 	if err != nil {
 		return err
@@ -178,6 +215,13 @@ func (s *Session) Connect(c Connection) error {
 		conn.Close()
 		db.Close()
 		return connectionError("connection check", err)
+	}
+	if c.TimeZone != "" {
+		if _, err = conn.ExecContext(connectCtx, "SET SESSION time_zone = ?", c.TimeZone); err != nil {
+			conn.Close()
+			db.Close()
+			return connectionError("time zone initialization", err)
+		}
 	}
 	var autocommit int
 	if err = conn.QueryRowContext(connectCtx, "SELECT @@session.autocommit").Scan(&autocommit); err != nil {
@@ -207,6 +251,11 @@ func (s *Session) Cancel() {
 }
 
 func (s *Session) close() {
+	s.adminPending = nil
+	s.schemaPending = nil
+	s.objectPending = nil
+	s.csvPending = nil
+	s.sqlImportPending = nil
 	s.transaction = false
 	s.txUnverified = false
 	if s.tunnel != nil {
@@ -250,6 +299,10 @@ func (s *Session) queryError(err error) error {
 	if s.transaction {
 		s.txUnverified = true
 	}
+	// Missing metadata is an expected stale-object result, not a lost connection.
+	if errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
 	var serverError *mysql.MySQLError
 	if !errors.As(err, &serverError) {
 		s.failed = true
@@ -273,7 +326,7 @@ func (s *Session) UseDatabase(name string) error {
 	if name == "" || strings.ContainsRune(name, 0) {
 		return errors.New("invalid database name")
 	}
-	_, err = s.conn.ExecContext(ctx, "USE "+quoteIdentifier(name))
+	_, err = s.execContext(ctx, "USE "+quoteIdentifier(name))
 	if err != nil {
 		return s.queryError(err)
 	}
@@ -305,6 +358,10 @@ func (s *Session) Stream(statement string, emit func(Batch)) (Result, error) {
 }
 
 func (s *Session) execute(statement string, args []any, emit func(Batch), metadata bool) (Result, error) {
+	return s.executeWithRowLimit(statement, args, emit, metadata, MaxRows)
+}
+
+func (s *Session) executeWithRowLimit(statement string, args []any, emit func(Batch), metadata bool, maxRows int) (Result, error) {
 	ctx, done, err := s.begin()
 	if err != nil {
 		return Result{}, err
@@ -323,7 +380,7 @@ func (s *Session) execute(statement string, args []any, emit func(Batch), metada
 		s.txUnverified = true
 	}
 	start := time.Now()
-	rows, err := s.conn.QueryContext(ctx, statement, args...)
+	rows, err := s.queryContext(ctx, statement, args...)
 	if err != nil {
 		return Result{}, s.queryError(err)
 	}
@@ -350,7 +407,7 @@ func (s *Session) execute(statement string, args []any, emit func(Batch), metada
 		if err := ctx.Err(); err != nil {
 			return Result{}, s.queryError(err)
 		}
-		if len(result.Rows) == MaxRows {
+		if len(result.Rows) == maxRows {
 			result.Truncated = true
 			break
 		}
@@ -412,11 +469,62 @@ func (s *Session) execute(statement string, args []any, emit func(Batch), metada
 	return result, nil
 }
 
-func (s *Session) Databases() (Result, error) { return s.execute("SHOW DATABASES", nil, nil, true) }
+// Catalogs contain names, not table contents: give them a separate bounded budget.
+// Never return a partial catalog as if it were a complete list.
+func (s *Session) catalog(statement string) (Result, error) {
+	result, err := s.executeWithRowLimit(statement, nil, nil, true, MaxCatalogRows)
+	if err != nil {
+		return Result{}, err
+	}
+	if result.Truncated {
+		return Result{}, fmt.Errorf("database catalog exceeds its safety limit (%d entries or %d MiB); the incomplete list was discarded and the session was closed", MaxCatalogRows, MaxResultBytes/(1024*1024))
+	}
+	return result, nil
+}
+
+func (s *Session) Databases() (Result, error) { return s.catalog("SHOW DATABASES") }
 
 func (s *Session) Tables(database string) (Result, error) {
 	if database == "" || strings.ContainsRune(database, 0) {
 		return Result{}, fmt.Errorf("select a database first")
 	}
-	return s.execute("SHOW FULL TABLES FROM "+quoteIdentifier(database), nil, nil, true)
+	return s.catalog("SHOW FULL TABLES FROM " + quoteIdentifier(database))
+}
+
+// WorkspaceInfo reads only fixed session metadata, without running user SQL or
+// clearing uncertainty from an earlier query/error.
+func (s *Session) WorkspaceInfo() (Result, error) {
+	return s.execute("SELECT VERSION(), DATABASE()", nil, nil, true)
+}
+
+// Fixed metadata reads never mark an otherwise idle session as user SQL.
+func (s *Session) SQLMode() (string, error) {
+	ctx, done, err := s.begin()
+	if err != nil {
+		return "", err
+	}
+	defer done()
+	if s.conn == nil {
+		return "", errors.New("connect to a server first")
+	}
+	var mode string
+	if err := s.conn.QueryRowContext(ctx, "SELECT @@session.sql_mode").Scan(&mode); err != nil {
+		return "", s.queryError(err)
+	}
+	return mode, nil
+}
+func (s *Session) CompletionSchema(db string) (Result, error) {
+	if !validName(db) {
+		return Result{}, errors.New("select a valid database for completion")
+	}
+	// Fully consume this small result; partial completion must not abort the session.
+	result, err := s.executeWithRowLimit("SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? ORDER BY TABLE_NAME, ORDINAL_POSITION LIMIT 2001", []any{db}, nil, true, MaxCatalogRows)
+	if err != nil {
+		return Result{}, err
+	}
+	if len(result.Rows) > 2000 {
+		result.Rows = result.Rows[:2000]
+		result.Truncated = true
+	}
+	return result, nil
 }

@@ -1,4 +1,4 @@
-// Package history persists query metadata only: SQL text/values/errors are never stored.
+// Package history persists execution metadata, with SQL text only by explicit opt-in.
 package history
 
 import (
@@ -17,6 +17,7 @@ type Entry struct {
 	Rows       int    `json:"rows"`
 	DurationMS int64  `json:"durationMS"`
 	Success    bool   `json:"success"`
+	SQL        string `json:"sql,omitempty"`
 }
 type Store struct {
 	Dir string
@@ -52,8 +53,8 @@ func read(path string) ([]Entry, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !info.Mode().IsRegular() || info.Size() > 64*1024 {
-		return nil, errors.New("history is not a regular file of at most 64 KiB")
+	if !info.Mode().IsRegular() || info.Size() > 4*1024*1024 {
+		return nil, errors.New("history is not a regular file of at most 4 MiB")
 	}
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -75,6 +76,10 @@ func (s *Store) List() ([]Entry, error) {
 	return read(path)
 }
 func (s *Store) Add(statement string, rows int, duration int64, success bool) error {
+	return s.AddWithSQL(statement, rows, duration, success, false)
+}
+
+func (s *Store) AddWithSQL(statement string, rows int, duration int64, success, includeSQL bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	path, err := s.path()
@@ -85,11 +90,28 @@ func (s *Store) Add(statement string, rows int, duration int64, success bool) er
 	if err != nil {
 		return err
 	}
-	list = append([]Entry{{time.Now().UTC().Format(time.RFC3339), Kind(statement), rows, duration, success}}, list...)
+	entry := Entry{Time: time.Now().UTC().Format(time.RFC3339), Kind: Kind(statement), Rows: rows, DurationMS: duration, Success: success}
+	// Omit oversized SQL entirely; a truncated statement must never become replayable.
+	if includeSQL && len(statement) <= 32*1024 {
+		entry.SQL = statement
+	}
+	list = append([]Entry{entry}, list...)
 	if len(list) > 100 {
 		list = list[:100]
 	}
-	return write(path, list)
+	size, keep := 2, 0
+	for _, item := range list {
+		data, err := json.Marshal(item)
+		if err != nil {
+			return err
+		}
+		size += len(data) + 1
+		if size > 4*1024*1024 {
+			break
+		}
+		keep++
+	}
+	return write(path, list[:keep])
 }
 func write(path string, list []Entry) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
@@ -123,4 +145,21 @@ func (s *Store) Clear() error {
 		return err
 	}
 	return write(path, []Entry{})
+}
+
+func (s *Store) ClearSQL() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	path, err := s.path()
+	if err != nil {
+		return err
+	}
+	list, err := read(path)
+	if err != nil {
+		return err
+	}
+	for i := range list {
+		list[i].SQL = ""
+	}
+	return write(path, list)
 }

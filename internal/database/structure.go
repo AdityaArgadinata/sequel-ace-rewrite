@@ -2,12 +2,15 @@ package database
 
 import "errors"
 
-// Structure is read-only catalog information, never an executable migration plan.
+// Structure is a metadata snapshot; writes require a separate reviewed schema plan.
 type Structure struct {
-	Columns     Result `json:"columns"`
-	Indexes     Result `json:"indexes"`
-	ForeignKeys Result `json:"foreignKeys"`
-	Definition  Result `json:"definition"`
+	Columns     Result           `json:"columns"`
+	Indexes     Result           `json:"indexes"`
+	ForeignKeys Result           `json:"foreignKeys"`
+	Definition  Result           `json:"definition"`
+	Objects     []SASchemaObject `json:"objects"`
+	Editable    bool             `json:"editable"`
+	Reason      string           `json:"reason"`
 }
 
 func (s *Session) Structure(db, table string) (Structure, error) {
@@ -34,6 +37,32 @@ func (s *Session) Structure(db, table string) (Structure, error) {
 			return Structure{}, errors.New("structure metadata exceeds result limits; no complete structure snapshot is available")
 		}
 		*query.target = result
+	}
+	output.Objects = []SASchemaObject{}
+	if len(output.Definition.Columns) > 0 && output.Definition.Columns[0].Name == "Table" && len(output.Definition.Rows) > 0 && len(output.Definition.Rows[0]) > 1 {
+		mode, err := s.SQLMode()
+		if err != nil {
+			return Structure{}, err
+		}
+		objects, err := schemaObjects(output.Definition.Rows[0][1].Value, mode)
+		if err != nil {
+			output.Reason = err.Error()
+		} else {
+			count := 0
+			for _, object := range objects {
+				if object.Kind == "column" {
+					count++
+				}
+			}
+			if count != len(output.Columns.Rows) {
+				output.Reason = "Cannot read every column definition; enable sql_quote_show_create and reload structure."
+			} else {
+				output.Objects = objects
+				output.Editable = true
+			}
+		}
+	} else {
+		output.Reason = "Schema editing supports base tables with a complete CREATE definition only."
 	}
 	return output, nil
 }

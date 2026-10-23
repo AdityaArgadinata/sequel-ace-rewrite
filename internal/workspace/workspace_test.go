@@ -1,9 +1,12 @@
 package workspace
 
 import (
+	"encoding/json"
 	"os"
+	"sequel-rewrite/internal/authproviders"
 	"sequel-rewrite/internal/database"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -135,5 +138,18 @@ func TestIndependentSessionsIntegration(t *testing.T) {
 	m.Shutdown()
 	if m.connection != nil || len(m.tabs) != 0 {
 		t.Fatal("workspace retained connection settings")
+	}
+}
+
+func TestProfileExportExcludesCredentials(t *testing.T) {
+	m := Manager{connection: &database.Connection{Host: "fixture.invalid", User: "fixture", Port: 3306, Password: "secret-db-password", Auth: &authproviders.SAOptions{Settings: authproviders.SASettings{Provider: "vault", VaultAddress: "https://vault.example", VaultMount: "database", VaultRole: "reader"}, VaultToken: "secret-vault-token"}}}
+	p, err := m.Profile()
+	if err != nil || p.Host != "fixture.invalid" {
+		t.Fatal(p, err)
+	}
+	// Profile is a separate credential-free type; this also pins the new API boundary.
+	encoded, err := json.Marshal(p)
+	if err != nil || strings.Contains(string(encoded), "secret-db-password") || strings.Contains(string(encoded), "password") || strings.Contains(string(encoded), "secret-vault-token") {
+		t.Fatal("password escaped", err)
 	}
 }

@@ -387,29 +387,6 @@ button.primary {
     flex:0 0 32%;
     border-bottom:1px solid var(--border);
 }
-.line-numbers {
-    width:35px;
-    flex-shrink:0;
-    padding:8px 6px;
-    text-align:right;
-    font:12px/19px ui-monospace,Menlo,Consolas,monospace;
-    color:var(--muted);
-    background:var(--workspace);
-    user-select:none;
-}
-.sql-editor textarea {
-    min-width:0;
-    width:100%;
-    border:0;
-    resize:none;
-    outline-offset:-2px;
-    padding:8px;
-    background:var(--field);
-    color:var(--text);
-    font:12px/19px ui-monospace,Menlo,Consolas,monospace;
-    white-space:pre;
-    overflow:auto;
-}
 .query-actions {
     display:flex;
     align-items:center;
@@ -528,7 +505,6 @@ td.null {
 }
 
 .sql-editor { overflow: hidden; }
-.line-numbers { overflow: hidden; max-height: 100%; }
 
 .splitter {
     flex:0 0 5px;
@@ -577,10 +553,14 @@ td.null {
 .create-statement { flex:1; min-height:0; overflow:auto; margin:0; padding:12px; white-space:pre; font:12px/19px ui-monospace,Menlo,Consolas,monospace; user-select:text; }
 
 /* Native grids keep column widths and stripe the unused canvas as well. */
-.results { background:repeating-linear-gradient(to bottom,var(--field) 0,var(--field) 22px,var(--stripe) 22px,var(--stripe) 44px); }
+.results {
+    --grid-row-height:22px;
+    background-image:linear-gradient(to bottom,var(--field) 0,var(--field) 50%,var(--stripe) 50%,var(--stripe) 100%);
+    background-size:100% calc(2 * var(--grid-row-height));
+}
 .results table { table-layout:fixed; min-width:0; }
 .results th { height:28px; z-index:1; padding-right:12px; }
-.results td { height:22px; max-width:none; }
+.results td { height:var(--grid-row-height); line-height:18px; max-width:none; }
 .column-resizer { position:absolute; right:0; top:0; width:6px; height:100%; cursor:col-resize; touch-action:none; }
 .column-resizer:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
 .grid-context-menu { position:fixed; z-index:20; width:166px; background:var(--surface); border:1px solid var(--border); border-radius:5px; }
@@ -650,7 +630,8 @@ td.null {
 .credential-store[open] { padding:7px; border:1px solid var(--border); border-radius:4px; }
 
 /* NSTableView uses semantic row selection, not hover as selection. */
-.results { background-position:0 28px; }
+/* Start the empty zebra at the actual header height and follow content scrolling. */
+.results { background-position:0 calc(var(--grid-header-height,28px) - var(--grid-scroll-top,0px)); }
 .results th { border-color:var(--separator); background:var(--surface); font-size:12px; }
 .results td { border-color:var(--grid-border); background:var(--field); }
 .results tr:nth-child(even) td { background:var(--stripe); }
@@ -789,3 +770,104 @@ td.null {
 }
 .content-grid table { min-width:100%; }
 .content-grid .grid-filler { padding:0; border-right:0; }
+
+.column-sort { border:0; background:transparent; color:inherit; font:inherit; padding:0; width:100%; text-align:left; cursor:pointer; }
+.filter-match { display:flex; align-items:center; gap:6px; padding:3px 9px; }
+/* Keep the editor inside the existing cell without changing the grid geometry. */
+.results td:has(.cell-editor) { padding:0; overflow:visible; }
+.results textarea.cell-editor { display:block; box-sizing:border-box; width:100%; min-width:0; height:var(--grid-row-height); min-height:var(--grid-row-height); margin:0; padding:0 5px; resize:none; overflow:hidden; border:1px solid #317ba6; border-radius:2px; outline:3px solid #247da4; outline-offset:0; background:var(--field); color:var(--text); font:inherit; line-height:20px; }
+
+.results .column-sort { display:block; min-width:0; height:auto; line-height:14px; border:0; border-radius:0; padding:0; overflow:hidden; text-overflow:ellipsis; background:transparent; }
+.content-filter-form { width:100%; min-width:0; }
+
+.content-write-status { flex-shrink:0; margin:0; padding:4px 8px; background:var(--surface); border-top:1px solid var(--separator); color:var(--muted); font-size:11px; line-height:16px; overflow-wrap:anywhere; }
+
+/* Grid selection is row-based; WebKit text selection can paint the empty viewport. */
+.results { -webkit-user-select:none; user-select:none; }
+.results input,.results textarea { -webkit-user-select:text; user-select:text; }
+
+/* All filter rows share the same tracks, including the reserved Apply slot. */
+.content-filter-form .content-filter { display:grid; grid-template-columns:16px minmax(65px, 125px) minmax(65px,145px) minmax(60px,1fr) 44px 116px; gap:6px; min-height:34px; padding:4px 9px; }
+.content-filter-form .content-filter select { width:100%; max-width:none; min-width:0; }
+.content-filter-form .content-filter input:not([type=checkbox]) { width:100%; min-width:0; }
+.content-filter-form .filter-rule-actions { margin:0; padding:0; }
+.filter-apply { display:flex; justify-content:flex-end; }
+.content-filter-form .content-filter button.primary { margin:0; width:100%; }
+.content-filter-form { flex-shrink:0; max-height:35vh; overflow:auto; }
+@media(min-width:1200px) {
+    .content-filter-form .content-filter { grid-template-columns:16px minmax(100px,13%) minmax(100px,15%) minmax(60px,1fr) 44px 116px; }
+}
+
+.grid-context-menu { max-height:min(70vh,520px); overflow:auto; width:230px; min-width:0; max-width:calc(100vw - 8px); }
+.delete-confirmation dl { max-height:25vh; overflow:auto; }
+.page-jump input { width:100%; }
+
+.sa-sql-editor { flex:1; min-width:0; min-height:0; height:100%; overflow:hidden; }
+.sql-file-tools { display:flex; align-items:center; flex-wrap:wrap; gap:6px; padding:3px 6px; background:var(--surface); font-size:11px; }
+.sql-file-tools span { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.query-actions { flex-wrap:wrap; flex-shrink:0; }
+.query-actions .query-tools { flex-wrap:wrap; }
+.query-tools label { display:flex; align-items:center; gap:4px; }
+.query-tools select { max-width:180px; }
+.query-actions .primary { width:140px; }
+.query-privacy-note,.script-summary { flex-shrink:0; margin:0; padding:4px 8px; font-size:11px; line-height:16px; background:var(--surface); overflow-wrap:anywhere; }
+.script-summary { max-height:100px; overflow:auto; }
+.sql-result-tabs { display:flex; flex-shrink:0; gap:3px; padding:3px; overflow:auto; background:var(--surface); font-size:11px; }
+.sql-result-tabs button { flex-shrink:0; }
+.sql-result-tabs button[aria-pressed=true] { border-color:var(--accent); }
+.sql-result-tabs span { white-space:nowrap; padding:3px; color:var(--muted); }
+.query-library { flex:0 1 220px; min-height:0; overflow:auto; padding:10px; background:var(--surface); border-bottom:1px solid var(--separator); }
+.query-library p,.query-library li { font-size:11px; }
+.query-library pre { max-height:100px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; }
+.query-library form { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
+.query-library label { display:flex; gap:4px; align-items:center; }
+.history-panel pre { max-height:100px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; }
+@media(max-width:900px) {
+ .query-actions>div { flex-wrap:wrap; }
+ .query-actions select { max-width:140px; }
+}
+
+.schema-editor { flex:0 1 auto; min-height:110px; max-height:60%; overflow:auto; padding:10px; background:var(--surface); border-bottom:1px solid var(--separator); font-size:12px; }
+.schema-editor-heading,.schema-editor-fields { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.schema-editor-heading { justify-content:space-between; }
+.schema-editor p { margin:6px 0; font-size:11px; line-height:16px; }
+.schema-editor label { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin:6px 0; }
+.schema-editor textarea { flex:1 1 100%; min-height:70px; max-height:160px; resize:vertical; font:12px/18px ui-monospace,Menlo,monospace; }
+.schema-preview pre { max-height:120px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; user-select:text; }
+.schema-notice { margin:0; padding:5px 8px; max-height:80px; overflow:auto; white-space:pre-wrap; font-size:11px; flex-shrink:0; }
+
+.transfer-panel { flex:0 1 auto; min-height:100px; max-height:50vh; overflow:auto; background:var(--surface); border-bottom:1px solid var(--separator); padding:10px; font-size:12px; }
+.transfer-heading,.transfer-fields { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.transfer-heading { justify-content:space-between; }
+.transfer-panel label,.data-export label { display:flex; flex-wrap:wrap; gap:5px; align-items:center; margin:4px 0; }
+.transfer-panel textarea { width:100%; min-height:70px; font:12px/18px ui-monospace,Menlo,monospace; }
+.transfer-panel p,.data-export p { font-size:11px; line-height:16px; margin:6px 0; }
+.transfer-preview pre { max-height:180px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; user-select:text; }
+.transfer-report { white-space:pre-wrap; overflow-wrap:anywhere; }
+.csv-sample { overflow:auto; max-height:200px; }
+.csv-sample table { border-collapse:collapse; font-size:11px; }
+.csv-sample th,.csv-sample td { border:1px solid var(--separator); padding:3px 6px; max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.csv-sample select { display:block; max-width:200px; }
+.data-export { flex-shrink:0; max-height:160px; overflow:auto; background:var(--surface); font-size:11px; padding:3px 6px; border-bottom:1px solid var(--separator); }
+.data-export input { max-width:160px; }
+
+.sa-admin-panel {overflow:auto;}
+.sa-admin-panel > .result-grid {min-height:150px;}
+.sa-admin-panel pre {white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto;padding:8px;background:var(--field);}
+.sa-admin-form {padding:12px;flex-shrink:0;}
+.sa-admin-form fieldset {display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;border:1px solid var(--separator);}
+.sa-admin-form label {display:flex;gap:6px;align-items:center;}
+.sa-admin-form textarea,.sa-admin-form pre,.sa-admin-form p {width:100%;}
+.sa-privileges {display:flex;flex-wrap:wrap;gap:10px;width:100%;}
+.sa-preferences {position:relative;flex-shrink:0;height:25px;display:flex;justify-content:flex-end;background:var(--toolbar);border-bottom:1px solid var(--separator);}
+.sa-preferences > button {font-size:11px;padding:1px 9px;}
+.sa-preferences > section {position:absolute;top:25px;right:0;z-index:500;width:360px;padding:16px;box-shadow:0 4px 20px #0006;background:var(--surface);border:1px solid var(--border);}
+.sa-preferences label {display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.sa-preferences input[type=number] {width:65px;}
+:root.native-vibrancy[data-theme="light"] {--sidebar:#e6e8e9;background:var(--workspace);}
+:root[data-theme="light"] .database-picker select,:root[data-theme="light"] .content-filter input:not([type=checkbox]) {background:var(--field);}
+:root[data-theme="light"] .sidebar-bottom button,:root[data-theme="light"] .sidebar-menu>summary,:root[data-theme="light"] .content-bottom-bar button {color:var(--muted);}
+.sa-admin-panel > .results {min-height:150px;}
+.favorite-folder {font-size:11px;color:var(--muted);margin:10px 8px 3px;overflow-wrap:anywhere;}
+.color-tags button[aria-pressed=true] {outline:2px solid var(--accent);outline-offset:2px;}
+:root.native-vibrancy[data-theme="dark"] {--sidebar:rgba(35,40,42,.92);}

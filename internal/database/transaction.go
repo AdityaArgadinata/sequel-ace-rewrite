@@ -43,7 +43,7 @@ func (s *Session) Transaction(action string) error {
 			s.txUnverified = true
 			return errors.New("enable autocommit explicitly in SQL before starting a managed transaction")
 		}
-		_, err := s.conn.ExecContext(ctx, "START TRANSACTION")
+		_, err := s.execContext(ctx, "START TRANSACTION")
 		if err != nil {
 			return s.queryError(err)
 		}
@@ -52,7 +52,7 @@ func (s *Session) Transaction(action string) error {
 		if action == "commit" && s.transaction && s.txUnverified {
 			return errors.New("transaction state is uncertain after an error; use ROLLBACK")
 		}
-		_, err = s.conn.ExecContext(ctx, strings.ToUpper(action))
+		_, err = s.execContext(ctx, strings.ToUpper(action))
 		if err != nil {
 			s.txUnverified = true
 			s.failed = true

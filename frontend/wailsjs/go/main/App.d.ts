@@ -4,7 +4,21 @@ import {database} from '../models';
 import {main} from '../models';
 import {history} from '../models';
 import {profiles} from '../models';
+import {queryfavorites} from '../models';
 import {credentials} from '../models';
+import {nativefiles} from '../models';
+
+export function Activity(arg1:string,arg2:boolean):Promise<Array<database.SAActivity>>;
+
+export function ApplyAdmin(arg1:string,arg2:string):Promise<string>;
+
+export function ApplyCSVImport(arg1:string,arg2:string):Promise<database.SABatchOutcome>;
+
+export function ApplyObjectChange(arg1:string,arg2:string):Promise<database.SABatchOutcome>;
+
+export function ApplySQLImport(arg1:string,arg2:string):Promise<database.SABatchOutcome>;
+
+export function ApplySchemaChange(arg1:string,arg2:string):Promise<string>;
 
 export function Browse(arg1:string,arg2:database.BrowseRequest):Promise<database.Result>;
 
@@ -12,7 +26,11 @@ export function Cancel(arg1:string):Promise<void>;
 
 export function ClearHistory():Promise<void>;
 
+export function ClearHistorySQL():Promise<void>;
+
 export function CloseTab(arg1:string):Promise<void>;
+
+export function CompletionSchema(arg1:string,arg2:string):Promise<database.Result>;
 
 export function Connect(arg1:database.Connection):Promise<string>;
 
@@ -24,13 +42,21 @@ export function DeleteCredentials(arg1:string):Promise<void>;
 
 export function DeleteProfile(arg1:string):Promise<void>;
 
+export function DeleteQueryFavorite(arg1:string):Promise<void>;
+
 export function Disconnect():Promise<void>;
 
+export function ExportDataFile(arg1:string,arg2:database.SAExportSpec,arg3:database.Result):Promise<main.CSVExport>;
+
 export function ExportTableCSV(arg1:string,arg2:string,arg3:string):Promise<main.CSVExport>;
+
+export function ImportNativeFavorites(arg1:string,arg2:Array<number>):Promise<database.SABatchOutcome>;
 
 export function ListHistory():Promise<Array<history.Entry>>;
 
 export function ListProfiles():Promise<Array<profiles.Profile>>;
+
+export function ListQueryFavorites():Promise<Array<queryfavorites.SAQueryFavorite>>;
 
 export function LoadCredentials(arg1:string):Promise<credentials.Secrets>;
 
@@ -38,13 +64,45 @@ export function Mutate(arg1:string,arg2:database.Mutation):Promise<number>;
 
 export function NewTab():Promise<string>;
 
+export function OpenCSV(arg1:string,arg2:string,arg3:string,arg4:string,arg5:boolean):Promise<database.SACSVPreview>;
+
+export function OpenNativeFavorites():Promise<main.SAFavoritesPreview>;
+
+export function OpenSPF():Promise<nativefiles.SASession>;
+
+export function OpenSQLFile():Promise<main.SASQLFile>;
+
+export function OpenSQLImport(arg1:string):Promise<database.SASQLImportPreview>;
+
+export function Panel(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string):Promise<database.Result>;
+
 export function Platform():Promise<string>;
+
+export function PrepareAdmin(arg1:string,arg2:database.SAAdminRequest):Promise<database.SASchemaPlan>;
+
+export function PrepareCSVImport(arg1:string,arg2:string,arg3:Array<database.SACSVMapping>,arg4:string):Promise<database.SACSVPlan>;
+
+export function PrepareObjectChange(arg1:string,arg2:database.SAObjectRequest):Promise<database.SAObjectPlan>;
+
+export function PrepareSQL(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number,arg6:number):Promise<main.SAQueryPlan>;
+
+export function PrepareSchemaChange(arg1:string,arg2:database.SASchemaChange):Promise<database.SASchemaPlan>;
 
 export function Query(arg1:string,arg2:string):Promise<database.Result>;
 
 export function SaveCredentials(arg1:string,arg2:credentials.Secrets):Promise<void>;
 
+export function SavePrintView(arg1:database.Result):Promise<boolean>;
+
 export function SaveProfile(arg1:profiles.Profile):Promise<profiles.Profile>;
+
+export function SaveQueryFavorite(arg1:queryfavorites.SAQueryFavorite):Promise<queryfavorites.SAQueryFavorite>;
+
+export function SaveSPF(arg1:string,arg2:nativefiles.SASession):Promise<boolean>;
+
+export function SaveSQLFile(arg1:string,arg2:string):Promise<main.SASQLFile>;
+
+export function StreamPreparedQuery(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<database.Result>;
 
 export function StreamQuery(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<database.Result>;
 
@@ -59,3 +117,5 @@ export function Transaction(arg1:string,arg2:string):Promise<void>;
 export function TransactionStatus(arg1:string):Promise<string>;
 
 export function UseDatabase(arg1:string,arg2:string):Promise<void>;
+
+export function WorkspaceInfo(arg1:string):Promise<database.Result>;

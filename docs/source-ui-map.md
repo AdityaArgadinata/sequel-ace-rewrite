@@ -9,20 +9,20 @@ XIB sizes can be adjusted at runtime by controller code and user preferences.
 | Connection sidebar | ConnectionView.xib frame 200 wide | 200 at default 1200 window; resizable percentage |
 | Connection fields | ConnectionView.xib labels 98, inputs 247×22 | CSS metrics match; browser bezels differ |
 | Font | UserDefaultsExtension.swift systemFontSize | system stack 13, small 11; saved native font preferences not imported |
-| Toolbar icons | SPDatabaseDocument+ViewMode.swift symbol names | Own SVG drawings with corresponding concepts; not Apple artwork |
+| Toolbar icons | SPDatabaseDocument+ViewMode.swift symbol names | Own SVG drawings retained at the user’s request; not Apple artwork |
 | Table sidebar | DBView.xib split 6032: 214 wide | initial 214 at default width, filter top; native Table Information panel missing |
 | Content grid | DBView.xib table 36, rowHeight 16 | shared grid; rendered 22px rows retained from observed native binary; runtime/font differences need comparison |
-| Content actions | DBView.xib 5175 add, 5177 delete, 5178 duplicate, 5176 refresh, 5201 edit mode; 25×25 | Bottom action strip; add/delete/reload/edit supported; duplicate visibly disabled; edit opens existing row form, not native spreadsheet mode |
-| Content filters | DBView.xib filter controls / Apply Filter(s) | collapsed by default; toggle exposes existing filter/sort and Apply; one filter only |
-| Content pagination | DBView.xib 6650/6653/6647, ContentPaginationView.xib | bottom/right previous/next + row limit; no native Go-to-page popover |
+| Content actions | DBView.xib 5175 add, 5177 delete, 5178 duplicate, 5176 refresh, 5201 edit mode; 25×25 | Bottom action strip; add/delete/reload/edit supported; duplicate opens an insert draft; Edit opens a row form; double-click opens a compact inline cell editor with Enter/Escape |
+| Content filters | DBView.xib filter controls / Apply Filter(s) | toggle exposes filter rules and Apply; multiple conditions with All (AND) or Any (OR) |
+| Content pagination | DBView.xib 6650/6653/6647, ContentPaginationView.xib | bottom/right previous/next + row limit; Go to page in Content options |
 | Query editor | DBView.xib textView 8254, 695×142 inside split 7209 | editor begins directly under tabs; adjustable height; textarea lacks highlighting/completion |
-| Query action strip | DBView.xib 7218 130×25, 7217 145×25, 8316 200×22 | favorites placeholder disabled; history metadata only; run executes one statement, not native Run Current/All menu |
-| Structure columns | DBView.xib table 232 | labels Field/Type/Allow Null/Key/Default/Extra/Encoding/Collation/Comment; XIB initial widths, read-only Allow Null checkbox; raw type retained, no synthetic length/unsigned/zerofill/binary columns |
-| Structure indexes | DBView.xib table 289 | stacked under Columns; native Non_unique/Key_name/Seq_in_index/Column_name order and initial widths; no schema write actions |
+| Query action strip | DBView.xib 7218 130×25, 7217 145×25, 8316 200×22 | Query Favorites CRUD; Off/metadata/SQL history; Current/Selection/All menu; CodeMirror editor, file Open/Save, schema completion |
+| Structure columns | DBView.xib table 232 | labels Field/Type/Allow Null/Key/Default/Extra/Encoding/Collation/Comment; XIB initial widths, read-only Allow Null checkbox; raw type retained; full Name + Definition SQL editor preserves attributes instead of reconstructing them from display columns |
+| Structure indexes | DBView.xib table 289 | stacked under Columns; native Non_unique/Key_name/Seq_in_index/Column_name order and initial widths; Add/Edit/Drop and double-click definition editor; reviewed SQL preview before Apply |
 | Additional schema metadata | catalog queries in rewrite | Foreign keys and CREATE statement remain secondary sections |
 | Transaction controls | rewrite extension | compact status-bar summary opens Begin/Commit/Rollback panel; state remains visible |
-| Grid interaction | native NSTableView / controllers | row selection, keyboard, resize, copy menu; cell editing and full context-menu parity missing |
-| Other view modes | native view-mode/controller files | Relations/Triggers/Table Info/Users remain disabled; not implemented by this UI pass |
+| Grid interaction | native NSTableView / controllers | row selection, keyboard, resize, copy menu; header ASC/DESC and inline cell editing supported; core Content menu and multi-select/bulk actions available; Bundles integration excluded |
+| Other view modes | native view-mode/controller files | Relations FK editor, trigger create/drop, Table Info metadata/options, basic User Manager; advanced native account/trigger controls remain open |
 
 ## Verification
 
@@ -84,3 +84,25 @@ references. No stylesheet dependency or cleanup script was added to the product.
 App.css decreased from 777 to 715 lines. This is a conservative cascade cleanup,
 not a computed-style or pixel-overlay comparison. Eight frontend tests,
 TypeScript build, Go unit tests and Mac package build passed.
+
+
+## Priority 3 schema actions
+
+Structure exposes Add/Edit/Drop for columns, indexes/primary keys and foreign
+keys. Double-click edits the selected object. SASchemaEditor uses the complete
+SHOW CREATE definition plus an explicit SQL preview and confirmation. Column
+attributes and index/FK options are edited as SQL definitions, rather than a full
+native per-attribute widget layout. SQL plans are once-only and bound to the tab;
+DDL warnings/reload failures remain visible. See README for version/DDL limits.
+
+
+## Priority 4 transfer controls
+
+Sidebar + and Connection actions open the reviewed table/database manager; native
+advanced object overlays remain a parity gap. Content offers a CSV preview/mapping
+panel and Export data scopes; Query exports its loaded result without re-execution.
+Connection actions also expose SQL dump import and password-free SPF save. The
+connection screen imports native favorites or opens SPF into a reviewable form,
+with an enabled initial database field. File dialogs are native Wails dialogs;
+fixture browser tests mock them and do not establish native dialog QA. README and
+milestone document supported object/file subsets and partial execution semantics.

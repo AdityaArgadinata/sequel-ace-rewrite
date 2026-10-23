@@ -2,6 +2,9 @@ package database
 
 import (
 	"crypto/tls"
+	"database/sql"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -82,5 +85,24 @@ func TestIdentifierAndOperationOwnership(t *testing.T) {
 	}
 	if _, err := s.Query("SELECT 1"); err == nil {
 		t.Fatal("query without a session accepted")
+	}
+}
+
+func TestMissingMetadataPreservesConnectionState(t *testing.T) {
+	var s Session
+	if err := s.queryError(sql.ErrNoRows); err != sql.ErrNoRows || s.failed {
+		t.Fatal(err, s.failed)
+	}
+}
+
+func TestSocketAndExternalAuthConfig(t *testing.T) {
+	c := Connection{Socket: filepath.Join(os.TempDir(), "mysql.sock"), User: "root", TimeZone: "+07:00"}
+	cfg, err := config(c)
+	if err != nil || cfg.Net != "unix" || cfg.Addr != c.Socket {
+		t.Fatal(cfg, err)
+	}
+	c.TLS = true
+	if _, err = config(c); err == nil {
+		t.Fatal("TLS on UNIX accepted")
 	}
 }

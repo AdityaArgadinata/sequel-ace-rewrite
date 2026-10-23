@@ -4,6 +4,7 @@ package workspace
 import (
 	"errors"
 	"sequel-rewrite/internal/database"
+	"sequel-rewrite/internal/profiles"
 	"strconv"
 	"sync"
 )
@@ -35,6 +36,10 @@ func (m *Manager) Open(c *database.Connection) (string, error) {
 		return "", errors.New("connect first")
 	}
 	copy := *c
+	if c.Auth != nil {
+		auth := *c.Auth
+		copy.Auth = &auth
+	}
 	if c.SSH != nil {
 		ssh := *c.SSH
 		copy.SSH = &ssh
@@ -97,4 +102,24 @@ func (m *Manager) Shutdown() {
 	for _, s := range tabs {
 		s.Shutdown()
 	}
+}
+
+// Export only connection settings. Credentials never cross this boundary.
+func (m *Manager) Profile() (profiles.Profile, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	c := m.connection
+	if c == nil {
+		return profiles.Profile{}, errors.New("connect first")
+	}
+	p := profiles.Profile{Socket: c.Socket, TimeZone: c.TimeZone, Name: c.Host, Host: c.Host, Port: c.Port, User: c.User, TLS: c.TLS, CAPEM: c.CAPEM}
+	if c.Auth != nil {
+		settings := c.Auth.Settings
+		p.Auth = &settings
+	}
+	if c.SSH != nil {
+		settings := c.SSH.Settings
+		p.SSH = &settings
+	}
+	return p, nil
 }

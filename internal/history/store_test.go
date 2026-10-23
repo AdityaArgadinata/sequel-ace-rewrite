@@ -44,3 +44,28 @@ func TestHistoryNeverStoresSQL(t *testing.T) {
 		t.Fatal("unknown text stored")
 	}
 }
+
+func TestSQLHistoryRequiresOptInAndNeverTruncatesReplay(t *testing.T) {
+	s := Store{Dir: t.TempDir()}
+	if err := s.AddWithSQL("SELECT 'private'", 1, 2, true, true); err != nil {
+		t.Fatal(err)
+	}
+	list, err := s.List()
+	if err != nil || list[0].SQL != "SELECT 'private'" {
+		t.Fatal(list, err)
+	}
+	if err := s.AddWithSQL(strings.Repeat("x", 32*1024+1), 0, 0, false, true); err != nil {
+		t.Fatal(err)
+	}
+	list, err = s.List()
+	if err != nil || list[0].SQL != "" {
+		t.Fatal("truncated SQL became replayable", err)
+	}
+	if err := s.ClearSQL(); err != nil {
+		t.Fatal(err)
+	}
+	list, err = s.List()
+	if err != nil || len(list) != 2 || list[1].SQL != "" || list[1].Kind != "SELECT" {
+		t.Fatal(list, err)
+	}
+}

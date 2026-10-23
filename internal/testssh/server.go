@@ -37,6 +37,13 @@ func Start(t *testing.T) tunnel.Options {
 		t.Fatal(err)
 	}
 	config := &ssh.ServerConfig{
+		KeyboardInteractiveCallback: func(c ssh.ConnMetadata, challenge ssh.KeyboardInteractiveChallenge) (*ssh.Permissions, error) {
+			answers, err := challenge(c.User(), "Fixture OTP", []string{"Code:"}, []bool{false})
+			if err == nil && c.User() == "fixture" && len(answers) == 1 && answers[0] == "123456" {
+				return nil, nil
+			}
+			return nil, fmt.Errorf("denied")
+		},
 		PasswordCallback: func(c ssh.ConnMetadata, p []byte) (*ssh.Permissions, error) {
 			if c.User() == "fixture" && string(p) == "fixture-ssh" {
 				return nil, nil

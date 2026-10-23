@@ -10,18 +10,23 @@ serta shortcut yang terkumpul. Build/test bukan bukti kesetaraan visual.
 
 ## Ringkasan progres — 2026-10-23
 
+Status di bawah mengikuti source lokal terbaru. Catatan CI pada bagian historis
+berlaku untuk commit/run yang disebutkan; perubahan lokal terakhir belum
+diverifikasi ulang di CI tiga OS. Build/test bukan bukti seluruh GUI sudah setara.
+
 | Milestone | Status | Sisa pekerjaan |
 | --- | --- | --- |
-| 0 — Fondasi dan CI | Selesai | Tidak ada |
-| 1 — Alur query pertama | Implementasi dan CI selesai | Smoke test GUI Windows dan Ubuntu |
-| 1A — Kesetaraan GUI Sequel Ace | Sedang dikerjakan; layout/grid/Structure/shortcut dan CI terbaru tersedia | Detail visual/interaksi, referensi light/dark, overlay, dan GUI Windows/Linux |
-| 2 — Penggunaan harian | Implementasi dan CI selesai | Manual QA GUI Windows/Linux; batas fitur didokumentasikan |
-| 3 — Pengubahan data | Implementasi dan CI selesai | Manual QA GUI tiga OS |
-| 4 — Struktur dan pertukaran data | Sedang dikerjakan | Structure/export CSV dan CI selesai; QA GUI, import dan migrasi belum |
-| 5 — Beta Windows/Linux | Belum dimulai | Paket distribusi dan verifikasi rilis |
+| 0 — Fondasi dan CI | Fondasi tersedia; CI historis lulus | Verifikasi perubahan terbaru di CI tiga OS saat diinstruksikan |
+| 1 — Alur query pertama | Koneksi dan query dasar tersedia | Smoke test GUI Windows dan Ubuntu |
+| 1A — Kesetaraan GUI Sequel Ace | Sedang dikerjakan; sorting header, edit sel dan filter per baris tersedia | Detail visual/interaksi, light mode, ikon asli, overlay, GUI Windows/Linux |
+| 2 — Penggunaan harian | Profil, vault OS, SSH, tab, Query Favorites, history SQL opt-in dan browser tabel tersedia | QA GUI Windows/Linux dan batas fitur pada backlog di bawah |
+| 3 — Pengubahan data | Insert/edit/delete InnoDB dan MyISAM tersedia | QA GUI lengkap tiga OS, konflik, transaksi dan kegagalan koneksi |
+| 4 — Struktur dan pertukaran data | Dasar tersedia: editor schema, object manager, transfer dan migrasi native | Fitur native lanjutan, QA lintas OS/server dan batas dukungan di bawah |
+| 5 — Beta Windows/Linux | Sebagian persiapan paket tersedia | Instalasi bersih, QA native, signing/notarization dan keputusan rilis |
 
-Build/test CI sudah lulus pada ketiga OS. Ini belum membuktikan interaksi GUI
-Windows/Linux; milestone 1 tetap terbuka sampai smoke test berikut dicatat.
+**Instruksi rilis:** build/upload/publikasi GitHub Release ditunda sampai pengguna
+meminta secara eksplisit. Build app lokal untuk pengujian dev tetap diperbolehkan.
+Catatan draft/paket lama pada dokumen ini adalah riwayat, bukan izin rilis baru.
 
 ## Tujuan dan keputusan awal
 
@@ -274,8 +279,10 @@ khusus OS sudah dicoba pada Windows serta Ubuntu.
 ditampilkan, dan kegagalan tidak menyebabkan pengulangan write tanpa persetujuan.
 Uji manual alur perubahan data terhadap server pengujian pada ketiga OS.
 
-Implementasi: hanya tabel dasar InnoDB dengan primary key (termasuk composite)
-editable. View, tabel tanpa PK/non-InnoDB/invisible columns tetap read-only.
+Implementasi terbaru: tabel dasar InnoDB dan MyISAM dengan primary key (termasuk
+composite) editable. View, tabel tanpa PK, engine lain dan tabel dengan invisible
+columns tetap read-only. MyISAM memakai table write lock, tersimpan segera,
+dan ditolak ketika transaksi managed aktif; rincian pada pembaruan dev lokal.
 Snapshot seluruh kolom dibandingkan byte-exact dengan NULL-safe predicate;
 nilai di-bind, identifier di-quote. Metadata lock menahan schema selama validasi
 hingga write selesai. Write di luar transaksi UI memakai transaksi pendek;
@@ -305,15 +312,15 @@ terkelola, DDL/CALL/statement transaksi manual ditolak untuk menghindari implici
   Sequel CSV v1 membedakan NULL/empty/binary/backslash dan mempertahankan angka
   sebagai teks. File sementara baru dipublikasikan setelah selesai, tanpa overwrite.
   Unit/integration lokal menguji 2.048 baris, presisi, escape, writer failure,
-  cancel, batas baris, cleanup dan race tujuan file. Import round-trip belum dibuat.
+  cancel, batas baris, cleanup dan race tujuan file. Round-trip CSV/SQL ditambahkan pada Prioritas 4; lihat validasi terbaru di bawah.
 - [x] Verifikasi CI export CSV: run `39748176141` (`81b6f11`) lulus pada
   macOS, Windows, Ubuntu, MySQL 8.4, dan MariaDB 11.4.
 - [ ] Verifikasi dialog file/hasil export CSV di GUI tiga OS.
-- [ ] Tambahkan import CSV dengan preview pemetaan kolom dan laporan kegagalan;
+- [x] Tambahkan import CSV dengan preview pemetaan kolom dan laporan kegagalan;
   jelaskan jika operasi hanya selesai sebagian.
-- [ ] Jika dibutuhkan untuk migrasi, tambahkan importer favorites Sequel Ace
+- [x] Tambahkan importer favorites Sequel Ace untuk subset TCP/SSH yang didukung
   menggunakan fixture format lama; password Keychain tidak dianggap ikut pindah.
-- [ ] Tentukan dukungan eksekusi script sebelum menambah multi-statement:
+- [x] Eksekusi script tersedia pada Query dan import dump terpisah;
   parser harus menangani komentar, string, dan delimiter, bukan split `;` sederhana.
 
 **Selesai jika:** fitur yang dipilih lulus pengujian round-trip dan data besar
@@ -586,9 +593,423 @@ and appearance. The form's global select selector was corrected. Search insets,
 small-window favorite labels, row-editor label spacing and menu overflow were
 also reviewed. Local Chromium/WebKit checks passed (14), frontend unit tests (9)
 and frontend build passed. The desktop CI jobs now run both test engines on all
-three OSes and retain screenshots. A new alpha.2 package build is being prepared;
+three OSes and retain screenshots. Historical plan (superseded by the release hold above): an alpha.2 package build was being prepared;
 cross-OS run results will be recorded after verification.
 The first cross-OS run passed (42 UI checks plus desktop/database jobs). Reviewing
 the Linux WebKit screenshots found one additional initial header-width issue;
 its spacing estimate and UI assertion were corrected before regenerating alpha.2.
 The corrected build passed 14 local UI checks and 9 frontend unit tests.
+
+## Pembaruan dev lokal — 2026-10-23
+
+- [x] Klik header Content menjalankan sorting server-side ASC/DESC; pindah kolom
+  mulai ASC dan kembali ke halaman pertama.
+- [x] Double-click sel membuka editor ringkas di tempat tanpa mengubah ukuran
+  kolom/baris; teks terseleksi, Enter menyimpan, Shift+Enter membuat newline,
+  Escape atau blur membatalkan. Kontrol NULL/hex tetap di row editor.
+- [x] Filter mengikuti referensi: checkbox independen per baris, input sejajar,
+  tombol −/+ tiap baris, dan satu Apply Filter(s) di kanan baris terakhir.
+  Plus menyisipkan kondisi setelah barisnya; minus menghapus kondisi (baris
+  terakhir direset nonaktif). Maksimum 100 kondisi; All/Any (AND/OR) di menu opsi.
+- [x] Pesan hasil write dipindah ke bawah grid, di atas toolbar bawah.
+- [x] Klik/drag ruang kosong tidak menyeleksi seluruh teks grid; seleksi baris,
+  copy dan seleksi teks dalam editor tetap berfungsi.
+- [x] Pembacaan versi server/database aktif menggunakan endpoint metadata tetap,
+  sehingga startup/refresh tidak membuat transaksi menjadi unverified. Query
+  manual dan error yang benar-benar belum pasti tetap dilindungi; tidak ada
+  commit/rollback otomatis untuk menyelesaikan transaksi pengguna.
+- [x] MyISAM dengan primary key dapat diedit memakai LOCK TABLES WRITE selama
+  validasi metadata dan write, lalu UNLOCK TABLES. Transaksi aktif/unverified
+  ditolak sebelum locking. Hasil MyISAM tersimpan segera dan tidak bisa rollback;
+  akun memerlukan privilege LOCK TABLES. Tidak mengubah engine tabel pengguna.
+- [x] Build app lokal macOS ARM64 diperbarui untuk percobaan dev.
+
+Validasi lokal: pemeriksaan TypeScript dan lint localization lulus; suite UI
+terakhir berisi 28 tes Chromium/WebKit dan semuanya lulus. Suite Go beserta
+integration test pada instance disposable MySQL 5.7 lulus setelah konfigurasi
+max_allowed_packet fixture disesuaikan. Pengujian MyISAM mencakup insert/update/
+delete, konflik snapshot, cleanup lock, visibilitas dari sesi kedua dan transaksi
+aktif; regresi InnoDB juga lulus. Tidak ada write atau perubahan schema pada
+bbc_config pengguna. Perubahan ini belum diuji ulang pada GUI native Windows/
+Ubuntu, CI terbaru, atau server MariaDB nyata dalam sesi ini.
+
+## Backlog kesetaraan fitur Sequel Ace asli — 2026-10-23
+
+Daftar ini memisahkan kekurangan dari fitur dasar yang sudah tersedia. Fitur
+lanjutan di luar cakupan rilis pertama tidak menjadi syarat selesai milestone
+lama secara otomatis; prioritasnya mengikuti urutan di bawah.
+
+### Prioritas 1 — Content grid (lanjutan 1A/3)
+
+- [x] Duplicate row melalui draft editor; metadata auto-increment tersedia.
+- [x] Multi-row selection serta edit/delete beberapa baris; berhenti saat error dan melaporkan hasil parsial.
+- [x] Navigasi edit antarsel dengan Tab/Enter seperti aplikasi asli.
+- [x] Menu konteks dasar asli tersedia, termasuk SQL INSERT dengan/tanpa auto-increment; rincian pada catatan implementasi Prioritas 1.
+- [x] Lompat halaman dan navigasi Table History Back/Forward.
+- [x] Perluasan hasil editable selain tabel ber-PK InnoDB/MyISAM, hanya dengan
+  identifikasi baris dan aturan write yang terbukti aman: unique key lengkap NOT NULL. View dan hasil Query
+  arbitrer saat ini read-only; generated column tetap dihitung oleh server.
+
+### Prioritas 2 — Editor dan eksekusi SQL (lanjutan 2/4)
+
+- [x] Syntax highlighting MySQL/MariaDB dan autocomplete keyword/tabel/kolom (Ctrl+Space).
+- [x] Run Current Statement, Run Selection dan Run All, termasuk shortcut editor.
+- [x] Buka/simpan SQL dengan dialog native dan eksekusi script memakai parser
+  komentar/string/DELIMITER; validasi sebelum eksekusi, berhenti pada error pertama.
+- [x] Query Favorites: simpan, ubah, muat dan hapus SQL lokal.
+- [x] History SQL opt-in dengan pilihan Off/Metadata/Include SQL text; muat ke
+  editor untuk ditinjau sebelum Run, serta hapus SQL tanpa menghapus metadata.
+
+### Prioritas 3 — Editor schema (lanjutan 4)
+
+- [x] Tambah/edit/hapus kolom dan atributnya di Structure melalui form definisi SQL.
+- [x] Tambah/edit/hapus index dan primary key, termasuk index gabungan/prefix.
+- [x] Tambah/edit/hapus foreign key, referensi gabungan dan ON DELETE/UPDATE.
+
+### Prioritas 4 — Tabel/database dan pertukaran data (lanjutan 4)
+
+- [x] UI create/rename/copy/drop tabel dan database, serta truncate tabel;
+  copy/move database mendukung subset base table yang dijelaskan di bawah.
+- [x] Import CSV dengan preview, pemetaan kolom dan laporan hasil parsial.
+- [x] Import dump SQL, export SQL/XML/CSV, serta export hasil query/filter/seleksi.
+- [x] Migrasi favorites XML/binary dan buka/simpan session .spf tanpa enkripsi;
+  password/Keychain dan auto-connect tidak ikut dipindahkan.
+
+### Prioritas 5 — Panel fitur asli dan kelengkapan penggunaan
+
+Implementasi dasar sudah tersedia lokal; rincian batas dan verifikasi ada pada
+catatan implementasi Prioritas 5 di bawah. Ini belum berarti seluruh fitur native
+Sequel Ace sudah setara.
+
+- [x] Relations memakai editor foreign key dengan preview dan Add/Edit/Drop.
+- [x] Triggers: daftar/body/SQL mode/definer, create dan drop dengan preview;
+  penggantian trigger dilakukan sebagai dua operasi terpisah.
+- [x] Table Info: metadata ukuran/engine/collation/comment dan perubahan
+  engine/default collation/comment melalui preview ALTER TABLE.
+- [x] User Manager dasar: daftar akun, SHOW GRANTS, create/drop/password serta
+  grant/revoke privilege database/tabel dengan preview password tersamarkan.
+- [x] Console aktivitas sesi: 500 event SQL query/execute dan administrasi di
+  memori, termasuk grid/transfer; hanya jenis operasi, waktu dan respons awal.
+- [x] UNIX socket lokal dan timezone sesi; database awal sudah tersedia.
+- [x] SSH agent lewat SSH_AUTH_SOCK dan keyboard-interactive dengan jawaban
+  sekali pakai yang diisi berurutan sebelum Connect; host key tetap diverifikasi.
+- [x] Folder/path dan warna favorites dapat disimpan, diubah dan dikelompokkan.
+- [x] Dark/light/system, font/ukuran editor, wrap SQL, shortcut view 1–6,
+  reload panel dan preferences. Ikon SVG sebelumnya dipertahankan sesuai
+  permintaan pengguna; penggantian dengan aset PNG asli dibatalkan.
+- [x] AWS IAM lewat AWS CLI, Vault database credentials lewat HTTPS, HELP SQL
+  server dan export HTML hasil yang dimuat untuk Print/Save PDF di browser.
+- [ ] Paritas lanjutan: semua shortcut native dan remapping, preferensi lengkap,
+  operasi folder massal/tree native; global/dynamic/role privileges,
+  resource limit/auth-plugin/rename akun, editor trigger atomic/version-specific.
+- [ ] Vault OIDC/login/renewal, IAM tanpa dependensi AWS CLI, dialog print native
+  langsung serta kompatibilitas SPF untuk pengaturan koneksi tambahan ini.
+
+### Syarat verifikasi sebelum beta (lanjutan 5)
+
+- [ ] QA native Windows/Ubuntu dan regresi GUI macOS terhadap server pengujian.
+- [ ] Instalasi pada mesin bersih, vault, file dialog, clipboard, shortcut,
+  scaling, TLS/SSH, cancel dan shutdown.
+- [ ] Verifikasi ulang CI dan matriks MySQL/MariaDB untuk source terbaru ketika
+  pengguna meminta; jangan menganggap hasil CI commit lama mencakup perubahan ini.
+- [ ] Keputusan signing/notarization, batas dukungan dan catatan rilis.
+- [ ] Build/upload/publikasi GitHub Release hanya setelah instruksi pengguna.
+
+## Implementasi Prioritas 1 — Content grid — 2026-10-23
+
+Implementasi lokal selesai; QA native Windows/Ubuntu dan verifikasi CI terbaru
+masih terbuka. GitHub Release tetap ditunda sampai instruksi pengguna.
+
+- [x] Duplicate satu baris lewat toolbar/menu konteks membuka draft sebelum write.
+  Generated columns tidak disalin sebagai assignment; auto-increment tidak
+  dicentang sehingga server membuat nilainya. Key unik lain tetap perlu diperiksa.
+- [x] Multi-select dengan Shift-click, Cmd/Ctrl-click, Shift+panah, serta
+  Cmd/Ctrl+A untuk seluruh baris pada halaman aktif. Seleksi dibersihkan saat reload.
+- [x] Edit banyak baris melalui row editor: hanya kolom yang dicentang diterapkan
+  ke semua baris terpilih; kolom identitas tidak bisa diubah massal. Nilai yang
+  sama dengan snapshot dilewati. Delete massal memerlukan konfirmasi jumlah/key.
+- [x] Operasi massal berjalan satu baris per statement, berhenti pada error pertama,
+  melaporkan jumlah yang sudah diproses dan membuang snapshot lama. Bukan satu
+  transaksi atomik: write sebelumnya bisa sudah tersimpan; pada managed InnoDB
+  transaction, perubahan tetap menunggu Commit/Rollback. Tidak ada retry otomatis.
+- [x] Tab/Shift+Tab menyimpan lalu berpindah ke sel editable berikut/sebelumnya;
+  Enter ke baris berikut pada kolom sama. Shift+Enter tetap newline, Escape/blur
+  membatalkan draft. Generated columns dilewati. Setelah refresh/sorting, tujuan
+  dicari melalui key, bukan nomor baris; jika tujuan keluar dari hasil, edit berhenti.
+- [x] Menu konteks dasar asli: copy, copy dengan nama kolom, SQL INSERT dengan/
+  tanpa auto-increment, insert, duplicate dan delete. Ditambah CSV, copy cell/row,
+  select all/clear, edit cell/selected rows, NULL, filter by cell dan refresh.
+  Copy SQL mengecualikan generated columns dan mengodekan teks sebagai UTF-8 hex.
+  Integrasi Bundles/plugin menu asli bukan bagian implementasi Content grid ini.
+- [x] Go to page pada menu Content options, validasi integer positif dan batas
+  offset 10.000.000. Tidak menjalankan COUNT seluruh tabel; halaman bisa kosong.
+- [x] Back/Forward Table History per tab (maksimum 100 tabel), termasuk lintas
+  database; navigasi baru memangkas cabang Forward. Hanya memilih tabel/view dan
+  memuat datanya, tidak menjalankan ulang SQL pengguna. Draft/filter tidak dipersist
+  ke history; transaksi dan sesi database tetap milik tab yang sama.
+- [x] Perluasan identitas baris: InnoDB/MyISAM tanpa primary key asli dapat diedit
+  bila ada unique index lengkap yang seluruh kolomnya NOT NULL. Baca STATISTICS
+  untuk membedakan PK asli dari COLUMN_KEY=PRI semu. Nullable/prefix/expression
+  key ditolak, snapshot seluruh kolom tetap dicek, schema direvalidasi dalam lock.
+  View, hasil Query arbitrer, tabel tanpa key aman dan engine lain tetap read-only.
+
+Validasi: TypeScript, 12 unit test frontend, 50 tes UI Chromium/WebKit, go vet,
+suite Go serta integration test dan race detector database pada MySQL 5.7
+disposable lulus. App lokal macOS ARM64 sudah dibuild ulang. Tes mencakup unique key
+komposit InnoDB/MyISAM, metadata auto-increment, konflik snapshot, gagal sebagian,
+copy/seleksi/navigasi/duplicate/delete dan riwayat tabel. Screenshot UI ditinjau
+melalui fixture Chromium/WebKit; tidak ada write pada database pengguna. QA
+native tiga OS dan CI source terbaru tetap harus dilakukan sebelum beta.
+
+### Perbaikan tinggi row dan zebra kosong — 2026-10-23
+
+- [x] Gunakan satu metrik tinggi row 22 px untuk data, pola zebra dan editor sel.
+  Line-height sel dibuat eksplisit agar isi/jenis font tidak memperbesar row.
+- [x] Awal zebra kosong mengikuti tinggi header sebenarnya melalui ResizeObserver,
+  menggantikan offset tetap 28 px yang meleset ketika nama/tipe kolom bertumpuk.
+- [x] Posisi zebra mengikuti scrollTop tanpa rerender React setiap scroll.
+- [x] Suite 54 tes UI Chromium/WebKit lulus, termasuk row sebelum/saat edit
+  multiline/emoji dan keselarasan zebra setelah scrolling; screenshot diperiksa.
+
+Pembaruan ini hanya menyentuh layout grid; tidak mengubah data atau schema.
+QA pada app native Windows/Ubuntu masih terbuka. GitHub Release tetap ditunda.
+
+### Perbaikan katalog lebih dari 500 tabel — 2026-10-23
+
+- [x] Pisahkan budget daftar database/tabel dari batas hasil query 500 baris.
+  Katalog memakai maksimum 50.000 entri / 4 MiB dan timeout operasi yang sama;
+  hasil query pengguna tetap maksimum 500 baris / 4 MiB.
+- [x] Katalog yang melampaui budget dibuang dengan error eksplisit, sehingga UI
+  tidak mengaku sukses dengan daftar parsial setelah sesi ditutup.
+- [x] Uji MySQL 5.7 disposable dengan 509 tabel: USE/list mempertahankan sesi dan
+  transaksi aktif, tabel terakhir tersedia, serta insert/browse tetap berfungsi.
+- [x] Unit test membuktikan Databases/Tables dapat melewati 500 entri, sementara
+  query biasa tetap dibatasi dan katalog berlebih tidak dikembalikan sebagian.
+- [x] Dua tes UI Chromium/WebKit memastikan 509 tombol tabel tersedia, tabel
+  terakhir bisa dibuka, dan pencarian sidebar tetap bekerja. Suite Go lulus.
+
+Database bbo pengguna tidak dimodifikasi. App lokal diperbarui; sesi yang sudah
+terputus perlu dihubungkan ulang. Tidak ada reconnect atau replay SQL otomatis,
+dan tidak ada build/upload GitHub Release.
+
+
+### Implementasi Prioritas 2 — 23 Oktober 2026
+
+- [x] CodeMirror menggantikan textarea: highlighting, line numbers, pencarian,
+  undo/redo dan completion dari database aktif. Semua nama tabel yang terdaftar
+  tersedia; metadata completion dibatasi 2.000 kolom dan dapat di-refresh.
+- [x] Current/Selection/All menggunakan posisi UTF-16 editor dan parser server-side,
+  termasuk komentar, escaped/doubled quotes, executable comments dan DELIMITER
+  untuk trigger/routine. Mode SQL sesi diperiksa; perubahan SQL_MODE menghentikan
+  script sebelum statement berikutnya agar quoting tidak ditafsirkan keliru.
+- [x] File UTF-8 maksimum 4 MiB; maksimum 1.000 statement per script. Open/Load
+  melindungi draft yang belum disimpan. Save memakai file sementara dan rename.
+- [x] Eksekusi berurutan pada sesi tab yang sama, cancel dan berhenti pada error/
+  hasil terpotong. Lima hasil statement terakhir dapat dipilih kembali. Tidak ada
+  retry/replay/COMMIT otomatis; perubahan sebelum error dapat sudah tersimpan.
+- [x] Favorites maksimum 100 entri, 1 MiB SQL per entri dan 8 MiB file total.
+  SQL disimpan lokal sebagai plain text; memuat favorite tidak menjalankannya.
+- [x] History default Off. Metadata tetap tanpa SQL; Include SQL text menyimpan
+  SQL lengkap maksimal 32 KiB per statement (yang lebih besar hanya metadata),
+  maksimum 100 entri/4 MiB. Review/load bukan eksekusi otomatis; SQL lama bisa
+  dihapus tersendiri. SQL plaintext dapat mengandung rahasia.
+- [x] Pengujian parser/scopes/Unicode, file SQL, favorites, history, script trigger
+  pada MySQL 5.7 disposable, dan interaksi editor di Chromium/WebKit lulus.
+
+Validasi: 12 unit test frontend, 76 tes UI Chromium/WebKit, seluruh suite Go
+termasuk MySQL 5.7 disposable dengan race detector, go vet, lint English strings
+dan build lokal macOS arm64 lulus. QA dialog file native dan GUI Windows/Linux serta
+regresi matriks server CI untuk perubahan ini masih terbuka. GitHub Release
+menunggu instruksi pengguna.
+
+
+### Implementasi Prioritas 3 — 23 Oktober 2026
+
+- [x] Structure: pilih baris lalu Edit/Drop atau klik dua kali untuk membuka form;
+  tombol tambah tersedia untuk kolom, index/primary key dan foreign key.
+- [x] Form Name + Definition SQL mempertahankan definisi lengkap dari SHOW CREATE
+  TABLE: tipe/panjang, NULL/default, auto-increment, charset/collation, comment,
+  generated expression dan posisi FIRST/AFTER dapat diubah. Ini form definisi SQL,
+  belum widget terpisah untuk setiap atribut seperti seluruh UI native Sequel Ace.
+- [x] Pilihan INDEX/UNIQUE/PRIMARY/FULLTEXT/SPATIAL dan definisi kolom terurut,
+  prefix/direction, USING/COMMENT. Edit index memakai DROP + ADD pada satu ALTER.
+- [x] FK: kolom lokal/referensi, lintas database, gabungan dan aturan ON DELETE/
+  ON UPDATE. Edit mengusulkan nama constraint baru; MySQL 5.7 dapat menolak
+  penggantian nama identik pada COPY ALTER. Tidak ada pemadaman foreign_key_checks
+  atau rangkaian drop/add terpisah yang meninggalkan FK hilang saat langkah gagal.
+- [x] Preview SQL dan konfirmasi eksplisit sebelum Apply. Backend menyimpan plan
+  sekali pakai per sesi; SQL tidak diterima kembali dari frontend saat Apply.
+  Snapshot SHOW CREATE + SQL_MODE diperiksa ulang, mengabaikan hanya nilai tabel
+  AUTO_INCREMENT berikutnya. Perubahan eksternal membatalkan preview yang lama;
+  pemeriksaan optimistis ini bukan penguncian lintas sesi selama pengguna meninjau.
+- [x] Blokir transaksi aktif/unverified, autocommit off, view dan metadata tidak
+  lengkap. Identifier dikutip, definisi maksimum 64 KiB dan CREATE maksimum 4 MiB.
+  Tolak beberapa clause/statement, delimiter/comment di luar teks berkutip.
+  Definisi dengan version comments harus ditinjau melalui Query; editor ini tidak
+  menghapus komentar server secara diam-diam. CHECK constraint belum dikelola.
+- [x] Reload metadata setelah server mengakui DDL, tampilkan sampai 20 warning,
+  dan bedakan DDL berhasil dari reload gagal. Token dikonsumsi sebelum eksekusi;
+  error/cancel/hasil tidak pasti tidak memicu retry/COMMIT/rollback otomatis.
+- [x] Unit dan integration test disposable mencakup CRUD, atribut yang dipertahankan,
+  FK/index gabungan, preview stale, INSERT di antara preview/apply, SQL error,
+  transaksi, autocommit, view, warning truncation dan mode ANSI_QUOTES/
+  NO_BACKSLASH_ESCAPES. Tes UI Chromium/WebKit ditambahkan untuk alur tersebut
+  beserta preview/konfirmasi dan layout jendela kecil.
+
+DDL dapat memblokir/rebuild tabel dan membuang data; Rollback tidak membatalkan
+perubahan schema. Regresi server lain dan QA GUI Windows/Linux masih terbuka.
+GitHub Release tetap menunggu instruksi pengguna; build lokal dev diperbolehkan.
+
+
+Validasi Prioritas 3: 12 unit test frontend, 94 tes UI Chromium/WebKit (92 regresi
+lengkap + 2 verifikasi refresh completion), seluruh suite Go dengan race detector
+pada MySQL 5.7 disposable, tes terarah schema setelah perbaikan terakhir, go vet
+serta lint katalog English lulus. Autocomplete Query di-refresh pada kunjungan
+berikutnya setelah operasi schema. Build lokal macOS arm64 diperbarui; perubahan
+ini belum diverifikasi ulang pada MySQL 8.4/MariaDB 11.4 atau GUI Windows/Linux.
+
+
+### Implementasi Prioritas 4 — 23 Oktober 2026
+
+- [x] Object manager melalui tombol + sidebar/menu Connection actions: create,
+  rename, copy dan drop tabel/database, serta truncate tabel. Preview SQL dan
+  konfirmasi; rename/drop/truncate meminta nama sumber tepat sebelum Apply.
+  Plan sekali pakai per sesi diperiksa ulang terhadap metadata/SQL_MODE.
+- [x] Create tabel menerima definisi kolom/options SQL; create database memakai
+  default server. Copy tabel mempertahankan definisi/index/constraint, nama FK
+  baru, referensi self yang diarahkan ke copy, serta data opsional tanpa menulis
+  generated columns. Copy/move dengan trigger diblokir.
+- [x] Copy database membuat base table terlebih dahulu, data opsional, lalu FK
+  agar siklus/dependensi tidak memerlukan foreign_key_checks=0. Referensi internal
+  diarahkan ke database tujuan. Rename database diemulasi dengan CREATE DATABASE,
+  multi-table RENAME TABLE dan DROP sumber setelah pemeriksaan sumber kosong.
+  Ini operasi bertahap, bukan RENAME DATABASE atomik atau snapshot data konsisten.
+- [x] Copy/move database dibatasi 1.000 base table dan preview 4 MiB. View, sequence,
+  trigger, routine dan event memerlukan migrasi terpisah dan diblokir bila terlihat;
+  akun perlu visibilitas metadata memadai. Grants dan referensi SQL eksternal tidak
+  disalin. Koordinasikan perubahan schema/data dari sesi lain. Target harus baru;
+  hasil parsial dibiarkan terlihat untuk diperiksa, tidak dihapus/diulang otomatis.
+- [x] CSV UTF-8 dengan comma/semicolon/tab, header opsional, preview 20 record dan
+  mapping Ignore/kolom writable. Batas file 8 MiB, 20.000 record, 200.000 cell.
+  Plain CSV mempertahankan teks literal; Sequel CSV v1 membedakan NULL, empty,
+  binary dan escape termasuk \0 untuk NUL. Semua mapping/nilai divalidasi sebelum
+  insert pertama; insert satu per satu dengan autocommit, berhenti pada error/
+  warning. Laporkan record diakui/total dan hasil row terakhir bila tidak pasti.
+- [x] Import dump SQL terpisah: 64 MiB, 100.000 statement, maksimum 4 MiB per
+  statement. Parser komentar/string/DELIMITER yang sama; interactive editor tetap
+  4 MiB/1.000 statement. Preview maksimal 100 statement/256 KiB; pengguna perlu
+  meninjau seluruh file. Error, warning, cancel atau perubahan SQL_MODE menghentikan
+  statement berikutnya. Notes seperti DROP IF EXISTS bukan warning coercion.
+  Tidak ada retry/COMMIT/ROLLBACK otomatis; status sesi tetap unverified setelah
+  SQL arbitrer sampai pengguna menyelesaikannya lewat kontrol transaksi.
+- [x] Export CSV/SQL/XML dari seluruh tabel, seluruh hasil filter tanpa pagination,
+  halaman terfilter, loaded Query result atau seleksi loaded Content. Filter/sort
+  harus sudah diterapkan. Export Query memakai snapshot tanpa menjalankan SQL lagi.
+  Export SQL tabel dapat menyertakan CREATE dan mengecualikan generated columns
+  dari INSERT; ini dump per tabel, bukan seluruh routine/trigger/event database.
+- [x] Export streaming tidak memakai batas 500 baris UI, tetapi memakai timeout
+  operasi 60 detik dan batas row 4 MiB. Loaded/selection tetap maksimum 500 baris/
+  4 MiB. XML menandai NULL dan memakai base64 untuk binary/control text. File baru
+  dipublikasikan setelah lengkap; existing file/symlink tidak ditimpa, file gagal
+  dibuang. Export besar dapat melebihi batas import aplikasi ini; gunakan tool
+  database lain atau pecah file bila perlu. File berisi data sensitif dan formula
+  spreadsheet tetap dipertahankan sebagai data, tanpa transformasi tersembunyi.
+- [x] Favorites.plist/SPConnectionFavorites XML/binary dibaca menggunakan plist
+  decoder Go yang sesuai dependensi Wails. Group diratakan pada nama; impor hanya
+  entri terpilih ke ID baru, tidak menimpa favorit lama. Impor ulang dapat membuat
+  duplikat. Password, kcid dan Keychain tidak dibaca/disalin. SSH key path hanya
+  dipulihkan sebagai teks dan tidak dibuka sampai Connect eksplisit. Socket,
+  IAM/Vault, client cert/CA path dan plugin auth khusus memerlukan setup manual.
+- [x] SPF v1 tanpa enkripsi: connection TCP/SSH, database, table, view Structure/
+  Content/Query dan editor SQL dipulihkan setelah Connect eksplisit; SQL tidak
+  dijalankan otomatis. Baca XML/binary serta zlib query dari format native.
+  Simpan password-free SPF dengan auto_connect=false, compatible data dictionary;
+  XML besar otomatis memakai binary plist agar tetap bisa dibaca kembali.
+  Layout, filter, seleksi/keyed archive dan native history tidak dipulihkan.
+  Encrypted SPF, custom CA PEM dan custom known_hosts memerlukan setup native
+  manual; file tidak disimpan dengan konfigurasi keamanan yang hilang diam-diam.
+- [x] Profile menyimpan database awal opsional, tanpa credentials; koneksi lama
+  tetap dapat dibaca. Fixture format native dan pengujian metadata memastikan
+  parsing tidak mengikuti path/URL atau memanggil Keychain.
+- [x] Metadata kosong karena objek dihapus sesi lain tidak lagi dianggap sebagai
+  transport failure; preview stale ditolak tanpa menjatuhkan sesi yang masih hidup.
+
+Perubahan baru diverifikasi pada MySQL 5.7 disposable dan UI fixture Chromium/
+WebKit. GUI native Windows/Linux, dialog file manual, MySQL 8.4/MariaDB 11.4
+untuk source terbaru, kasus data sangat besar/lock server dan semua fitur format
+native lanjutan masih membutuhkan QA. GitHub Release tetap menunggu instruksi.
+
+
+Validasi Prioritas 4: 12 unit test frontend, 124 kasus UI Chromium/WebKit (122
+lulus pada regresi penuh; fixture katalog database kedua diperbaiki lalu kasus
+Table History dan native migration terkait lulus pada pengulangan terarah),
+seluruh suite Go dengan race detector pada MySQL 5.7 disposable, fixture native
+XML/binary/zlib/SPF besar, go vet dan lint English strings lulus. Build lokal
+macOS arm64 diperbarui; tidak ada GitHub Release yang dibuat atau diunggah.
+
+Round-trip SQL structure+data juga diverifikasi langsung: BIGINT unsigned maksimum,
+DECIMAL(30,10), Unicode/NUL, NULL vs empty, binary kosong dan generated columns
+terjaga setelah file hasil export diimpor kembali. Header dump mencatat SQL_MODE
+sumber tanpa mengubah mode secara otomatis. Preview dump panjang menampilkan
+prefix statement pertama dengan penanda truncation, bukan melewatkannya diam-diam.
+
+
+## Implementasi Prioritas 5 — Panel dan kelengkapan dasar — 2026-10-23
+
+- Relations memakai operasi foreign key Prioritas 3; Triggers/Table Info/Users
+  kini aktif. Rencana administrasi disimpan per sesi, token sekali pakai dikonsumsi
+  sebelum write, dan metadata/SQL mode diperiksa ulang. Active/unverified
+  transaction dan autocommit off memblokir DDL/account writes. Pemeriksaan optimis
+  bukan lock lintas sesi selama pengguna meninjau. Tidak ada retry otomatis.
+- Trigger create mendukung satu statement atau BEGIN…END. Drop memeriksa trigger
+  benar-benar milik tabel yang dipilih. Perubahan trigger adalah drop dan create
+  terpisah; definer/SQL mode lama terlihat sebagai metadata, bukan otomatis
+  dipertahankan ketika membuat ulang. Default definer adalah akun sesi saat ini.
+- Table Info menampilkan metadata termasuk ukuran/count estimasi. Collation
+  mengubah default tabel, bukan mengonversi encoding kolom lama. Server tetap
+  memvalidasi dukungan engine/collation dan mengembalikan warning/error.
+- User Manager memerlukan izin mysql.user dan pengelolaan akun. Password baru
+  tidak dikembalikan dalam preview, log, profile atau file; disimpan sementara
+  hanya dalam rencana sekali pakai di memori. Grant/revoke menggunakan allowlist
+  privilege database/tabel. Global/role/dynamic privilege belum ada.
+- Console mencatat verb SQL dan hasil pengiriman/respons awal tanpa isi SQL,
+  bound values, password atau pesan error. Ring 500 event per tab, Clear/Reload,
+  tanpa file history. Durasi bukan total streaming; kegagalan saat membaca baris
+  berikutnya dan scalar QueryRow metadata tidak masuk event tersebut.
+- UNIX socket memakai absolute path hingga 103 byte, tanpa TLS/SSH. TCP/SSH tetap
+  mendukung verified TLS. SET SESSION time_zone dijalankan saat setiap koneksi
+  baru; nama zona memerlukan timezone tables server. Tidak ada reconnect diam-diam.
+- SSH agent memerlukan SSH_AUTH_SOCK dalam environment aplikasi. Jawaban
+  keyboard-interactive diisi sebelum handshake, satu baris per challenge dan
+  tidak disimpan di favorites/credential store. Belum ada dialog live yang
+  menampilkan pertanyaan server. Known_hosts tetap wajib diverifikasi.
+- Favorites menyimpan path folder/warna; sidebar mengelompokkan folder. Pengaturan
+  appearance/editor disimpan lokal; tidak mengimpor NSUserDefaults native.
+  Ikon dikembalikan ke SVG sebelum Prioritas 5 sesuai permintaan pengguna;
+  aset PNG tambahan dihapus.
+- IAM memanggil AWS CLI tanpa shell, profile/region eksplisit atau provider CLI
+  default, token baru setiap sesi. Vault memakai HTTPS terverifikasi, token
+  sementara, namespace opsional, mount/role database dinamis dan menolak redirect.
+  Kedua provider mensyaratkan TLS MySQL terverifikasi. Secret provider tidak
+  diserialisasikan ke profile; lease Vault tidak direnew otomatis.
+- HELP menggunakan tabel bantuan server. Print view menyimpan HTML escaped dari
+  snapshot maksimal 500 baris/4 MiB, memberi tanda hasil terpotong, menolak
+  overwrite, dan dicetak/dijadikan PDF setelah dibuka di browser. Tidak mengulang
+  query, tidak mencetak langsung dari dialog native Wails.
+- SPF export menolak socket/timezone/provider/auth SSH tambahan yang belum bisa
+  diwakili daripada diam-diam menghilangkan setting. Import native socket/provider
+  tetap memerlukan konfigurasi manual. Tidak ada perubahan format favorites lama.
+- Verifikasi: Go race suite dan go vet; disposable MySQL 5.7 port 33317 untuk
+  trigger, opsi tabel, akun/privilege/password, stale preview, transaksi, socket
+  dan timezone. SSH fixture memeriksa agent, OTP benar/salah dan host key. Fake AWS
+  CLI/HTTPS Vault memeriksa resolusi, penolakan sertifikat/redirect dan error aman.
+  Fixture browser Chromium/WebKit memeriksa panel, acknowledgement, error tanpa
+  replay, light mode, preferences, koneksi, bantuan, print dan viewport 800px.
+- Hasil akhir: satu putaran penuh 148 tes UI Chromium/WebKit lulus, 12 tes unit
+  frontend lulus, TypeScript check, seluruh Go race suite dan go vet lulus;
+  plutil English catalog serta diff checks lulus. App lokal darwin/arm64 dibangun
+  di rewrite/build/bin/sequel-rewrite.app dan codesign --verify --deep --strict
+  lulus. Server MySQL sementara port 33317 sudah dihentikan.
+- Akun AWS/Vault nyata, native file dialog/printing, macOS GUI ke server live,
+  Windows/Linux GUI serta matriks MySQL/MariaDB lain belum diverifikasi.
+  GitHub Release tetap menunggu instruksi pengguna.

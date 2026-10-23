@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-var csvTextEscaper = strings.NewReplacer(`\`, `\\`, "\r", `\r`, "\n", `\n`, "\t", `\t`)
+var csvTextEscaper = strings.NewReplacer(`\`, `\\`, "\r", `\r`, "\n", `\n`, "\t", `\t`, "\x00", `\0`)
 
 // Sequel CSV v1 keeps NULL, empty strings, bytes and escaped text distinct.
 func csvValue(c Cell) string {
@@ -41,7 +41,7 @@ func (s *Session) ExportCSV(db, table string, writer io.Writer) (int64, error) {
 	if s.txUnverified {
 		return 0, errors.New("resolve unverified session state with Commit/Rollback before exporting")
 	}
-	rows, err := s.conn.QueryContext(ctx, "SELECT * FROM "+quoteIdentifier(db)+"."+quoteIdentifier(table))
+	rows, err := s.queryContext(ctx, "SELECT * FROM "+quoteIdentifier(db)+"."+quoteIdentifier(table))
 	if err != nil {
 		return 0, s.queryError(err)
 	}

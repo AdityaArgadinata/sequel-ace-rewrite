@@ -227,3 +227,37 @@ func TestSSHProfileRoundTrip(t *testing.T) {
 		t.Fatal("invalid ID read")
 	}
 }
+
+func TestPriority5SettingsPersistWithoutProviderSecrets(t *testing.T) {
+	store := NewStore(t.TempDir())
+	p := fixture()
+	p.Folder = "Work/Development"
+	p.Color = "blue"
+	p.TimeZone = "+07:00"
+	p.TLS = false
+	p.Socket = filepath.Join(os.TempDir(), "mysql.sock")
+	saved, err := store.Save(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := store.Get(saved.ID)
+	if err != nil || loaded.Socket != p.Socket || loaded.Folder != p.Folder || loaded.Color != p.Color || loaded.TimeZone != p.TimeZone {
+		t.Fatal(loaded, err)
+	}
+	var imported Profile
+	if err = json.Unmarshal([]byte(`{"name":"Cloud","host":"db.example","port":3306,"user":"u","tls":true,"auth":{"provider":"vault","vaultAddress":"https://vault.example","vaultMount":"database","vaultRole":"reader","vaultToken":"never-save-token"}}`), &imported); err != nil {
+		t.Fatal(err)
+	}
+	saved, err = store.Save(imported)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, _ := json.Marshal(saved)
+	if strings.Contains(string(encoded), "never-save-token") || strings.Contains(string(encoded), "vaultToken") {
+		t.Fatal("provider token serialized")
+	}
+	p.Color = "invalid"
+	if _, err = store.Save(p); err == nil {
+		t.Fatal("invalid color accepted")
+	}
+}

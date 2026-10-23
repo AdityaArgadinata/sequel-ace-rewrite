@@ -213,3 +213,73 @@ func TestIntegrationTLS(t *testing.T) {
 		t.Fatalf("TLS not negotiated: %#v %v", r, err)
 	}
 }
+
+func TestCatalogWith509TablesKeepsSession(t *testing.T) {
+	portText := os.Getenv("SEQUEL_TEST_PORT")
+	if portText == "" {
+		t.Skip("disposable database not configured")
+	}
+	port, err := strconv.Atoi(portText)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var s Session
+	if err := s.Connect(Connection{Host: "127.0.0.1", Port: port, User: "root", Password: os.Getenv("SEQUEL_TEST_PASSWORD")}); err != nil {
+		t.Fatal(err)
+	}
+	defer s.Shutdown()
+	name := fmt.Sprintf("sequel_rewrite_test_catalog_%d", time.Now().UnixNano())
+	run := func(q string) Result {
+		t.Helper()
+		r, err := s.Query(q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	run("CREATE DATABASE " + quoteIdentifier(name))
+	defer func() {
+		if !s.Connected() {
+			if err := s.Connect(Connection{Host: "127.0.0.1", Port: port, User: "root", Password: os.Getenv("SEQUEL_TEST_PASSWORD")}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		run("DROP DATABASE " + quoteIdentifier(name))
+	}()
+	for i := 0; i < 509; i++ {
+		run(fmt.Sprintf("CREATE TABLE %s.`table_%03d` (id INT PRIMARY KEY) ENGINE=MyISAM", quoteIdentifier(name), i))
+	}
+	if err := s.Transaction("rollback"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.UseDatabase(name); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Transaction("begin"); err != nil {
+		t.Fatal(err)
+	}
+	list, err := s.Tables(name)
+	if err != nil || list.Truncated || len(list.Rows) != 509 || !s.Connected() {
+		t.Fatal("catalog closed session", len(list.Rows), err)
+	}
+	if s.TransactionStatus() != "active" {
+		t.Fatal("catalog changed transaction state")
+	}
+	if list.Rows[508][0].Value != "table_508" {
+		t.Fatal("last table missing", list.Rows[508])
+	}
+	info, err := s.WorkspaceInfo()
+	if err != nil || info.Rows[0][1].Value != name {
+		t.Fatal("active database/session lost", info, err)
+	}
+	if err := s.Transaction("rollback"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Mutate(Mutation{Database: name, Table: "table_508", Action: "insert", Values: map[string]Cell{"id": {Value: "1"}}}); err != nil {
+		t.Fatal(err)
+	}
+	result, err := s.Browse(BrowseRequest{Database: name, Table: "table_508", Limit: 50})
+	if err != nil || len(result.Rows) != 1 || result.Rows[0][0].Value != "1" {
+		t.Fatal("last table not usable", result, err)
+	}
+}

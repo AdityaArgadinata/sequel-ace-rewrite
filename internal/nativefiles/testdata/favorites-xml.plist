@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Favorites Root</key>
+	<dict>
+		<key>Children</key>
+		<array>
+			<dict>
+				<key>Children</key>
+				<array>
+					<dict>
+						<key>host</key>
+						<string>fixture.invalid</string>
+						<key>kcid</key>
+						<string>never-follow</string>
+						<key>name</key>
+						<string>Fixture</string>
+						<key>password</key>
+						<string>must-not-import</string>
+						<key>port</key>
+						<string>3307</string>
+						<key>type</key>
+						<integer>0</integer>
+						<key>useSSL</key>
+						<true/>
+						<key>user</key>
+						<string>fixture</string>
+					</dict>
+				</array>
+				<key>Name</key>
+				<string>Group</string>
+			</dict>
+			<dict>
+				<key>name</key>
+				<string>Socket</string>
+				<key>socket</key>
+				<string>/tmp/socket</string>
+				<key>type</key>
+				<integer>1</integer>
+			</dict>
+		</array>
+		<key>Name</key>
+		<string>Favorites</string>
+	</dict>
+</dict>
+</plist>

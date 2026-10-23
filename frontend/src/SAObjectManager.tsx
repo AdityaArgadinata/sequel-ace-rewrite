@@ -1,0 +1,25 @@
+import {useState} from 'react';
+import {PrepareObjectChange,ApplyObjectChange} from '../wailsjs/go/main/App';
+import {database} from '../wailsjs/go/models';
+type Props={tab:string;databaseName:string;table:string;busy:boolean;operation:(work:()=>Promise<void>,mayWrite?:boolean)=>Promise<void>;onRefresh:()=>Promise<void>;onClose:()=>void};
+export default function SAObjectManager({tab,databaseName,table,busy,operation,onRefresh,onClose}:Props){
+ const [kind,setKind]=useState('table'),[action,setAction]=useState('create'),[db,setDB]=useState(databaseName),[source,setSource]=useState(table),[destination,setDestination]=useState(databaseName),[name,setName]=useState(''),[definition,setDefinition]=useState('(id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB'),[includeData,setIncludeData]=useState(true);
+ const [plan,setPlan]=useState<database.SAObjectPlan|null>(null),[ack,setAck]=useState(false),[confirm,setConfirm]=useState(''),[report,setReport]=useState('');
+ function change(){setPlan(null);setAck(false);setConfirm('');setReport('');}
+ async function prepare(){change();await operation(async()=>setPlan(await PrepareObjectChange(tab,new database.SAObjectRequest({kind,action,database:db,table:source,destination,name,definition:kind==='table' && action==='create' ? definition : '',includeData}))));}
+ async function apply(){if(!plan)return;const token=plan.token;setPlan(null);setAck(false);await operation(async()=>{const out=await ApplyObjectChange(tab,token);setReport(`${out.completed} of ${out.total} statements acknowledged. ${out.error ? 'Stopped: '+out.error : 'Completed.'} ${out.uncertain ? 'Current statement outcome is uncertain; verify on server before retrying.' : ''} ${out.warnings} Earlier changes can already be saved; no automatic rollback/retry.`);await onRefresh();},true);}
+ const destructive=action==='drop' || action==='truncate' || action==='rename';const expected=kind==='database' ? db : `${db}.${source}`;
+ return <section className="transfer-panel" aria-label="Manage tables and databases"><div className="transfer-heading"><strong>Manage tables and databases</strong><button disabled={busy} onClick={onClose}>Close object manager</button></div>
+ <p>DDL can discard data, lock tables and implicitly commit. Copy/move is not atomic; earlier steps can remain after failure. Database copy/move supports up to 1,000 base tables without triggers/views/routines/events. Grants and external SQL references need separate review. Copy reads current data; pause concurrent schema/data changes when consistency matters.</p>
+ <form onSubmit={e=>{e.preventDefault();void prepare();}}><div className="transfer-fields">
+ <label>Object<select aria-label="Object kind" disabled={busy} value={kind} onChange={e=>{change();setKind(e.target.value);setAction('create');}}><option value="table">Table</option><option value="database">Database</option></select></label>
+ <label>Action<select aria-label="Object action" disabled={busy} value={action} onChange={e=>{change();setAction(e.target.value);}}>{['create','rename','copy','drop',...(kind==='table' ? ['truncate'] : [])].map(a=><option key={a} value={a}>{a}</option>)}</select></label>
+ <label>Database<input aria-label="Object database" required disabled={busy} value={db} onChange={e=>{change();setDB(e.target.value);}}/></label>
+ {kind==='table' && <label>{action==='create' ? 'New table' : 'Source table'}<input aria-label="Object table" required disabled={busy} value={source} onChange={e=>{change();setSource(e.target.value);}}/></label>}
+ {['copy','rename'].includes(action) && <><label>New name<input aria-label="Object new name" required disabled={busy} value={name} onChange={e=>{change();setName(e.target.value);}}/></label>{kind==='table' && <label>Destination database<input aria-label="Destination database" disabled={busy} value={destination} onChange={e=>{change();setDestination(e.target.value);}}/></label>}</>}
+ {action==='copy' && <label><input type="checkbox" disabled={busy} checked={includeData} onChange={e=>{change();setIncludeData(e.target.checked);}}/>Include data</label>}
+ </div>{kind==='table' && action==='create' && <label>Columns and table options (SQL)<textarea aria-label="New table definition" value={definition} disabled={busy} onChange={e=>{change();setDefinition(e.target.value);}}/></label>}
+ <button disabled={busy}>Preview object SQL</button></form>
+ {plan && <div className="transfer-preview"><pre aria-label="Object SQL preview">{plan.sql.map(s=>s+';').join('\n')}</pre><p>{plan.sql.length} statement(s). Review every step.</p><label><input type="checkbox" disabled={busy} checked={ack} onChange={e=>setAck(e.target.checked)}/>I accept these object/data changes.</label>{destructive && <label>Type {expected} to confirm<input aria-label="Confirm object name" value={confirm} disabled={busy} onChange={e=>setConfirm(e.target.value)}/></label>}<button disabled={busy || !ack || destructive && confirm!==expected} onClick={()=>void apply()}>Apply object change</button></div>}
+ {report && <p role="status" className="transfer-report">{report}</p>}</section>;
+}

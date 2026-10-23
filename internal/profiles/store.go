@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sequel-rewrite/internal/authproviders"
 	"sequel-rewrite/internal/tunnel"
 	"sort"
 	"strings"
@@ -21,14 +22,20 @@ import (
 
 // Keep this separate from database.Connection so passwords cannot be serialized.
 type Profile struct {
-	ID    string           `json:"id"`
-	Name  string           `json:"name"`
-	Host  string           `json:"host"`
-	Port  int              `json:"port"`
-	User  string           `json:"user"`
-	TLS   bool             `json:"tls"`
-	CAPEM string           `json:"caPEM"`
-	SSH   *tunnel.Settings `json:"ssh,omitempty"`
+	Auth            *authproviders.SASettings `json:"auth,omitempty"`
+	Socket          string                    `json:"socket,omitempty"`
+	TimeZone        string                    `json:"timeZone,omitempty"`
+	Folder          string                    `json:"folder,omitempty"`
+	Color           string                    `json:"color,omitempty"`
+	InitialDatabase string                    `json:"initialDatabase,omitempty"`
+	ID              string                    `json:"id"`
+	Name            string                    `json:"name"`
+	Host            string                    `json:"host"`
+	Port            int                       `json:"port"`
+	User            string                    `json:"user"`
+	TLS             bool                      `json:"tls"`
+	CAPEM           string                    `json:"caPEM"`
+	SSH             *tunnel.Settings          `json:"ssh,omitempty"`
 }
 
 type document struct {
@@ -62,10 +69,29 @@ func validID(id string) bool {
 }
 
 func validate(p Profile) error {
+	if p.Auth != nil {
+		if err := authproviders.Validate(*p.Auth); err != nil {
+			return err
+		}
+		if !p.TLS || p.Socket != "" {
+			return errors.New("external authentication requires verified TLS")
+		}
+	}
 	if p.SSH != nil {
 		if err := tunnel.Validate(*p.SSH); err != nil {
 			return err
 		}
+	}
+	if len(p.TimeZone) > 64 || strings.ContainsRune(p.TimeZone, 0) || len(p.Folder) > 200 || strings.ContainsRune(p.Folder, 0) {
+		return errors.New("invalid time zone or favorites folder")
+	}
+	switch p.Color {
+	case "", "none", "red", "orange", "yellow", "green", "blue", "purple", "gray":
+	default:
+		return errors.New("invalid favorite color")
+	}
+	if p.Socket != "" && (!filepath.IsAbs(p.Socket) || len(p.Socket) > 103 || strings.ContainsRune(p.Socket, 0) || p.TLS || p.CAPEM != "" || p.SSH != nil) {
+		return errors.New("invalid UNIX socket profile")
 	}
 	if strings.TrimSpace(p.Name) == "" || len(p.Name) > 100 || strings.TrimSpace(p.Host) == "" || p.User == "" || p.Port < 1 || p.Port > 65535 {
 		return errors.New("profile requires a name (up to 100 bytes), host, user, and port (1–65535)")
