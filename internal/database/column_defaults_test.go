@@ -12,6 +12,7 @@ func TestColumnDefaultMetadata(t *testing.T) {
 	}{
 		{typ: "int", raw: "0", want: "0"},
 		{typ: "varchar(30)", raw: "'001'", want: "001"},
+		{typ: "varchar(30)", raw: "_utf8mb4'quote\\' \\\\ é😀'", want: "quote' \\ é😀"},
 		{typ: "varchar(30)", raw: "'CURRENT_TIMESTAMP'", want: "CURRENT_TIMESTAMP"},
 		{typ: "varchar(30)", raw: "'it''s \\n é😀'", want: "it's \n é😀"},
 		{typ: "varchar(30)", raw: "'x\\y'", mode: "NO_BACKSLASH_ESCAPES", want: "x\\y"},

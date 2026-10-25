@@ -59,6 +59,12 @@ func columnDefault(c *EditableColumn, raw, mode string) {
 		return
 	}
 	value := raw
+	// MySQL 8 may retain a character-set introducer in SHOW CREATE defaults.
+	if strings.HasPrefix(value, "_") {
+		if quote := strings.IndexByte(value, '\''); quote > 1 && columnIdentifier.MatchString(value[1:quote]) {
+			value = value[quote:]
+		}
+	}
 	quoted := len(value) >= 2 && value[0] == '\'' && value[len(value)-1] == '\''
 	if quoted {
 		value = defaultString(value[1:len(value)-1], strings.Contains(","+strings.ToUpper(mode)+",", ",NO_BACKSLASH_ESCAPES,"))

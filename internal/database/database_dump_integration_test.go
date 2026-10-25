@@ -51,7 +51,14 @@ func TestDatabaseDumpIntegration(t *testing.T) {
 	run("CREATE TRIGGER " + qualified(db, "after_insert") + " AFTER INSERT ON " + qualified(db, "child") + " FOR EACH ROW UPDATE " + qualified(db, "parent") + " SET text_value='trigger fired' WHERE id=NEW.parent_id")
 	run("SET SESSION sql_mode='NO_BACKSLASH_ESCAPES'")
 	run("CREATE PROCEDURE " + qualified(db, "different_mode") + "() SELECT 'trailing \\'")
-	run("CREATE EVENT " + qualified(db, "scheduled") + " ON SCHEDULE EVERY 1 DAY ON COMPLETION PRESERVE ENABLE DO INSERT INTO " + qualified(db, "parent") + " VALUES(100,'event fired',NULL,NULL)")
+	// MariaDB warns even for disabled events when its global scheduler is off.
+	// This fixture owns the disposable server and restores its scheduler setting.
+	scheduler := run("SELECT @@global.event_scheduler").Rows[0][0].Value
+	if strings.EqualFold(scheduler, "OFF") {
+		run("SET GLOBAL event_scheduler=ON")
+		defer func() { run("SET GLOBAL event_scheduler=OFF") }()
+	}
+	run("CREATE EVENT " + qualified(db, "scheduled") + " ON SCHEDULE EVERY 1 DAY STARTS CURRENT_TIMESTAMP + INTERVAL 1 DAY ON COMPLETION PRESERVE ENABLE DO INSERT INTO " + qualified(db, "parent") + " VALUES(100,'event fired',NULL,NULL)")
 	if _, err := s.Query("SET SESSION time_zone = '+03:00'"); err != nil {
 		t.Fatal(err)
 	}
