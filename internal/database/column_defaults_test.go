@@ -60,3 +60,12 @@ func TestUnknownDefaultDefinitionsDoNotBlockBrowsing(t *testing.T) {
 		}
 	}
 }
+
+func TestMySQLHexDefaultUsesDecodedMetadata(t *testing.T) {
+	want := "quote' \\ é😀"
+	session := fakeSession(t, &writeConnector{schemaSource: "CREATE TABLE `sample` (`id` int NOT NULL, `text` varchar(60) DEFAULT 0x71756F746527205C20C3A9F09F9880)", defaultLiteral: want})
+	details, err := session.TableDetails("test", "sample")
+	if err != nil || details.Columns[1].DefaultValue == nil || details.Columns[1].DefaultValue.Value != want {
+		t.Fatal(details, err)
+	}
+}

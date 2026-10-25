@@ -15,19 +15,20 @@ import (
 
 // A connector fake exercises database/sql error paths without network access.
 type writeConnector struct {
-	schemaSource  string
-	catalogCount  int
-	noPrimary     bool
-	nonNullText   bool
-	indexes       [][]driver.Value
-	engine        string
-	unlockErr     error
-	lockErr       error
-	execs         []string
-	affected      int64
-	execErr       error
-	autocommit    int64
-	failWriteOnly bool
+	schemaSource   string
+	defaultLiteral string
+	catalogCount   int
+	noPrimary      bool
+	nonNullText    bool
+	indexes        [][]driver.Value
+	engine         string
+	unlockErr      error
+	lockErr        error
+	execs          []string
+	affected       int64
+	execErr        error
+	autocommit     int64
+	failWriteOnly  bool
 }
 
 func (c *writeConnector) Connect(context.Context) (driver.Conn, error) { return &writeConn{c}, nil }
@@ -74,6 +75,8 @@ func (r *writeRows) Next(dest []driver.Value) error {
 }
 func (c *writeConn) QueryContext(_ context.Context, q string, _ []driver.NamedValue) (driver.Rows, error) {
 	switch {
+	case strings.HasPrefix(q, "SELECT COLUMN_DEFAULT FROM information_schema.COLUMNS "):
+		return &writeRows{[]string{"default"}, [][]driver.Value{{c.c.defaultLiteral}}}, nil
 	case strings.HasPrefix(q, "SHOW CREATE TABLE "):
 		source := c.c.schemaSource
 		if source == "" {

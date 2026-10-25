@@ -2,10 +2,14 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"encoding/hex"
 	"math/big"
+	"regexp"
 	"strings"
 )
+
+var columnHexDefault = regexp.MustCompile(`(?i)^0x[0-9a-f]+$`)
 
 // Use the server's canonical SQL to distinguish literals from expressions.
 // Parse only literals for display; default expressions always run on the server.
@@ -45,6 +49,17 @@ func (s *Session) insertDefaults(ctx context.Context, db, table string, details 
 			continue
 		}
 		if value, exists := attrs["default"]; exists {
+			if columnHexDefault.MatchString(value.value) {
+				// MySQL 8 prints non-ASCII literals as hex; metadata decodes their charset.
+				var literal sql.NullString
+				if err := s.conn.QueryRowContext(ctx, "SELECT COLUMN_DEFAULT FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME=? AND COLUMN_NAME=?", db, table, c.Name).Scan(&literal); err != nil {
+					return s.queryError(err)
+				}
+				if literal.Valid && literal.String != value.value {
+					columnDefault(c, adminString(literal.String, mode), mode)
+					continue
+				}
+			}
 			columnDefault(c, value.value, mode)
 		}
 	}
