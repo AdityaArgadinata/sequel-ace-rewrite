@@ -146,6 +146,7 @@ h2 {
     font-size:11px;
 }
 .connection-pane {
+    scroll-padding-block:8px;
     background:var(--workspace);
     flex:1;
     position:relative;
