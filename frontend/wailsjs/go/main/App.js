@@ -94,6 +94,10 @@ export function ExportDatabaseFile(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['ExportDatabaseFile'](arg1, arg2, arg3, arg4);
 }
 
+export function ExportSelectedDatabaseFile(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ExportSelectedDatabaseFile'](arg1, arg2, arg3, arg4);
+}
+
 export function ExportTableCSV(arg1, arg2, arg3) {
   return window['go']['main']['App']['ExportTableCSV'](arg1, arg2, arg3);
 }
@@ -140,6 +144,10 @@ export function OpenCSV(arg1, arg2, arg3, arg4, arg5) {
 
 export function OpenCellFile(arg1) {
   return window['go']['main']['App']['OpenCellFile'](arg1);
+}
+
+export function OpenImportFile(arg1, arg2, arg3) {
+  return window['go']['main']['App']['OpenImportFile'](arg1, arg2, arg3);
 }
 
 export function OpenNativeFavorites() {

@@ -273,7 +273,7 @@ additional packaging options.
    or **All statements**, and click **Run Query**. Cmd/Ctrl+Enter runs the selection
    when present, otherwise the current statement; Cmd/Ctrl+Shift+Enter runs all.
 
-To save a connection, enter a name and click **Add to Favorites**. Subsequent
+To save a connection, enter a name and click **Save Connection**. Subsequent
 edits use **Save Changes**. Passwords are not included in profile JSON. Open
 **Password storage** to opt into the OS credential store, load saved passwords,
 or forget them. macOS uses Keychain, Windows uses Credential Manager, and Linux
@@ -341,14 +341,28 @@ implemented. Database TLS verification remains enabled independently of SSH.
   server and reloading. Cmd/Ctrl+Enter saves; Escape/Cancel discards cell edits.
 - **CRUD dialogs:** row duplication/editing and delete confirmations use
   centered modal dialogs with the existing app icon. Delete focuses Cancel;
-  Escape cancels without writing. Structure, table/database and administration
-  changes use the same dialog style and retain their SQL review/acknowledgment
-  requirements. Errors show server details; acknowledging an error never retries
+  Escape cancels without writing. Structure uses inline field editing and native-style
+  index/delete dialogs; advanced SQL, table/database and administration changes
+  retain their SQL review/acknowledgment requirements. Errors show server details; acknowledging an error never retries
   a write. Successful row counts remain in the bottom status area.
 - **Grid context menu:** copy cell/row/selection, headers, CSV or SQL INSERT
   (with/without auto-increment), select/clear, edit, insert, duplicate, delete,
   set NULL, prepare a cell filter and refresh. SQL copy excludes generated columns.
-- **Database SQL transfer:** open **Connection actions → Transfer database**,
+- **Import/Export dialogs:** **Connection actions → Export…** opens format tabs
+  (SQL/CSV/XML), the export source, and an object list. Content defaults to CSV
+  with all applied filtered rows; Query defaults to CSV of the retained result
+  without rerunning SQL. SQL supports separate Structure, Content and DROP flags
+  for each selected object. CREATE DATABASE is optional and off by default, so
+  selected objects can be restored into the existing original database. CSV has
+  separator, line-ending, field-name and NULL-output controls; one table can be
+  exported per CSV/XML file. SQL supports multiple selected objects. Native
+  advanced features such as Dot, compression, arbitrary delimiters/encodings,
+  multi-file CSV/XML and continue-on-import-error are not implemented.
+  **Import…** opens the native SQL/CSV/TSV file chooser immediately. SQL shows
+  an overwrite warning and waits for Import; CSV opens destination/mapping and
+  preview first. Imports show acknowledged progress, support cancellation, stop
+  on errors/warnings, and consume the plan before execution to prevent replay.
+- **Database SQL transfer:** open **Export… → Advanced → Full database backup…**,
   inspect the visible inventory, review it, then save structure and optional data.
   Tables (including generated columns), internal foreign keys, view dependencies,
   functions, procedures, ordered triggers and events are included. Table data is
@@ -384,29 +398,36 @@ implemented. Database TLS verification remains enabled independently of SSH.
   completion invalidate snapshots and require reload before writing. Explicitly
   discarding drafts requires confirmation. Closing the connection tab or app
   ends this in-memory lifetime; it is not saved to disk.
-- **Structure:** inspect Columns, Indexes / Primary key, Foreign keys, and CREATE
-  statement. Select a row and Edit/Drop, or double-click to edit. Add opens a new
-  object form. Name + Definition SQL preserve the server's complete type and
-  attributes; definitions can include defaults, comments, generated expressions,
-  FIRST/AFTER, composite/prefix indexes, and foreign-key reference/actions. Index
-  types include INDEX, UNIQUE, PRIMARY, FULLTEXT and SPATIAL (server support applies).
-  Preview SQL, review it, check the confirmation, then Apply. A foreign-key edit
-  uses a new constraint name so replacement stays in one ALTER on MySQL 5.7.
-  DDL can lock/rebuild the table, discard data and implicitly commit; Rollback
-  cannot undo it. Active/unverified transactions, autocommit off, views and
-  incomplete definitions are blocked. Metadata reloads after acknowledged DDL;
-  up to 20 server warnings and reload failures are shown separately. No automatic
-  retry occurs. Definitions are limited to 64 KiB, one clause, with no SQL comments
-  or separators outside quoted text. Existing version-comment attributes require
-  manual review in Query; CHECK constraints have no dedicated editor yet.
-  Preview checks are optimistic: changed schema/SQL_MODE invalidates the plan,
-  while ordinary AUTO_INCREMENT advances do not. Coordinate external schema
-  changes during apply. Identifiers require quoted SHOW CREATE output
-  (`sql_quote_show_create=1`).
-  Column rows now expose native-style Type/Extra dropdowns, server-provided
-  Encoding/Collation choices and attribute checkboxes. Edits remain drafts until
-  **Review column changes → Preview schema SQL → Apply schema change**;
-  Cancel discards the draft. Collation choices follow the selected charset.
+- **Structure:** field editing follows the original Sequel Ace row lifecycle.
+  Double-click a text cell to edit. Enter saves the complete row directly; Tab/
+  Shift+Tab moves between enabled cells, saving at the row boundary and wrapping
+  to the adjacent row. Escape reverts the whole row. Selecting a different row,
+  table, database or view, switching/closing sessions, or reloading first saves
+  its draft; failure keeps the current workspace and offers **Edit row** or
+  **Discard changes**. A clean row does not issue an ALTER.
+  **+** and a double-click in empty field-table space create an inline INT/NULL
+  draft after the selection (or at the end when none is selected). Duplicate
+  appends a **Copy** draft with Key/Extra cleared. Drag a clean field-name cell
+  to reorder columns. Type/Extra dropdowns, server Encoding/Collation options,
+  checkbox dependencies, type help and MySQL 8.4 integer AUTO_INCREMENT rules
+  follow the native editor. AUTO_INCREMENT can add its chosen index in the same
+  ALTER. Temporal precision updates CURRENT_TIMESTAMP defaults and ON UPDATE.
+  Add index opens a column/size/order sheet, with type and storage options;
+  leaving its name empty lets the server name it. Delete asks for confirmation
+  with Cancel focused. Field removal lists any related foreign keys and drops
+  only those explicitly confirmed constraints in the same ALTER.
+  The gear menu retains **Edit column SQL… / Add column SQL…** and reviewed SQL
+  forms for advanced definitions; Relations retains reviewed foreign-key editing.
+  Inline saves still prepare a one-use, schema-fingerprinted backend plan. DDL can
+  lock/rebuild tables, discard data and implicitly commit. Active/unverified
+  transactions, autocommit off, views and incomplete metadata remain blocked.
+  A known acknowledged write is cleared before metadata/warning errors are shown;
+  reload before further changes. Errors never automatically replay a write.
+  Definitions are limited to 64 KiB with no comments or statement separators
+  outside quoted strings. Unknown/version-comment attributes require the SQL
+  editor; CHECK constraints have no dedicated editor. Coordinate external DDL;
+  the optimistic snapshot is rechecked immediately before execution and requires
+  `sql_quote_show_create=1`. Windows/Linux native desktop QA remains open.
 
 - **Sessions and transactions:** the sidebar connection-actions menu opens a new
   query tab, disconnects, and exposes Begin/Commit/Rollback. Each tab has its own
@@ -458,7 +479,8 @@ Every record is prevalidated before insertion; server errors/warnings stop the
 row-by-row autocommit import. Earlier rows can already be saved. Views and engines
 other than InnoDB/MyISAM are not supported for CSV import.
 
-**Import SQL dump** in Connection actions accepts up to 64 MiB / 100,000 statements
+**Import…** in Connection actions auto-detects SQL/CSV/TSV by filename. SQL
+accepts up to 64 MiB / 100,000 statements
 and 4 MiB per statement, with the same comment/string/DELIMITER parser as Query.
 Review the full file before confirming: the UI sample is limited to 100 statements
 and 256 KiB. Parsing completes before the first write. Error, warning, cancel or
@@ -467,9 +489,9 @@ replay. Session state remains unverified after arbitrary imported SQL until reso
 through the transaction controls. Normal server Notes such as absent DROP IF EXISTS
 are not treated as coercion warnings. Interactive Query limits remain unchanged.
 
-**Export data** in Content/Query offers CSV, SQL INSERT and XML. Content can export
-entire tables, all applied filtered rows, the current filtered page, loaded rows or
-selected loaded rows. Query exports only its retained loaded result and never
+**Export…** in the connection actions menu offers CSV, SQL INSERT and XML.
+Content can export selected tables, all applied filtered rows or selected loaded rows.
+The inline Export data panel has been removed from Content and Query. Query exports only its retained loaded result and never
 reruns SQL. SQL table export can include CREATE TABLE and omits generated columns
 from INSERT; triggers/routines/events are not included. Specify target table/database
 for SQL exports of arbitrary query results. Partial UI results export only loaded
@@ -483,7 +505,7 @@ SQL structure from another session/server.
 
 ### Sequel Ace favorites and sessions
 
-On the connection form, **Import Sequel Ace favorites** reads XML/binary
+Under **Advanced connection options** on the connection form, **Import Sequel Ace favorites** reads XML/binary
 Favorites.plist or exported SPConnectionFavorites files, previews supported entries,
 and creates only selected profiles. Group names are flattened; existing favorites
 are preserved and repeated imports can create duplicates. Database defaults and
@@ -500,7 +522,7 @@ restored when available. XML/binary plist and native compressed query text are
 supported (8 MiB file, 4 MiB editor text). Opaque archived selection/history/filter
 and layout state are ignored, without unarchiving arbitrary classes.
 
-**Save SPF session** in Connection actions writes the current connection settings,
+**Save Session** in Connection actions writes the current connection settings,
 database/table/view and SQL using Sequel Ace's unencrypted data-dictionary format,
 without passwords/Keychain IDs and with auto_connect=false. Large XML can fall back
 to binary plist. SQL text can itself contain secrets: review before sharing.
@@ -760,10 +782,9 @@ namespace and verified database TLS. Vault tokens/issued secrets are not profile
 fields; OIDC and lease renewal are not implemented. SPF export refuses these
 additional connection settings until they can round-trip faithfully.
 
-Query exposes server HELP. **Save print view** exports the loaded result as HTML;
-open it in a browser and choose **Print / Save PDF**. It never reruns SQL and marks
-truncated results. Native print dialogs and external AWS/Vault account QA are still
-open. See [milestone.md](milestone.md) for all remaining parity/verification work.
+Query exposes server HELP. The inline Save print view control was removed with
+the Export data panel. Native print dialogs and external AWS/Vault account QA
+are still open. See [milestone.md](milestone.md) for all remaining parity/verification work.
 
 
 Preferences includes an explicit **Check for updates** button. It fetches public
@@ -785,3 +806,22 @@ startup probe does not establish full
 desktop, upgrade/uninstall or database QA. See milestone priority 6 for the remaining
 manual checks. Signing guidance: [Apple Developer ID](https://developer.apple.com/developer-id/)
 and [notarization](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution).
+
+New connection tab: **Cmd+T** on macOS / **Ctrl+T** on Windows/Linux, or
+**File → New Connection Tab**. Opens the connection chooser without contacting a server.
+Choose a saved connection or enter another server; connected tabs keep independent sessions.
+Structure drafts save first, SQL drafts remain in their original tab. Maximum 16 tabs,
+including connection forms. Enter a name and click **Save Connection** to keep a profile;
+password storage is optional through the OS credential store.
+
+Connection tab titles follow the selected database independently in each tab.
+Before selecting a database, connected tabs retain their Query label.
+
+The connection home follows the Sequel Ace layout: a Favorites sidebar and a
+compact TCP/IP, Socket, or SSH form. Folder, alternate authentication, and native
+file migration tools are under **Advanced connection options**. The Time Zone
+menu offers server/system defaults, IANA time zones, and a Custom entry for offsets.
+
+Fresh connections start in Content with an empty striped grid. Data controls stay
+disabled until a table is selected; the SQL editor opens through Query. Imported
+SPF sessions still restore their saved SQL/view instead of using this default.

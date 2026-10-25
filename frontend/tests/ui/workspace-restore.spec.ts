@@ -30,7 +30,7 @@ test('New-row values, focused column and defaults survive leaving a table withou
 
 test('Same table name in another database and another query tab has independent drafts',async({page})=>{
  await openContent(page);await page.locator('.content-grid tbody tr').first().locator('td').nth(1).dblclick();await inline(page).fill('mysql draft');await page.getByRole('combobox',{name:'Select Database',exact:true}).selectOption('database_with_a_long_name');await table(page,'db').click();await expect(inline(page)).toHaveCount(0);await page.locator('.content-grid tbody tr').first().locator('td').nth(1).dblclick();await inline(page).fill('other database draft');await table(page,'Back').click();await expect(inline(page)).toHaveValue('mysql draft');
- await page.getByLabel('Connection actions',{exact:true}).click();await table(page,'New query tab').click();await page.getByRole('combobox',{name:'Select Database',exact:true}).selectOption('mysql');await table(page,'db').click();await expect(inline(page)).toHaveCount(0);await page.getByRole('tab',{name:'Query 1',exact:true}).click();await expect(inline(page)).toHaveValue('mysql draft');
+ await page.getByLabel('Connection actions',{exact:true}).click();await table(page,'New Connection Tab').click();await table(page,'Connect').click();await page.getByRole('combobox',{name:'Select Database',exact:true}).selectOption('mysql');await table(page,'db').click();await expect(inline(page)).toHaveCount(0);await page.locator('#tab-1').click();await expect(inline(page)).toHaveValue('mysql draft');
 });
 
 test('SQL activity invalidates writes but keeps the cached draft until explicit discard and reload',async({page})=>{

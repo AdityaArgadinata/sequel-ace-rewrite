@@ -55,3 +55,16 @@ func TestColumnDefaultValuesKeepText(t *testing.T) {
 		}
 	}
 }
+
+func TestNativeQuotedAndExpressionDefaults(t *testing.T) {
+	for _, tt := range []struct{ value, want string }{{"''", "DEFAULT ''"}, {"'it''s'", "DEFAULT 'it''s'"}, {"(uuid())", "DEFAULT (uuid())"}, {"uuid()", "DEFAULT uuid()"}, {`"it''s"`, "DEFAULT 'it''''s'"}, {"'x' COMMENT 'injected'", "DEFAULT '''x'' COMMENT ''injected'''"}} {
+		got, err := patchColumnAttributes("VARCHAR(255) NULL", map[string]string{"default": tt.value}, "")
+		if err != nil || !strings.Contains(got, tt.want) {
+			t.Fatal(tt, got, err)
+		}
+	}
+	got, err := patchColumnAttributes("DATETIME(6) NULL ON UPDATE CURRENT_TIMESTAMP(3)", map[string]string{"extra": "on update CURRENT_TIMESTAMP"}, "")
+	if err != nil || !strings.Contains(got, "on update CURRENT_TIMESTAMP(6)") {
+		t.Fatal(got, err)
+	}
+}

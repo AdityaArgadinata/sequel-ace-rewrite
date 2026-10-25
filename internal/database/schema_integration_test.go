@@ -283,3 +283,86 @@ func TestSchemaEditingIntegration(t *testing.T) {
 		t.Fatal("unquoted metadata accepted")
 	}
 }
+
+func TestInlineColumnLifecycleIntegration(t *testing.T) {
+	text := os.Getenv("SEQUEL_TEST_PORT")
+	if text == "" {
+		t.Skip("disposable database not configured")
+	}
+	port, err := strconv.Atoi(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var session Session
+	if err = session.Connect(Connection{Host: "127.0.0.1", Port: port, User: "root", Password: os.Getenv("SEQUEL_TEST_PASSWORD")}); err != nil {
+		t.Fatal(err)
+	}
+	defer session.Shutdown()
+	run := func(sql string) Result {
+		t.Helper()
+		r, e := session.Query(sql)
+		if e != nil {
+			t.Fatal(sql, e)
+		}
+		return r
+	}
+	db := fmt.Sprintf("sequel_rewrite_test_inline_schema_%d", time.Now().UnixNano())
+	target := qualified(db, "items")
+	run("CREATE DATABASE " + quoteIdentifier(db) + " CHARACTER SET utf8mb4")
+	defer run("DROP DATABASE " + quoteIdentifier(db))
+	run("CREATE TABLE " + target + " (id INT PRIMARY KEY, name VARCHAR(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT 'it''s' COMMENT 'preserve', g INT GENERATED ALWAYS AS (CHAR_LENGTH(name)) STORED) ENGINE=InnoDB")
+	apply := func(r SASchemaChange) {
+		t.Helper()
+		session.Transaction("rollback")
+		r.Database = db
+		r.Table = "items"
+		plan, e := session.PrepareSchemaChange(r)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if _, e = session.ApplySchemaChange(plan.Token); e != nil {
+			t.Fatal(plan.SQL, e)
+		}
+		if _, e = session.ApplySchemaChange(plan.Token); e == nil {
+			t.Fatal("DDL replayed")
+		}
+	}
+	apply(SASchemaChange{Kind: "column", Action: "add", Name: "seq", After: "id", ColumnEdits: map[string]string{"type": "BIGINT", "nullable": "false", "extra": "auto_increment"}, AutoIndex: "UNIQUE"})
+	cols := run("SHOW COLUMNS FROM " + target)
+	if cols.Rows[1][0].Value != "seq" {
+		t.Fatal(cols)
+	}
+	run("INSERT INTO " + target + " (id,name) VALUES(1,'hello')")
+	if row := run("SELECT seq,g FROM " + target).Rows[0]; row[0].Value != "1" || row[1].Value != "5" {
+		t.Fatal(row)
+	}
+	apply(SASchemaChange{Kind: "column", Action: "edit", Original: "name", Name: "name", First: true, ColumnEdits: map[string]string{"length": "60"}})
+	source := run("SHOW CREATE TABLE " + target).Rows[0][1].Value
+	if !strings.Contains(source, "COMMENT 'preserve'") || !strings.Contains(source, "COLLATE utf8mb4_bin") || !strings.Contains(source, "GENERATED ALWAYS AS") || run("SHOW COLUMNS FROM " + target).Rows[0][0].Value != "name" {
+		t.Fatal(source)
+	}
+	apply(SASchemaChange{Kind: "column", Action: "add", Name: "copy", After: "g", Definition: "VARCHAR(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT 'it''s' COMMENT 'preserve'", ColumnEdits: map[string]string{"extra": "None"}})
+	if got := run("SELECT copy FROM " + target).Rows[0][0].Value; got != "it's" {
+		t.Fatal(got)
+	}
+
+	apply(SASchemaChange{Kind: "index", Action: "add", IndexKind: "INDEX", Definition: "(`copy`)"})
+	indexes := run("SHOW INDEX FROM " + target)
+	found := false
+	for _, row := range indexes.Rows {
+		if row[2].Value == "copy" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal(indexes)
+	}
+	run("CREATE TABLE " + qualified(db, "parent") + "(id INT PRIMARY KEY) ENGINE=InnoDB")
+	run("ALTER TABLE " + target + " ADD parent_id INT NULL, ADD CONSTRAINT fk_parent FOREIGN KEY(parent_id) REFERENCES " + qualified(db, "parent") + "(id)")
+	apply(SASchemaChange{Kind: "column", Action: "drop", Original: "parent_id", DropForeignKeys: []string{"fk_parent"}})
+	for _, row := range run("SHOW COLUMNS FROM " + target).Rows {
+		if row[0].Value == "parent_id" {
+			t.Fatal("related field was not dropped")
+		}
+	}
+}

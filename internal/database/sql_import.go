@@ -54,6 +54,9 @@ func (s *Session) PreviewSQLImport(name, source string) (SASQLImportPreview, err
 	return SASQLImportPreview{Token: token, Name: name, Statements: len(statements), Preview: sample}, nil
 }
 func (s *Session) ApplySQLImport(token string) SABatchOutcome {
+	return s.ApplySQLImportProgress(token, nil)
+}
+func (s *Session) ApplySQLImportProgress(token string, progress func(int, int)) SABatchOutcome {
 	ctx, done, err := s.begin()
 	if err != nil {
 		return SABatchOutcome{Error: err.Error()}
@@ -65,6 +68,10 @@ func (s *Session) ApplySQLImport(token string) SABatchOutcome {
 	}
 	s.sqlImportPending = nil
 	out := SABatchOutcome{Total: len(p.statements)}
+	if progress != nil {
+		progress(0, out.Total)
+		defer func() { progress(out.Completed, out.Total) }()
+	}
 	mode, err := s.writeReady(ctx)
 	if err != nil {
 		out.Error = err.Error()
@@ -93,6 +100,9 @@ func (s *Session) ApplySQLImport(token string) SABatchOutcome {
 			return out
 		}
 		out.Completed++
+		if progress != nil {
+			progress(out.Completed, out.Total)
+		}
 		warnings, err := s.exchangeWarnings(ctx)
 		if err != nil {
 			out.Error = err.Error()

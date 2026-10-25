@@ -9,6 +9,8 @@ import (
 	"sequel-rewrite/internal/database"
 	"sequel-rewrite/internal/exportfile"
 	"sequel-rewrite/internal/nativefiles"
+	"strings"
+	"time"
 )
 
 func readChosen(path string, max int) ([]byte, error) {
@@ -80,7 +82,7 @@ func (a *App) ApplyCSVImport(tab, token string) (database.SABatchOutcome, error)
 	if err != nil {
 		return database.SABatchOutcome{}, err
 	}
-	return s.ApplyCSVImport(token), nil
+	return s.ApplyCSVImportProgress(token, a.importProgress(tab, "csv")), nil
 }
 func (a *App) ExportDataFile(tab string, spec database.SAExportSpec, snapshot database.Result) (CSVExport, error) {
 	if a.ctx == nil {
@@ -246,5 +248,66 @@ func (a *App) ApplySQLImport(tab, token string) (database.SABatchOutcome, error)
 	if err != nil {
 		return database.SABatchOutcome{}, err
 	}
-	return s.ApplySQLImport(token), nil
+	return s.ApplySQLImportProgress(token, a.importProgress(tab, "sql")), nil
+}
+
+type SAImportFile struct {
+	Format    string                       `json:"format"`
+	SQL       *database.SASQLImportPreview `json:"sql,omitempty"`
+	CSV       *database.SACSVPreview       `json:"csv,omitempty"`
+	Cancelled bool                         `json:"cancelled"`
+}
+
+func (a *App) OpenImportFile(tab, db, table string) (SAImportFile, error) {
+	if a.ctx == nil {
+		return SAImportFile{}, errors.New("import requires the desktop app")
+	}
+	s, err := a.workspace.Session(tab)
+	if err != nil {
+		return SAImportFile{}, err
+	}
+	path, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{Title: "Import", Filters: []runtime.FileFilter{{DisplayName: "SQL or CSV", Pattern: "*.sql;*.csv;*.tsv"}, {DisplayName: "SQL", Pattern: "*.sql"}, {DisplayName: "CSV / TSV", Pattern: "*.csv;*.tsv"}}})
+	if err != nil {
+		return SAImportFile{}, err
+	}
+	if path == "" {
+		return SAImportFile{Cancelled: true}, nil
+	}
+	if strings.EqualFold(filepath.Ext(path), ".sql") {
+		data, err := readChosen(path, 64*1024*1024)
+		if err != nil {
+			return SAImportFile{}, err
+		}
+		out, err := s.PreviewSQLImport(filepath.Base(path), string(data))
+		return SAImportFile{Format: "sql", SQL: &out}, err
+	}
+	if !strings.EqualFold(filepath.Ext(path), ".csv") && !strings.EqualFold(filepath.Ext(path), ".tsv") {
+		return SAImportFile{}, errors.New("choose a SQL, CSV or TSV file")
+	}
+	if table == "" {
+		return SAImportFile{}, errors.New("select a destination table before importing CSV")
+	}
+	separator := ","
+	if strings.EqualFold(filepath.Ext(path), ".tsv") {
+		separator = "\t"
+	}
+	data, err := readChosen(path, 8*1024*1024)
+	if err != nil {
+		return SAImportFile{}, err
+	}
+	out, err := s.PreviewCSV(db, table, filepath.Base(path), data, separator, true)
+	return SAImportFile{Format: "csv", CSV: &out}, err
+}
+
+func (a *App) importProgress(tab, format string) func(int, int) {
+	last := time.Time{}
+	return func(completed, total int) {
+		if a.ctx == nil {
+			return
+		}
+		if completed == 0 || completed == total || time.Since(last) >= 100*time.Millisecond {
+			last = time.Now()
+			runtime.EventsEmit(a.ctx, "transfer:progress", map[string]interface{}{"tab": tab, "format": format, "completed": completed, "total": total})
+		}
+	}
 }

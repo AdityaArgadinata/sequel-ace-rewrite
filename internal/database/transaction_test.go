@@ -15,20 +15,21 @@ import (
 
 // A connector fake exercises database/sql error paths without network access.
 type writeConnector struct {
-	schemaSource   string
-	defaultLiteral string
-	catalogCount   int
-	noPrimary      bool
-	nonNullText    bool
-	indexes        [][]driver.Value
-	engine         string
-	unlockErr      error
-	lockErr        error
-	execs          []string
-	affected       int64
-	execErr        error
-	autocommit     int64
-	failWriteOnly  bool
+	warningsReadErr error
+	schemaSource    string
+	defaultLiteral  string
+	catalogCount    int
+	noPrimary       bool
+	nonNullText     bool
+	indexes         [][]driver.Value
+	engine          string
+	unlockErr       error
+	lockErr         error
+	execs           []string
+	affected        int64
+	execErr         error
+	autocommit      int64
+	failWriteOnly   bool
 }
 
 func (c *writeConnector) Connect(context.Context) (driver.Conn, error) { return &writeConn{c}, nil }
@@ -91,6 +92,15 @@ func (c *writeConn) QueryContext(_ context.Context, q string, _ []driver.NamedVa
 		return &writeRows{[]string{"name"}, rows}, nil
 	case q == "SELECT VERSION(), DATABASE()":
 		return &writeRows{[]string{"version", "database"}, [][]driver.Value{{"8.4.0", "test"}}}, nil
+	case q == "SHOW WARNINGS LIMIT 20":
+		if c.c.warningsReadErr != nil {
+			return nil, c.c.warningsReadErr
+		}
+		return &writeRows{[]string{"Level", "Code", "Message"}, nil}, nil
+	case q == "SELECT @@session.autocommit, @@session.sql_mode, @@session.sql_quote_show_create":
+		return &writeRows{[]string{"autocommit", "mode", "quoted"}, [][]driver.Value{{c.c.autocommit, "", int64(1)}}}, nil
+	case strings.HasPrefix(q, "SELECT TABLE_TYPE FROM information_schema.TABLES"):
+		return &writeRows{[]string{"kind"}, [][]driver.Value{{"BASE TABLE"}}}, nil
 	case strings.Contains(q, "@@session.autocommit"):
 		return &writeRows{[]string{"autocommit"}, [][]driver.Value{{c.c.autocommit}}}, nil
 	case strings.Contains(q, "information_schema.TABLES"):

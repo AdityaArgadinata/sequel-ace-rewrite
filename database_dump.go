@@ -33,3 +33,22 @@ func (a *App) ExportDatabaseFile(tab, db, fingerprint string, includeData bool) 
 	count, err := exportfile.WriteNew(path, func(w io.Writer) (int64, error) { return s.ExportDatabase(w, db, fingerprint, includeData) })
 	return CSVExport{Rows: count}, err
 }
+
+func (a *App) ExportSelectedDatabaseFile(tab, db, fingerprint string, options database.SADatabaseExportOptions) (CSVExport, error) {
+	if a.ctx == nil {
+		return CSVExport{}, errors.New("database export requires the desktop app")
+	}
+	s, err := a.workspace.Session(tab)
+	if err != nil {
+		return CSVExport{}, err
+	}
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{Title: "Export", DefaultFilename: db + ".sql", Filters: []runtime.FileFilter{{DisplayName: "SQL (*.sql)", Pattern: "*.sql"}}})
+	if err != nil {
+		return CSVExport{}, err
+	}
+	if path == "" {
+		return CSVExport{Cancelled: true}, nil
+	}
+	count, err := exportfile.WriteNew(path, func(w io.Writer) (int64, error) { return s.ExportSelectedDatabase(w, db, fingerprint, options) })
+	return CSVExport{Rows: count}, err
+}

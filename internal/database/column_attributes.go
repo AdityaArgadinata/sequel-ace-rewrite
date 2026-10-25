@@ -65,6 +65,8 @@ var columnIdentifier = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 var columnLength = regexp.MustCompile(`^[0-9]+(?:\s*,\s*[0-9]+)?$`)
 var columnCurrentTimestamp = regexp.MustCompile(`(?i)^CURRENT_TIMESTAMP(?:\([0-6]?\))?$`)
 var columnNumericType = regexp.MustCompile(`^(?:TINYINT|SMALLINT|MEDIUMINT|INT|INTEGER|BIGINT|FLOAT|DOUBLE|DOUBLE PRECISION|REAL|DECIMAL|DEC|FIXED|NUMERIC|BIT|BOOL|BOOLEAN|SERIAL)$`)
+var columnDefaultFunction = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*\(`)
+var columnBitDefault = regexp.MustCompile(`(?i)^b'[01]+'$`)
 var columnNumber = regexp.MustCompile(`^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$`)
 
 type saColumnAttribute struct {
@@ -209,6 +211,21 @@ func patchColumnAttributes(source string, edits map[string]string, mode string) 
 			if value != "" {
 				literal := adminString(value, mode)
 				typ := attrs["type"].value
+				if decoded, ok := columnQuotedLiteral(value, mode); ok {
+					literal = adminString(decoded, mode)
+				}
+				if strings.HasPrefix(value, "(") || columnDefaultFunction.MatchString(value) {
+					_, end, err := schemaPartsEnd(value, mode)
+					if err == nil && end == len(value) {
+						if err = validateSchemaFragment(value, mode); err != nil {
+							return "", err
+						}
+						literal = value
+					}
+				}
+				if columnNumericType.MatchString(typ) && (columnBitDefault.MatchString(value) || columnHexDefault.MatchString(value) || strings.EqualFold(value, "TRUE") || strings.EqualFold(value, "FALSE")) {
+					literal = value
+				}
 				if strings.EqualFold(value, "NULL") || ((typ == "TIMESTAMP" || typ == "DATETIME") && columnCurrentTimestamp.MatchString(value)) || (columnNumericType.MatchString(typ) && columnNumber.MatchString(value)) {
 					literal = value
 				}
@@ -242,6 +259,15 @@ func patchColumnAttributes(source string, edits map[string]string, mode string) 
 			}
 			if value != "None" {
 				source += " " + value
+				if value == "on update CURRENT_TIMESTAMP" {
+					current, err := columnAttributes(source, mode)
+					if err != nil {
+						return "", err
+					}
+					if length := current["length"].value; length != "" {
+						source += "(" + length + ")"
+					}
+				}
 			}
 			continue
 		}
@@ -265,4 +291,30 @@ func patchColumnAttributes(source string, edits map[string]string, mode string) 
 		return "", err
 	}
 	return source, nil
+}
+
+// A quoted UI default is a literal, never a route to append ALTER attributes.
+func columnQuotedLiteral(value, mode string) (string, bool) {
+	if len(value) < 2 || (value[0] != '\'' && value[0] != '"') {
+		return "", false
+	}
+	quote := value[0]
+	noBackslash := strings.Contains(","+strings.ToUpper(mode)+",", ",NO_BACKSLASH_ESCAPES,")
+	for i := 1; i < len(value); i++ {
+		if value[i] == '\\' && !noBackslash {
+			i++
+			continue
+		}
+		if value[i] == quote {
+			if i+1 < len(value) && value[i+1] == quote {
+				i++
+				continue
+			}
+			if i != len(value)-1 {
+				return "", false
+			}
+			return defaultQuotedString(value[1:i], noBackslash, quote), true
+		}
+	}
+	return "", false
 }

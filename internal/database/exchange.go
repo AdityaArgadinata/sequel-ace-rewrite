@@ -14,21 +14,30 @@ import (
 	"unicode/utf8"
 )
 
+type SACSVExportOptions struct {
+	Separator  string `json:"separator"`
+	Header     bool   `json:"header"`
+	NullValue  string `json:"nullValue"`
+	LineEnding string `json:"lineEnding"`
+}
 type SAExportSpec struct {
-	Format     string        `json:"format"`
-	Scope      string        `json:"scope"`
-	Browse     BrowseRequest `json:"browse"`
-	Database   string        `json:"database"`
-	Table      string        `json:"table"`
-	IncludeDDL bool          `json:"includeDDL"`
+	CSV        *SACSVExportOptions `json:"csv,omitempty"`
+	Format     string              `json:"format"`
+	Scope      string              `json:"scope"`
+	Browse     BrowseRequest       `json:"browse"`
+	Database   string              `json:"database"`
+	Table      string              `json:"table"`
+	IncludeDDL bool                `json:"includeDDL"`
 }
 type saDataWriter struct {
-	w       io.Writer
-	format  string
-	columns []Column
-	csv     *csv.Writer
-	xml     *xml.Encoder
-	table   string
+	w        io.Writer
+	format   string
+	columns  []Column
+	csv      *csv.Writer
+	csvPlain bool
+	csvNull  string
+	xml      *xml.Encoder
+	table    string
 }
 
 func sqlLiteral(c Cell) (string, error) {
@@ -58,7 +67,7 @@ func validXML(text string) bool {
 	}
 	return utf8.ValidString(text)
 }
-func newDataWriter(w io.Writer, format string, cols []Column, db, table string) (*saDataWriter, error) {
+func newDataWriter(w io.Writer, format string, cols []Column, db, table string, options ...*SACSVExportOptions) (*saDataWriter, error) {
 	d := &saDataWriter{w: w, format: format, columns: cols, table: qualified(db, table)}
 	if len(cols) == 0 || len(cols) > 1000 {
 		return nil, errors.New("export requires 1–1,000 columns")
@@ -78,8 +87,28 @@ func newDataWriter(w io.Writer, format string, cols []Column, db, table string) 
 	switch format {
 	case "csv":
 		d.csv = csv.NewWriter(w)
-		if err := d.csv.Write(names); err != nil {
-			return nil, err
+		header := true
+		if len(options) > 0 && options[0] != nil {
+			o := options[0]
+			if o.Separator != "," && o.Separator != ";" && o.Separator != "\t" {
+				return nil, errors.New("choose comma, semicolon or tab as CSV separator")
+			}
+			if o.LineEnding != "\n" && o.LineEnding != "\r\n" {
+				return nil, errors.New("choose LF or CRLF as CSV line ending")
+			}
+			if len(o.NullValue) > 64 || !utf8.ValidString(o.NullValue) || strings.ContainsAny(o.NullValue, "\r\n\x00") {
+				return nil, errors.New("CSV NULL value must be at most 64 characters without line breaks")
+			}
+			d.csv.Comma = []rune(o.Separator)[0]
+			d.csv.UseCRLF = o.LineEnding == "\r\n"
+			d.csvPlain = true
+			d.csvNull = o.NullValue
+			header = o.Header
+		}
+		if header {
+			if err := d.csv.Write(names); err != nil {
+				return nil, err
+			}
 		}
 	case "sql":
 		if !objectName(db) || !objectName(table) {
@@ -121,6 +150,19 @@ func (d *saDataWriter) row(values []Cell) error {
 		record := make([]string, len(values))
 		for i, c := range values {
 			record[i] = csvValue(c)
+			if d.csvPlain {
+				if c.Null {
+					record[i] = d.csvNull
+				} else if c.Binary {
+					b, err := cellArgument(c)
+					if err != nil {
+						return err
+					}
+					record[i] = "0x" + hex.EncodeToString(b.([]byte))
+				} else {
+					record[i] = c.Value
+				}
+			}
 		}
 		return d.csv.Write(record)
 	case "sql":
@@ -199,7 +241,7 @@ func WriteResultExport(w io.Writer, spec SAExportSpec, result Result) (int64, er
 	if size > MaxResultBytes {
 		return 0, errors.New("loaded-result export exceeds 4 MiB")
 	}
-	d, err := newDataWriter(w, spec.Format, result.Columns, spec.Database, spec.Table)
+	d, err := newDataWriter(w, spec.Format, result.Columns, spec.Database, spec.Table, spec.CSV)
 	if err != nil {
 		return 0, err
 	}
@@ -270,10 +312,10 @@ func (s *Session) ExportData(w io.Writer, spec SAExportSpec) (int64, error) {
 			}
 		}
 	}
-	return s.exportQuery(ctx, w, spec.Format, r.Database, r.Table, statement, args)
+	return s.exportQuery(ctx, w, spec.Format, r.Database, r.Table, statement, args, spec.CSV)
 }
 
-func (s *Session) exportQuery(ctx context.Context, w io.Writer, format, db, table, statement string, args []any) (int64, error) {
+func (s *Session) exportQuery(ctx context.Context, w io.Writer, format, db, table, statement string, args []any, options ...*SACSVExportOptions) (int64, error) {
 	rows, err := s.queryContext(ctx, statement, args...)
 	if err != nil {
 		return 0, s.queryError(err)
@@ -294,7 +336,7 @@ func (s *Session) exportQuery(ctx context.Context, w io.Writer, format, db, tabl
 	for i, t := range types {
 		cols[i] = Column{Name: t.Name(), Type: t.DatabaseTypeName()}
 	}
-	d, err := newDataWriter(w, format, cols, db, table)
+	d, err := newDataWriter(w, format, cols, db, table, options...)
 	if err != nil {
 		return 0, err
 	}

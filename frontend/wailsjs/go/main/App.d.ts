@@ -55,6 +55,8 @@ export function ExportDataFile(arg1:string,arg2:database.SAExportSpec,arg3:datab
 
 export function ExportDatabaseFile(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<main.CSVExport>;
 
+export function ExportSelectedDatabaseFile(arg1:string,arg2:string,arg3:string,arg4:database.SADatabaseExportOptions):Promise<main.CSVExport>;
+
 export function ExportTableCSV(arg1:string,arg2:string,arg3:string):Promise<main.CSVExport>;
 
 export function ImportNativeFavorites(arg1:string,arg2:Array<number>):Promise<database.SABatchOutcome>;
@@ -78,6 +80,8 @@ export function NewTab():Promise<string>;
 export function OpenCSV(arg1:string,arg2:string,arg3:string,arg4:string,arg5:boolean):Promise<database.SACSVPreview>;
 
 export function OpenCellFile(arg1:boolean):Promise<main.SACellFile>;
+
+export function OpenImportFile(arg1:string,arg2:string,arg3:string):Promise<main.SAImportFile>;
 
 export function OpenNativeFavorites():Promise<main.SAFavoritesPreview>;
 

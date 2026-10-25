@@ -107,6 +107,8 @@ export async function openApp(page: Page) {
             },
             Structure:async () => {
                 if ((window as any).schemaReloadError && (window as any).schemaApplies?.length) throw new Error('Fixture metadata reload failed');
+                if((window as any).schemaNoAutoIncrement)schemaObjects=schemaObjects.map(o=>({...o,definition:o.definition.replace(/AUTO_INCREMENT/g,'')}));
+                if((window as any).schemaRelatedFK){delete (window as any).schemaRelatedFK;schemaObjects.push({kind:'foreignKey',name:'fk_name',indexKind:'',definition:'(`name`) REFERENCES `parent` (`name`)'});}
                 const metadata={
                     charsets:result(['Charset','Description','Default collation'].map(name=>({name,type:'TEXT'})),[['utf8','UTF-8 Unicode','utf8_general_ci'],['utf8mb4','UTF-8 Unicode','utf8mb4_general_ci'],['latin1','cp1252 West European','latin1_swedish_ci']].map(row=>row.map(cell))),
                     collations:result(['Collation','Charset','Default'].map(name=>({name,type:'TEXT'})),[['utf8_general_ci','utf8','Yes'],['utf8_bin','utf8',''],['utf8mb4_general_ci','utf8mb4','Yes'],['utf8mb4_unicode_ci','utf8mb4',''],['utf8mb4_bin','utf8mb4',''],['latin1_swedish_ci','latin1','Yes'],['latin1_bin','latin1','']].map(row=>row.map(cell))),
@@ -116,7 +118,7 @@ export async function openApp(page: Page) {
                         return [o.name,type,o.definition.includes('NOT NULL')?'NO':'YES',null,o.name==='id'?'PRI':'',o.definition.includes('AUTO_INCREMENT')?'auto_increment':o.definition.includes('ON UPDATE')?'on update CURRENT_TIMESTAMP':'',text?'utf8mb4':null,text?'utf8mb4_general_ci':null,o.name==='id'?'keep all':'',''].map(cell);
                     })),
                     indexes:result(['INDEX_NAME','NON_UNIQUE','COLUMN_NAME','SEQ_IN_INDEX','COLLATION','CARDINALITY','SUB_PART','PACKED','COMMENT'].map(name=>({name,type:'VARCHAR'})),schemaObjects.filter(o=>o.kind==='index').flatMap(o=>[...o.definition.matchAll(/`([^`]+)`/g)].map(m=>[cell(o.name),cell(o.indexKind==='INDEX' ? '1' : '0'),cell(m[1]),cell('1'),cell('A'),cell('6'),cell(null),cell(null),cell('')]))),
-                    foreignKeys:result([{name:'CONSTRAINT_NAME',type:'VARCHAR'},{name:'COLUMN_NAME',type:'VARCHAR'},{name:'REFERENCED_TABLE_NAME',type:'VARCHAR'}],schemaObjects.filter(o=>o.kind==='foreignKey').map(o=>[cell(o.name),cell('parent_id'),cell('parent')])),
+                    foreignKeys:result([{name:'CONSTRAINT_NAME',type:'VARCHAR'},{name:'COLUMN_NAME',type:'VARCHAR'},{name:'REFERENCED_TABLE_NAME',type:'VARCHAR'}],schemaObjects.filter(o=>o.kind==='foreignKey').map(o=>[cell(o.name),cell(o.definition.match(/`([^`]+)`/)?.[1]??'parent_id'),cell('parent')])),
                     definition:result([{name:'Table',type:'VARCHAR'},{name:'Create Table',type:'TEXT'}],[[cell('db'),cell('CREATE TABLE `db` (`id` int PRIMARY KEY)')]]),
                     objects:schemaObjects,editable:!(window as any).schemaReadonly,reason:(window as any).schemaReadonly ? 'Fixture read-only view' : '',
                 };
@@ -127,7 +129,7 @@ export async function openApp(page: Page) {
                 ((window as any).schemaPreviews ??= []).push(request);
                 if ((window as any).schemaPrepareError) throw new Error((window as any).schemaPrepareError);
                 if(request.columnEdits){
-                    request.definition=schemaObjects.find(o=>o.kind==='column' && o.name===request.original)?.definition ?? '';
+                    request.definition=request.action==='edit'?(schemaObjects.find(o=>o.kind==='column' && o.name===request.original)?.definition ?? ''):(request.definition||'INT NULL');
                     if(request.columnEdits.type)request.definition=request.definition.replace(/^[A-Z]+(?:\s+PRECISION)?/i,request.columnEdits.type);
                     if('length' in request.columnEdits)request.definition=request.definition.replace(/^(\w+)(?:\(.*?\))?/i,`$1${request.columnEdits.length?'('+request.columnEdits.length+')':''}`);
                 }
@@ -141,8 +143,16 @@ export async function openApp(page: Page) {
                 const {request}=schemaPending;schemaPending=null;
                 ((window as any).schemaAttempts ??= []).push(token);
                 if ((window as any).schemaApplyError) throw new Error((window as any).schemaApplyError);
+                if(request.dropForeignKeys?.length)schemaObjects=schemaObjects.filter(o=>o.kind!=='foreignKey'||!request.dropForeignKeys.includes(o.name));
+                const oldPosition=schemaObjects.findIndex(o=>o.kind===request.kind&&o.name===request.original);
                 if(request.action!=='add')schemaObjects=schemaObjects.filter(o=>!(o.kind===request.kind && o.name===request.original));
-                if(request.action!=='drop')schemaObjects.push({kind:request.kind,name:request.name,indexKind:request.indexKind,definition:request.definition});
+                if(request.action!=='drop'){
+                    const object={kind:request.kind,name:request.name,indexKind:request.indexKind,definition:request.definition};
+                    if(request.kind==='column'){
+                        const pos=request.first?0:request.after?schemaObjects.findIndex(o=>o.kind==='column'&&o.name===request.after)+1:request.action==='edit'?oldPosition:schemaObjects.filter(o=>o.kind==='column').length;
+                        schemaObjects.splice(Math.max(0,pos),0,object);
+                    }else schemaObjects.push(object);
+                }
                 ((window as any).schemaApplies ??= []).push(request);
                 return (window as any).schemaWarnings ?? '';
             },
@@ -162,6 +172,8 @@ export async function openApp(page: Page) {
             ApplyCSVImport:async () => {((window as any).csvApplies ??= []).push('applied');return (window as any).csvOutcome ?? {completed:1,total:1,error:'',uncertain:false,warnings:''};},
             ExportDataFile:async (_tab:string,spec:any,snapshot:any) => {((window as any).dataExports ??= []).push({spec,snapshot});return {rows:['loaded','selection'].includes(spec.scope) ? snapshot.rows.length : 6,cancelled:false};},
             InspectDatabase:async (_tab:string,db:string)=>{if((window as any).databaseInventoryError)throw new Error((window as any).databaseInventoryError);return {database:db,fingerprint:'inventory',notice:'Visible objects only. Pause concurrent writes; DEFINER accounts and external references require review. Events restore disabled.',objects:['TABLE','VIEW','FUNCTION','PROCEDURE','TRIGGER','EVENT'].map(kind=>({kind,name:kind.toLowerCase()+'_name',dependencies:kind==='VIEW'?['mysql.base_view']:[]}))};},
+            ExportSelectedDatabaseFile:async (_tab:string,db:string,fingerprint:string,options:any)=>{((window as any).selectedDatabaseExports??=[]).push({db,fingerprint,options});if((window as any).databaseExportError)throw new Error((window as any).databaseExportError);return {rows:options.objects.some((o:any)=>o.content)?6:0,cancelled:!!(window as any).databaseExportCancelled};},
+            OpenImportFile:async ()=>{if((window as any).importChooserError)throw new Error((window as any).importChooserError);return (window as any).importFixture??{format:'sql',sql:{token:'dump',name:'dump.sql',statements:3,preview:'CREATE TABLE test(id INT); INSERT INTO test VALUES(1);',cancelled:false},cancelled:false};},
             ExportDatabaseFile:async (_tab:string,db:string,fingerprint:string,data:boolean)=>{((window as any).databaseExports??=[]).push({db,fingerprint,data});if((window as any).databaseExportError)throw new Error((window as any).databaseExportError);return {rows:data?6:0,cancelled:!!(window as any).databaseExportCancelled};},
             OpenSQLImport:async () => ({token:'dump',name:'dump.sql',statements:3,preview:'CREATE TABLE test(id INT); INSERT INTO test VALUES(1); INSERT INTO test VALUES(2);',cancelled:false}),
             ApplySQLImport:async () => {((window as any).sqlImports ??= []).push('applied');return (window as any).sqlImportOutcome ?? {completed:3,total:3,error:'',uncertain:false,warnings:''};},

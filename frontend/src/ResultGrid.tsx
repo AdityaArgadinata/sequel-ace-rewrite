@@ -6,8 +6,9 @@ import {columnWidth, fittedColumnWidth, gridShortcut, selectedRow} from './grid-
 
 export type GridView={scrollTop:number;scrollLeft:number;widths:Record<string,number>};
 
-export default function ResultGrid({initialView,onViewChange,result, busy, selected, onSelect, columnLabels, initialWidths, checkboxColumns, emptyMessage, showColumnTypes = false, sortColumn, descending, onSort, onEditCell, cellEditor, renderCell, onEmptyDoubleClick, sortDisabled, selectedRows, onSelectAll, onClearSelection, tableName, databaseName, sqlColumns, autoIncrementColumns = [], actions = []}: {initialView?:GridView;onViewChange?:(view:GridView)=>void;result: database.Result | null; busy: boolean; selected?: number; onSelect?: (row: number, modifiers?: {toggle: boolean; range: boolean}) => void; selectedRows?: number[]; onSelectAll?: () => void; onClearSelection?: () => void; tableName?: string; databaseName?: string; sqlColumns?: string[]; autoIncrementColumns?: string[]; actions?: {label: string; disabled?: boolean | ((row: number, column: number) => boolean); run: (row: number, column: number) => void}[]; columnLabels?: Record<string, string>; initialWidths?: Record<string, number>; checkboxColumns?: Record<string, string>; emptyMessage?: string; showColumnTypes?: boolean; sortColumn?: string; descending?: boolean; onSort?: (column: string) => void; onEditCell?: (row: number, column: number) => void; onEmptyDoubleClick?: () => void; sortDisabled?: boolean; renderCell?: (row:number,column:number) => ReactNode | undefined; cellEditor?: {row: number; column: number; content: ReactNode}}) {
+export default function ResultGrid({initialView,onViewChange,result, busy, selected, onSelect, columnLabels, initialWidths, checkboxColumns, emptyMessage, showColumnTypes = false, sortColumn, descending, onSort, onEditCell, cellEditor, renderCell, onEmptyClick, onEmptyDoubleClick, sortDisabled, selectedRows, onSelectAll, onClearSelection, tableName, databaseName, sqlColumns, autoIncrementColumns = [], actions = []}: {initialView?:GridView;onViewChange?:(view:GridView)=>void;result: database.Result | null; busy: boolean; selected?: number; onSelect?: (row: number, modifiers?: {toggle: boolean; range: boolean}) => void; selectedRows?: number[]; onSelectAll?: () => void; onClearSelection?: () => void; tableName?: string; databaseName?: string; sqlColumns?: string[]; autoIncrementColumns?: string[]; actions?: {label: string; disabled?: boolean | ((row: number, column: number) => boolean); run: (row: number, column: number) => void}[]; columnLabels?: Record<string, string>; initialWidths?: Record<string, number>; checkboxColumns?: Record<string, string>; emptyMessage?: string; showColumnTypes?: boolean; sortColumn?: string; descending?: boolean; onSort?: (column: string) => void; onEditCell?: (row: number, column: number) => void; onEmptyClick?: () => Promise<boolean>; onEmptyDoubleClick?: () => void; sortDisabled?: boolean; renderCell?: (row:number,column:number) => ReactNode | undefined; cellEditor?: {row: number; column: number; content: ReactNode}}) {
     const grid = useRef<HTMLDivElement>(null);
+    const emptyClickSave = useRef<{promise:Promise<boolean>;doubleClick?:()=>void} | null>(null);
     const [selection, setSelection] = useState(-1);
     const [localRows,setLocalRows]=useState<number[]>([]);
     const anchor=useRef(-1);
@@ -66,12 +67,19 @@ export default function ResultGrid({initialView,onViewChange,result, busy, selec
         const cells = row ? result.rows[menu.row] : [result.rows[menu.row][menu.column]];
         void copyText(cells.map(cell => cell.null ? 'NULL' : cell.value).join('\t'));
     }
+    function isEmptySpace(event: {target: EventTarget; currentTarget: HTMLDivElement; clientY: number}) {
+        if(!result?.columns.length || (event.target as HTMLElement).closest('tr,button,input,textarea,select,[role=menu]'))return false;
+        const rows=event.currentTarget.querySelectorAll('tbody tr');
+        const bottom=(rows.length ? rows[rows.length-1] : event.currentTarget.querySelector('thead'))?.getBoundingClientRect().bottom ?? event.currentTarget.getBoundingClientRect().top;
+        return event.clientY>=bottom;
+    }
     return <div ref={grid} className={`results ${showColumnTypes ? 'content-grid' : ''}`} aria-label="Query results" tabIndex={0}
         onDoubleClick={event=>{
-            if(busy || !onEmptyDoubleClick || !result?.columns.length || (event.target as HTMLElement).closest('tr,button,input,textarea,select,[role=menu]'))return;
-            const rows=event.currentTarget.querySelectorAll('tbody tr');
-            const bottom=(rows.length ? rows[rows.length-1] : event.currentTarget.querySelector('thead'))?.getBoundingClientRect().bottom ?? event.currentTarget.getBoundingClientRect().top;
-            if(event.clientY>=bottom){event.preventDefault();onEmptyDoubleClick();}
+            if((busy && !emptyClickSave.current) || !onEmptyDoubleClick || !isEmptySpace(event))return;
+            event.preventDefault();
+            // A double-click includes a first click; wait for its save before adding.
+            const pending=emptyClickSave.current;
+            if(pending)void pending.promise.then(ok=>{if(ok)pending.doubleClick?.();});else onEmptyDoubleClick();
         }}
         onScroll={event => {event.currentTarget.style.setProperty('--grid-scroll-top',`${event.currentTarget.scrollTop}px`);onViewChange?.({widths,scrollTop:event.currentTarget.scrollTop,scrollLeft:event.currentTarget.scrollLeft});}}
         onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setMenu(null); }}
@@ -92,7 +100,13 @@ export default function ResultGrid({initialView,onViewChange,result, busy, selec
             if (event.altKey || event.ctrlKey || event.metaKey) return;
             const next = selectedRow(event.key, active, result?.rows.length ?? 0);
             if (next !== undefined) { event.preventDefault(); choose(next,{toggle:false,range:event.shiftKey}); event.currentTarget.querySelectorAll('tbody tr')[next]?.scrollIntoView({block:'nearest'}); }
-        }} onClick={() => setMenu(null)}>
+        }} onClick={event => {
+            setMenu(null);
+            if(!busy && event.detail===1 && onEmptyClick && isEmptySpace(event)) {
+                const pending={promise:onEmptyClick(),doubleClick:onEmptyDoubleClick};emptyClickSave.current=pending;
+                void pending.promise.finally(()=>{if(emptyClickSave.current===pending)emptyClickSave.current=null;});
+            }
+        }}>
         {copyError && <div role="alert">{copyError}</div>}
         {result && result.columns.length ? <table style={{width:result.columns.reduce((total, _, i) => total + widthFor(i), 0)}}>
             <colgroup>{result.columns.map((_, i) => <col key={i} style={{width:widthFor(i)}} />)}{showColumnTypes && <col />}</colgroup>

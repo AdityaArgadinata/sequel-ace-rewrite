@@ -33,6 +33,57 @@ type SADatabaseInventory struct {
 	TimeZone    string         `json:"-"`
 }
 
+// Each selected object carries the same Structure/Content/Drop switches as the export sheet.
+type SADumpSelection struct {
+	Kind      string `json:"kind"`
+	Name      string `json:"name"`
+	Structure bool   `json:"structure"`
+	Content   bool   `json:"content"`
+	Drop      bool   `json:"drop"`
+}
+type SADatabaseExportOptions struct {
+	Objects        []SADumpSelection `json:"objects"`
+	CreateDatabase bool              `json:"createDatabase"`
+}
+
+func selectedDumpObjects(inventory SADatabaseInventory, options SADatabaseExportOptions) (SADatabaseInventory, map[string]SADumpSelection, error) {
+	selected := map[string]SADumpSelection{}
+	available := map[string]SADumpObject{}
+	for _, o := range inventory.Objects {
+		available[o.Kind+"\x00"+o.Name] = o
+	}
+	if len(options.Objects) == 0 || len(options.Objects) > 1000 {
+		return inventory, nil, errors.New("select 1–1,000 objects to export")
+	}
+	for _, o := range options.Objects {
+		key := o.Kind + "\x00" + o.Name
+		if _, ok := available[key]; !ok {
+			return inventory, nil, errors.New("selected export object no longer exists")
+		}
+		if _, ok := selected[key]; ok {
+			return inventory, nil, errors.New("duplicate export object")
+		}
+		if !o.Structure && !o.Content {
+			return inventory, nil, errors.New("select Structure or Content for each export object")
+		}
+		if o.Content && o.Kind != "TABLE" {
+			return inventory, nil, errors.New("content export is supported for tables only")
+		}
+		if o.Drop && !o.Structure {
+			return inventory, nil, errors.New("DROP requires Structure for the same object")
+		}
+		selected[key] = o
+	}
+	objects := []SADumpObject{}
+	for _, o := range inventory.Objects {
+		if _, ok := selected[o.Kind+"\x00"+o.Name]; ok {
+			objects = append(objects, o)
+		}
+	}
+	inventory.Objects = objects
+	return inventory, selected, nil
+}
+
 const dumpNotice = "Inventory includes objects visible to this account only. Use an account with full metadata privileges. Export preserves database names, DEFINER accounts and external references; it does not copy grants or rewrite SQL. Pause schema/data changes for a consistent backup. Events are restored disabled; review before enabling them."
 
 func (s *Session) InspectDatabase(db string) (SADatabaseInventory, error) {
@@ -443,6 +494,12 @@ func dumpEventTokens(source, mode string) []saDumpToken {
 	return tokens
 }
 func (s *Session) ExportDatabase(w io.Writer, db, fingerprint string, includeData bool) (int64, error) {
+	return s.exportDatabase(w, db, fingerprint, includeData, nil)
+}
+func (s *Session) ExportSelectedDatabase(w io.Writer, db, fingerprint string, options SADatabaseExportOptions) (int64, error) {
+	return s.exportDatabase(w, db, fingerprint, true, &options)
+}
+func (s *Session) exportDatabase(w io.Writer, db, fingerprint string, includeData bool, options *SADatabaseExportOptions) (int64, error) {
 	ctx, done, err := s.begin()
 	if err != nil {
 		return 0, err
@@ -455,6 +512,14 @@ func (s *Session) ExportDatabase(w io.Writer, db, fingerprint string, includeDat
 	if fingerprint == "" || inventory.Fingerprint != fingerprint {
 		return 0, errors.New("database objects changed since inventory; inspect again")
 	}
+	selections := map[string]SADumpSelection{}
+	if options != nil {
+		inventory, selections, err = selectedDumpObjects(inventory, *options)
+		if err != nil {
+			return 0, err
+		}
+	}
+	wantStructure := func(o SADumpObject) bool { return options == nil || selections[o.Kind+"\x00"+o.Name].Structure }
 	out := &saDumpWriter{w: w}
 	if _, err := io.WriteString(out, "-- sequelx database SQL dump v1\n-- "+dumpNotice+"\n"); err != nil {
 		return 0, err
@@ -462,14 +527,27 @@ func (s *Session) ExportDatabase(w io.Writer, db, fingerprint string, includeDat
 	if err := dumpContext(out, inventory.Mode, inventory.Collation); err != nil {
 		return 0, err
 	}
-	for _, sql := range []string{"CREATE DATABASE " + quoteIdentifier(db) + " CHARACTER SET " + quoteIdentifier(inventory.Charset) + " COLLATE " + quoteIdentifier(inventory.Collation), "USE " + quoteIdentifier(db)} {
-		if err := out.statement(sql); err != nil {
+	if options == nil || options.CreateDatabase {
+		if err := out.statement("CREATE DATABASE " + quoteIdentifier(db) + " CHARACTER SET " + quoteIdentifier(inventory.Charset) + " COLLATE " + quoteIdentifier(inventory.Collation)); err != nil {
 			return 0, err
+		}
+	}
+	if err := out.statement("USE " + quoteIdentifier(db)); err != nil {
+		return 0, err
+	}
+	if options != nil {
+		for i := len(inventory.Objects) - 1; i >= 0; i-- {
+			o := inventory.Objects[i]
+			if selections[o.Kind+"\x00"+o.Name].Drop {
+				if err := out.statement("DROP " + o.Kind + " IF EXISTS " + qualified(db, o.Name)); err != nil {
+					return 0, err
+				}
+			}
 		}
 	}
 	foreign := []string{}
 	for _, o := range inventory.Objects {
-		if o.Kind != "TABLE" {
+		if o.Kind != "TABLE" || !wantStructure(o) {
 			continue
 		}
 		create, fks, err := cloneCreate(o.Definition, inventory.Mode, db, o.Name, db, o.Name, true)
@@ -486,7 +564,16 @@ func (s *Session) ExportDatabase(w io.Writer, db, fingerprint string, includeDat
 		if err := out.statement("SET SESSION time_zone = '+00:00'"); err != nil {
 			return count, err
 		}
-		count, err = s.exportDumpRows(ctx, out, inventory)
+		dataInventory := inventory
+		if options != nil {
+			dataInventory.Objects = nil
+			for _, o := range inventory.Objects {
+				if selections[o.Kind+"\x00"+o.Name].Content {
+					dataInventory.Objects = append(dataInventory.Objects, o)
+				}
+			}
+		}
+		count, err = s.exportDumpRows(ctx, out, dataInventory)
 		if err != nil {
 			return count, err
 		}
@@ -498,7 +585,7 @@ func (s *Session) ExportDatabase(w io.Writer, db, fingerprint string, includeDat
 		}
 	}
 	for _, o := range inventory.Objects {
-		if o.Kind == "TABLE" {
+		if o.Kind == "TABLE" || !wantStructure(o) {
 			continue
 		}
 		if err := dumpContext(out, o.Mode, o.Collation); err != nil {

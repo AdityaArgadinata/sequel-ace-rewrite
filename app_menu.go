@@ -16,6 +16,12 @@ func (a *App) applicationMenu() *menu.Menu {
 	if runtime.GOOS == "darwin" {
 		root.Append(menu.AppMenu())
 	}
+	file := root.AddSubmenu("File")
+	file.AddText("New Connection Tab", keys.CmdOrCtrl("t"), func(*menu.CallbackData) {
+		if a.ctx != nil {
+			wailsruntime.EventsEmit(a.ctx, "sequelx:new-connection-tab")
+		}
+	})
 	settings := root.AddSubmenu("Settings")
 	a.nativeMu.Lock()
 	binding := "Mod+,"

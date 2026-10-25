@@ -1454,3 +1454,232 @@ beserta verifikasinya selesai; tidak dianggap tercakup oleh tes fitur sebelumnya
 - [x] Kelima paket publik diunduh ulang dan SHA-256 semuanya cocok dengan
   SHA256SUMS.txt serta digest aset GitHub. Arsip ZIP/tar dan DMG diperiksa;
   salinan lokal terverifikasi ada di `dist/from-github/v0.1.0/`.
+
+
+## Structure: alur edit mengikuti Sequel Ace — 2026-10-25
+
+- [x] Perilaku dipelajari dari `SPTableStructure.m` (add/duplicate, save on
+  deselect, keyboard, perubahan atribut, drag) dan `SPIndexesController.m`
+  (sheet index) pada source asli lokal. Perubahan diterapkan pada rewrite,
+  tanpa mengubah ikon app maupun toolbar.
+- [x] Double-click untuk mengedit sel; Enter menyimpan satu field, Escape
+  memulihkan seluruh field atau membuang draft baru. Tab/Shift+Tab berpindah
+  kontrol dan menyimpan ketika melewati batas field. Pindah field, tabel,
+  tampilan, atau tab koneksi menyimpan draft lebih dahulu; kegagalan menahan
+  perpindahan dengan pilihan Edit row / Discard changes.
+- [x] Plus dan double-click ruang kosong menambah field inline (INT, nullable,
+  default NULL), setelah pilihan atau di akhir. Duplicate memakai nama Copy
+  dan membersihkan key/Extra. Drag mengubah posisi FIRST/AFTER dengan definisi
+  server tetap dipertahankan.
+- [x] Dropdown Type/Extra/Encoding/Collation serta aturan atribut mengikuti tipe
+  field; AUTO_INCREMENT menawarkan index dalam satu ALTER dan memperhatikan
+  batas tipe MySQL 8.4. Tambah index memakai daftar kolom, ukuran prefix,
+  urutan, tipe/storage dan nama opsional. Editor SQL lanjutan tetap tersedia.
+- [x] Drop field menampilkan konfirmasi dan foreign key lokal terkait yang ikut
+  dihapus dalam satu ALTER. Metadata server menjadi sumber definisi untuk
+  mempertahankan default, comment, charset, generated expression, serta
+  atribut lain yang tidak diedit. Error setelah server mengakui ALTER meminta
+  reload, agar perubahan tidak dikirim ulang secara tidak sengaja.
+- [x] Verifikasi: 288 tes UI Chromium/WebKit lulus; setelah perbaikan drag,
+  30 skenario Structure lulus ulang dan drag diulang 6 kali tanpa gagal.
+  26 unit frontend, seluruh Go race suite dengan MySQL 5.7 disposable, go vet,
+  frontend build/typecheck, dan lint katalog English lulus.
+- [x] Build lokal `rewrite/build/bin/sequelx.app` diperbarui, signature ad hoc
+  valid. QA native macOS pada salinan app terisolasi dan database disposable
+  membuktikan edit panjang tersimpan (default/comment tetap), plus inline,
+  Escape, dan sheet index. App pengguna serta database port 3306 tidak diubah.
+- [ ] Belum mengklaim kesamaan setiap pixel/AppKit: combo box bebas, pengaturan
+  header lanjutan, drag saat draft aktif, dan QA desktop Windows/Linux tetap
+  perlu ditindaklanjuti. Intersepsi quit/window-close untuk draft schema juga
+  belum tersedia; guard saat ini mencakup navigasi di dalam workspace.
+- Perubahan bagian ini masih lokal; belum dipush atau dirilis. Rilis publik
+  tetap v0.1.0 sampai ada instruksi distribusi berikutnya.
+
+
+### Koreksi save saat klik ruang kosong — 2026-10-25
+
+- [x] Mengikuti `SPTableStructure.tableViewSelectionDidChange` dan
+  `saveRowOnDeselect`: klik sekali di ruang kosong bawah field menyimpan draft,
+  lalu melepas pilihan jika berhasil. Jika gagal, draft tetap tersedia melalui
+  Edit row / Discard changes.
+- [x] Double-click menunggu save dari klik pertama sebelum menambah field baru
+  di akhir; tidak mengirim ALTER dua kali. Regresi mencakup save lambat,
+  field baru/lama, klik ulang tanpa perubahan, dan gagal save.
+- [x] 34 tes Structure Chromium/WebKit dan 26 unit frontend lulus. Build lokal
+  macOS diperbarui; perubahan ini belum dipush atau dirilis.
+
+
+### Nama aksi sidebar mengikuti Sequel Ace — 2026-10-25
+
+- Menu Connection actions pada tombol elipsis kiri bawah menempatkan aksi yang
+  tersedia dengan nama New Connection Tab, Open…, Save Session, Save Query,
+  Import…, Export…, dan Close. Open/Save Query di toolbar memakai nama sama.
+- Nama baru memakai handler yang sudah ada: tab membuka sesi tambahan ke server
+  koneksi saat ini; Open membuka SQL; Save Session menyimpan SPF tab saat ini;
+  Import/Export membuka alur SQL dump yang tersedia; Close menutup sesi tab.
+  Fitur window baru, duplicate tab, recent files, penyimpanan seluruh window,
+  dan native print tidak ditambahkan melalui pergantian nama ini.
+- Menu menutup setelah pemilihan aksi, memiliki pemisah grup, dan dapat discroll
+  pada window kecil. Panel kontrol transaksi berada dalam area scroll menu.
+- Verifikasi: 148 tes UI terkait pada Chromium/WebKit dan 26 unit frontend
+  lulus; katalog English lolos lint. Build lokal macOS diperbarui dan signature
+  ad hoc diperiksa. Perubahan menu masih lokal, belum dipush/dirilis.
+
+
+## Import/Export: dialog mengikuti alur Sequel Ace — 2026-10-25
+
+- Referensi asli: `SPExportController.exportData` memilih SQL/tables atau
+  CSV/filtered/query menurut tab aktif; `ExportDialog.xib` memuat format,
+  sumber, daftar objek serta Structure/Content/DROP. `SPDataImport.importFile`
+  membuka chooser SQL/CSV, mengingatkan overwrite SQL dan meneruskan CSV ke
+  field mapper. Source native hanya dibaca; implementasi pada rewrite.
+- [x] Export… membuka dialog dengan tab SQL/CSV/XML dan sumber Selected tables,
+  Filtered table content atau Query result. Content memakai filter/sort terapan
+  tanpa paging; Query memakai hasil tersimpan tanpa menjalankan SQL kembali.
+- [x] SQL mengekspor hanya objek terpilih dengan Structure/Content/DROP yang
+  terpisah. CREATE DATABASE opsional, default nonaktif. Definisi dan time zone
+  tetap diverifikasi/dipulihkan oleh exporter; metadata berubah menggagalkan
+  publikasi file. DROP hanya ditulis pada file, tidak dijalankan pada sumber.
+  Dependensi yang tidak dipilih harus sudah tersedia pada tujuan; constraint
+  server tetap berlaku saat restore, termasuk untuk DROP.
+- [x] CSV menyediakan separator comma/semicolon/tab, LF/CRLF, header, dan nilai
+  NULL output; quoting memakai double quote dan BLOB ditampilkan sebagai hex.
+  Ekspor data lama tetap mempertahankan format Sequel CSV v1 untuk kompatibilitas.
+- [x] Import… langsung membuka file chooser SQL/CSV/TSV. SQL menunjukkan nama
+  file, warning overwrite dan preview opsional, lalu menunggu Import. CSV
+  menampilkan tabel tujuan, mapping field serta preview sebelum Import. Error
+  tersaji di dialog, bukan tersembunyi di status workspace.
+- [x] Progres import berdasarkan statement/record yang diakui server, dengan
+  event dibatasi frekuensinya. Cancel membatalkan operasi aktif; error, warning
+  dan hasil tidak pasti menghentikan proses tanpa replay otomatis. Ekspor
+  menampilkan indikator berjalan; file parsial tidak dipublish.
+- [x] Full database backup lama masih tersedia melalui Advanced untuk backup
+  lengkap beserta CREATE DATABASE dan seluruh objek.
+- [ ] Kesetaraan native lanjutan belum selesai: Dot, gzip/bzip2, pilihan encoding
+  selain UTF-8, enclosure/escape CSV bebas, CSV ke tabel baru, multi-file CSV/XML,
+  lanjut setelah error, serta accessory view NSOpenPanel yang identik AppKit.
+  CSV NULL-output perlu dipetakan sesuai format tujuan; importer Plain CSV tetap
+  memperlakukan nilai sebagai literal, sedangkan Sequel CSV v1 mendukung NULL.
+- Belum dipush atau dirilis; QA desktop Windows/Linux tetap terbuka.
+
+- Verifikasi akhir: seluruh 312 tes UI Chromium/WebKit lulus; 12 tes dialog
+  lulus ulang setelah perbaikan styling checkbox konfirmasi. 26 unit frontend,
+  seluruh Go race suite dengan MySQL 5.7 disposable (termasuk dump round-trip,
+  selected Structure/Content output dan progres import), go vet, build/typecheck
+  frontend dan lint English lulus. Build lokal `rewrite/build/bin/sequelx.app`
+  diperbarui dan signature ad hoc valid.
+- QA native pada bundle/HOME terisolasi: koneksi QA, default filtered CSV,
+  tab SQL, pemilihan tabel, flag Structure/Content/DROP dan pembukaan langsung
+  chooser SQL/CSV terbukti tampil. End-to-end Save/Open belum terverifikasi:
+  tombol native nonaktif dalam lingkungan terisolasi. Percobaan memakai HOME
+  asli ditolak review otomatis karena risiko mengakses profil/kredensial/settings;
+  percobaan tersebut tidak dijalankan. Database QA dan proses app milik tugas
+  sudah dihentikan; app pengguna dan database port 3306 tidak diubah.
+
+
+### Shortcut New Connection Tab — 2026-10-25
+
+- [x] Cmd+T (macOS) / Ctrl+T (Windows/Linux) membuka tab koneksi tambahan ke
+  server aktif. Menu native File → New Connection Tab menyediakan accelerator
+  yang sama; menu sidebar dan tombol plus menampilkan petunjuk shortcut.
+- [x] Keyboard dan event menu memakai satu alur pembukaan; request ganda saat
+  membuka/saving diblokir. Tidak membuka tab sebelum koneksi aktif, saat operasi
+  workspace/dialog berjalan, atau ketika batas 16 tab tercapai.
+- [x] Draft SQL di tab asal tetap dipertahankan. Draft Structure disimpan sebelum
+  membuka tab; kegagalan save menahan navigasi dan tetap menyediakan Edit row.
+- [x] 12 tes shortcut Chromium/WebKit (termasuk simulasi modifier Mac/Windows),
+  38 regresi Structure/menu, Go menu tests, go vet, 26 unit frontend dan build
+  frontend lulus. QA native Cmd+T dengan editor SQL aktif membuka tepat satu
+  Query 2 pada salinan app dan server disposable port 33317.
+- [x] Build lokal `rewrite/build/bin/sequelx.app` diperbarui, signature ad hoc
+  valid. Proses/server QA dihentikan; app pengguna dan server 3306 tidak diubah.
+  Perubahan belum dipush/dirilis; QA desktop Windows/Linux masih terbuka.
+
+
+### Home per tab, saved connections, dan tipografi — 2026-10-25
+
+- [x] Cmd+T / Ctrl+T, tombol plus, dan menu New Connection Tab membuka form
+  pemilihan koneksi tanpa handshake otomatis. Dapat memilih profil tersimpan
+  atau server lain; sesi dan draft SQL tab lama tetap independen.
+- [x] Tombol Save Connection menyimpan profil melalui penyimpanan Favorites yang
+  sudah ada. Save Changes memperbarui profil; password tetap opt-in melalui
+  credential store OS. Daftar profil dimuat ulang saat form tab diaktifkan.
+- [x] Draft form tiap tab dipertahankan, ID input unik, kegagalan koneksi tidak
+  menghapus form/tab lain, dan menutup form kosong tidak menutup sesi backend.
+  Form belum terhubung ikut dihitung dalam batas 16 tab.
+- [x] Shortcut Run Query tampil sesuai platform (⌘↵ / Ctrl+Enter), tidak membungkus
+  keluar tombol. Ukuran teks, tinggi kontrol, dan perataan toolbar query dirapikan;
+  grup eksekusi tetap rata kanan ketika toolbar membungkus.
+- [x] 112 regresi UI Chromium/WebKit, 26 unit frontend, go vet, serta tes Go race
+  workspace/profiles/credentials lulus. Tes workspace dijalankan juga dengan MySQL
+  disposable port 33317 untuk koneksi eksplisit terpisah dan kegagalan koneksi baru.
+  Server disposable dihentikan setelah tes; database pengguna tidak diubah.
+- [x] Build lokal rewrite/build/bin/sequelx.app diperbarui dan signature ad hoc
+  terverifikasi. Belum dipush/dirilis; QA native desktop Windows/Linux belum dilakukan.
+
+
+### Nama tab mengikuti database — 2026-10-25
+
+- [x] Tab koneksi menampilkan nama database terpilih dan memperbarui nama saat
+  database berpindah, termasuk pemulihan database awal. Tanpa database memakai
+  Query <id>; tab form tetap New Connection.
+- [x] Identitas sesi tetap memakai ID internal, sehingga dua database bernama
+  sama tidak menggabungkan tab. Nama panjang memakai elipsis dan tooltip lengkap.
+- [x] 66 tes UI Chromium/WebKit untuk navigasi tab, judul dinamis, nama sama,
+  pemulihan draft, dan panel workspace lulus. Build lokal sequelx.app diperbarui
+  dan signature ad hoc terverifikasi; QA native Windows/Linux belum dilakukan.
+
+
+### Halaman koneksi mengikuti referensi Sequel Ace — 2026-10-25
+
+- [x] Membaca ConnectionView.xib, pengaturan ukuran/scroll SPConnectionController,
+  dan menu zona waktu SAConnectionFormView. Layout disesuaikan dengan screenshot
+  pengguna: sidebar 20,5%, form 425 px dengan kolom label/isian 98/247 px,
+  posisi form lebih rendah, warna panel/isian, kepadatan Favorites dan tipografi.
+- [x] Folder, alternate authentication serta impor favorites/SPF dipindah ke
+  Advanced connection options. Filter folder hanya muncul jika tersedia folder;
+  tombol Save Connection dan Password storage tetap dapat digunakan.
+- [x] Time Zone memakai dropdown server/system/IANA dan Custom untuk offset
+  bebas. Profil dengan zona khusus tetap terbaca dan nilai pilihan dipakai
+  ketika menyimpan/membuka koneksi. Pengaturan TLS/credential tidak diubah.
+- [x] Tombol tool impor eksplisit type=button agar tidak submit form Connect.
+- [x] 116 tes regresi Chromium/WebKit serta 36 pemeriksaan akhir layout, zona
+  waktu/custom, dan panel lulus. Screenshot ukuran 1408x996 dan 800x600 diperiksa;
+  build lokal sequelx.app dan verifikasi signature ad hoc lulus. QA native
+  Windows/Linux belum dilakukan; belum dipush atau dirilis.
+
+
+### Content kosong setelah koneksi baru — 2026-10-25
+
+- [x] Koneksi baru membuka Content dengan header kosong dan grid bergaris,
+  sidebar TABLES kosong, serta filter/aksi data disabled hingga tabel dipilih.
+  Tidak membuka editor SQL atau melakukan Browse/insert otomatis.
+- [x] Content dapat dipilih tanpa tabel. Tab lain mempertahankan tabel/data/draft;
+  impor SPF dengan SQL/view tersimpan tetap memakai pemulihan sesi eksplisit.
+- [x] 86 tes UI Chromium/WebKit lulus, termasuk tampilan kosong, perpindahan
+  Query/Content, pemilihan tabel, tab terpisah, katalog 509 tabel, query dan SPF.
+  Screenshot diperiksa; build lokal sequelx.app dan signature ad hoc valid.
+  Belum dipush/dirilis; QA native Windows/Linux belum dilakukan.
+
+
+### Hapus panel Export data inline — 2026-10-25
+
+- [x] Panel Export data beserta Save print view/Scope/Format dihapus dari
+  Content dan Query; komponen tidak terpakai dihapus. Ekspor melalui menu
+  koneksi Export… tetap tersedia. Styling SQL help dipisahkan dan dipertahankan.
+- [x] 16 regresi ekspor/SQL help Chromium dan WebKit lulus; build lokal
+  sequelx.app diperbarui dan signature ad hoc valid. QA native Windows/Linux
+  belum dilakukan; belum dipush/dirilis.
+
+
+### Validasi build dan push — 2026-10-25
+
+- [x] Seluruh 346 tes UI Chromium/WebKit lulus, 26 unit frontend lulus,
+  go test -race ./... dengan MySQL disposable port 33317 lulus, go vet lulus,
+  build frontend dan Wails macOS arm64 lulus. Signature ad hoc app valid.
+- [x] Kumpulan perubahan meliputi parity Structure, transfer data, tab koneksi
+  independen, saved connections, nama database dinamis, halaman koneksi,
+  Content awal kosong, tipografi serta penghapusan panel Export data inline.
+- [x] Perubahan disiapkan untuk push main dan build GitHub Actions standar;
+  tidak membuat tag/release baru. Server disposable dihentikan setelah tes.
+  QA native Windows/Linux dan signing production tetap belum dilakukan.

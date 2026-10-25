@@ -231,6 +231,9 @@ func (s *Session) PrepareCSVImport(token string, mapping []SACSVMapping, format 
 	return plan, nil
 }
 func (s *Session) ApplyCSVImport(token string) SABatchOutcome {
+	return s.ApplyCSVImportProgress(token, nil)
+}
+func (s *Session) ApplyCSVImportProgress(token string, progress func(int, int)) SABatchOutcome {
 	ctx, done, err := s.begin()
 	if err != nil {
 		return SABatchOutcome{Error: err.Error()}
@@ -242,6 +245,10 @@ func (s *Session) ApplyCSVImport(token string) SABatchOutcome {
 	}
 	s.csvPending = nil
 	out := SABatchOutcome{Total: len(p.records)}
+	if progress != nil {
+		progress(0, out.Total)
+		defer func() { progress(out.Completed, out.Total) }()
+	}
 	source, mode, err := s.schemaSnapshot(ctx, p.database, p.table)
 	if err != nil {
 		out.Error = err.Error()
@@ -258,6 +265,9 @@ func (s *Session) ApplyCSVImport(token string) SABatchOutcome {
 			return out
 		}
 		out.Completed++
+		if progress != nil {
+			progress(out.Completed, out.Total)
+		}
 		warnings, err := s.exchangeWarnings(ctx)
 		if err != nil {
 			out.Error = err.Error()

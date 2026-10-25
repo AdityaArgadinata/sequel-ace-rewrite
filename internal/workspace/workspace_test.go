@@ -41,9 +41,14 @@ func TestIndependentSessionsIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := m.Open(nil)
+	second, err := m.Open(&c)
 	if err != nil {
 		t.Fatal(err)
+	}
+	invalid := c
+	invalid.Port = -1
+	if _, err := m.Open(&invalid); err == nil {
+		t.Fatal("invalid new connection succeeded")
 	}
 	a, _ := m.Session(first)
 	b, _ := m.Session(second)

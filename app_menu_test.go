@@ -52,3 +52,23 @@ func TestPreferencesMenuRemapping(t *testing.T) {
 		}
 	}
 }
+
+func TestNewConnectionTabNativeMenu(t *testing.T) {
+	app := NewApp()
+	for _, item := range app.applicationMenu().Items {
+		if item.Label != "File" || item.SubMenu == nil {
+			continue
+		}
+		for _, child := range item.SubMenu.Items {
+			if child.Label != "New Connection Tab" {
+				continue
+			}
+			if child.Accelerator == nil || child.Accelerator.Key != "t" || child.Click == nil {
+				t.Fatal("new tab accelerator missing", child)
+			}
+			child.Click(nil)
+			return
+		}
+	}
+	t.Fatal("File > New Connection Tab missing")
+}

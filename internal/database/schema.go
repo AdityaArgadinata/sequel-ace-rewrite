@@ -20,15 +20,19 @@ type SASchemaObject struct {
 	Definition string `json:"definition"`
 }
 type SASchemaChange struct {
-	Database    string            `json:"database"`
-	Table       string            `json:"table"`
-	Action      string            `json:"action"`
-	Kind        string            `json:"kind"`
-	Original    string            `json:"original"`
-	Name        string            `json:"name"`
-	IndexKind   string            `json:"indexKind"`
-	Definition  string            `json:"definition"`
-	ColumnEdits map[string]string `json:"columnEdits,omitempty"`
+	Database        string            `json:"database"`
+	Table           string            `json:"table"`
+	Action          string            `json:"action"`
+	Kind            string            `json:"kind"`
+	Original        string            `json:"original"`
+	Name            string            `json:"name"`
+	IndexKind       string            `json:"indexKind"`
+	Definition      string            `json:"definition"`
+	ColumnEdits     map[string]string `json:"columnEdits,omitempty"`
+	First           bool              `json:"first,omitempty"`
+	After           string            `json:"after,omitempty"`
+	AutoIndex       string            `json:"autoIndex,omitempty"`
+	DropForeignKeys []string          `json:"dropForeignKeys,omitempty"`
 }
 type SASchemaPlan struct {
 	Token string `json:"token"`
@@ -253,37 +257,112 @@ func schemaSQL(r SASchemaChange, objects []SASchemaObject, mode string) (string,
 		}
 	}
 	prefix := "ALTER TABLE " + quoteIdentifier(r.Database) + "." + quoteIdentifier(r.Table) + " "
-	if r.Action == "drop" {
-		return prefix + drop, nil
+	if len(r.DropForeignKeys) > 0 && (r.Kind != "column" || r.Action != "drop") {
+		return "", errors.New("related foreign keys require a column drop")
 	}
-	if !valid(r.Name) {
+	if r.Action == "drop" {
+		clauses := []string{}
+		seen := map[string]bool{}
+		for _, name := range r.DropForeignKeys {
+			if seen[name] {
+				return "", errors.New("duplicate related foreign key")
+			}
+			seen[name] = true
+			matched := false
+			for _, object := range objects {
+				if object.Kind != "foreignKey" || object.Name != name {
+					continue
+				}
+				parts, err := schemaParts(object.Definition, mode)
+				if err != nil {
+					return "", err
+				}
+				for _, part := range parts {
+					column, rest, ok := schemaIdentifier(part)
+					if ok && rest == "" && strings.EqualFold(column, r.Original) {
+						matched = true
+					}
+				}
+			}
+			if !matched {
+				return "", errors.New("related foreign key no longer matches this column; reload structure")
+			}
+			clauses = append(clauses, "DROP FOREIGN KEY "+quoteIdentifier(name))
+		}
+		return prefix + strings.Join(append(clauses, drop), ", "), nil
+	}
+	if !valid(r.Name) && !(r.Kind == "index" && r.Action == "add" && r.Name == "" && r.IndexKind != "PRIMARY") {
 		return "", errors.New("schema object name must contain 1–64 characters without NUL")
 	}
 	definition := strings.TrimSpace(r.Definition)
 	if r.ColumnEdits != nil {
-		if r.Kind != "column" || r.Action != "edit" {
-			return "", errors.New("column attributes require an existing column")
+		if r.Kind != "column" || (r.Action != "edit" && r.Action != "add") {
+			return "", errors.New("column attributes require a column add or edit")
 		}
-		for _, object := range objects {
-			if object.Kind == "column" && object.Name == r.Original {
-				var err error
-				definition, err = patchColumnAttributes(object.Definition, r.ColumnEdits, mode)
-				if err != nil {
-					return "", err
+		if r.Action == "edit" {
+			for _, object := range objects {
+				if object.Kind == "column" && object.Name == r.Original {
+					definition = object.Definition
+					break
 				}
-				break
 			}
 		}
+		if definition == "" {
+			definition = "INT NULL"
+		}
+		var err error
+		definition, err = patchColumnAttributes(definition, r.ColumnEdits, mode)
+		if err != nil {
+			return "", err
+		}
+
 	}
 	if err := validateSchemaFragment(definition, mode); err != nil {
 		return "", err
+	}
+	if r.First || r.After != "" || r.AutoIndex != "" {
+		if r.Kind != "column" || r.Action == "drop" || (r.First && r.After != "") {
+			return "", errors.New("invalid column position or index")
+		}
+		if r.After != "" {
+			found := false
+			for _, object := range objects {
+				if object.Kind == "column" && object.Name == r.After && !(r.Action == "edit" && object.Name == r.Original) {
+					found = true
+				}
+			}
+			if !found {
+				return "", errors.New("column position no longer exists; reload structure")
+			}
+			definition += " AFTER " + quoteIdentifier(r.After)
+		} else if r.First {
+			definition += " FIRST"
+		}
+	}
+	index := ""
+	if r.AutoIndex != "" {
+		attrs, err := columnAttributes(definition, mode)
+		if err != nil {
+			return "", err
+		}
+		if _, ok := attrs["auto_increment"]; !ok {
+			return "", errors.New("an automatic index requires AUTO_INCREMENT")
+		}
+		switch r.AutoIndex {
+		case "PRIMARY":
+			index = ", ADD PRIMARY KEY (" + quoteIdentifier(r.Name) + ")"
+		case "INDEX", "UNIQUE":
+			index = ", ADD " + r.AutoIndex + " (" + quoteIdentifier(r.Name) + ")"
+		default:
+			return "", errors.New("invalid automatic index type")
+		}
 	}
 	add := ""
 	switch r.Kind {
 	case "column":
 		add = "ADD COLUMN " + quoteIdentifier(r.Name) + " " + definition
 		if r.Action == "edit" {
-			return prefix + "CHANGE COLUMN " + quoteIdentifier(r.Original) + " " + quoteIdentifier(r.Name) + " " + definition, nil
+			return prefix + "CHANGE COLUMN " + quoteIdentifier(r.Original) + " " + quoteIdentifier(r.Name) + " " + definition + index, nil
 		}
 	case "index":
 		if !strings.HasPrefix(definition, "(") {
@@ -303,7 +382,11 @@ func schemaSQL(r SASchemaChange, objects []SASchemaObject, mode string) (string,
 			if r.IndexKind == "INDEX" {
 				kind = "INDEX"
 			}
-			add = "ADD " + kind + " " + quoteIdentifier(r.Name) + " " + definition
+			name := ""
+			if r.Name != "" {
+				name = quoteIdentifier(r.Name) + " "
+			}
+			add = "ADD " + kind + " " + name + definition
 		default:
 			return "", errors.New("unsupported index type")
 		}
@@ -321,7 +404,7 @@ func schemaSQL(r SASchemaChange, objects []SASchemaObject, mode string) (string,
 	if drop != "" {
 		add = drop + ", " + add
 	}
-	return prefix + add, nil
+	return prefix + add + index, nil
 }
 
 func (s *Session) schemaSnapshot(ctx context.Context, db, table string) (string, string, error) {
@@ -465,7 +548,7 @@ func (s *Session) ApplySchemaChange(token string) (string, error) {
 		return "", s.queryError(err)
 	}
 	if err := ctx.Err(); err != nil {
-		return "", s.queryError(err)
+		return "", fmt.Errorf("schema change was acknowledged, but its result could not be read: %w", s.queryError(err))
 	}
 	// SHOW WARNINGS immediately: any later query replaces the server warning list.
 	rows, err := s.queryContext(ctx, "SHOW WARNINGS LIMIT 20")
@@ -478,12 +561,12 @@ func (s *Session) ApplySchemaChange(token string) (string, error) {
 		var level, message string
 		var code int
 		if err := rows.Scan(&level, &code, &message); err != nil {
-			return "", s.queryError(err)
+			return "", fmt.Errorf("schema change was acknowledged, but its result could not be read: %w", s.queryError(err))
 		}
 		warnings = append(warnings, fmt.Sprintf("%s %d: %s", level, code, message))
 	}
 	if err := rows.Err(); err != nil {
-		return "", s.queryError(err)
+		return "", fmt.Errorf("schema change was acknowledged, but its result could not be read: %w", s.queryError(err))
 	}
 	if len(warnings) > 0 {
 		return "Server warnings (first 20):\n" + strings.Join(warnings, "\n"), nil

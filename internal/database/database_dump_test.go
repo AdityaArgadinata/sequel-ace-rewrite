@@ -65,3 +65,17 @@ func TestDatabaseDumpDelimiterAndEvent(t *testing.T) {
 		t.Fatal("statement cap bypassed")
 	}
 }
+
+func TestSelectedDumpObjects(t *testing.T) {
+	inventory := SADatabaseInventory{Objects: []SADumpObject{{Kind: "TABLE", Name: "a"}, {Kind: "VIEW", Name: "v"}, {Kind: "TABLE", Name: "b"}}}
+	valid := SADatabaseExportOptions{Objects: []SADumpSelection{{Kind: "TABLE", Name: "b", Content: true}, {Kind: "VIEW", Name: "v", Structure: true}}}
+	out, selection, err := selectedDumpObjects(inventory, valid)
+	if err != nil || len(out.Objects) != 2 || out.Objects[0].Name != "v" || out.Objects[1].Name != "b" || !selection["TABLE\x00b"].Content {
+		t.Fatal(out, selection, err)
+	}
+	for _, objects := range [][]SADumpSelection{nil, {{Kind: "TABLE", Name: "missing", Structure: true}}, {{Kind: "VIEW", Name: "v", Content: true}}, {{Kind: "TABLE", Name: "a", Content: true, Drop: true}}, {{Kind: "TABLE", Name: "a"}}, {{Kind: "TABLE", Name: "a", Structure: true}, {Kind: "TABLE", Name: "a", Structure: true}}} {
+		if _, _, err := selectedDumpObjects(inventory, SADatabaseExportOptions{Objects: objects}); err == nil {
+			t.Fatal("invalid selection accepted", objects)
+		}
+	}
+}

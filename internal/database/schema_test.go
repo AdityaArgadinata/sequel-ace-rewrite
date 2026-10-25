@@ -1,6 +1,7 @@
 package database
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -104,5 +105,89 @@ func TestSchemaFingerprintIgnoresOnlyNextAutoIncrement(t *testing.T) {
 	}
 	if schemaFingerprint(a, "") == schemaFingerprint(a, "ANSI_QUOTES") {
 		t.Fatal("SQL mode ignored")
+	}
+}
+
+func TestInlineColumnPositionAndAutomaticIndex(t *testing.T) {
+	objects := []SASchemaObject{{Kind: "column", Name: "first", Definition: "INT NOT NULL COMMENT 'preserve'"}, {Kind: "column", Name: "second", Definition: "VARCHAR(10) NULL"}}
+	request := SASchemaChange{Database: "db", Table: "items", Kind: "column", Action: "add", Name: "new`id", ColumnEdits: map[string]string{"type": "BIGINT", "nullable": "false", "extra": "auto_increment"}, First: true, AutoIndex: "INDEX"}
+	got, err := schemaSQL(request, objects, "")
+	if err != nil || !strings.Contains(got, "ADD COLUMN `new``id` BIGINT NOT NULL auto_increment FIRST, ADD INDEX (`new``id`)") {
+		t.Fatal(got, err)
+	}
+	request.First = false
+	request.After = "first"
+	request.AutoIndex = "UNIQUE"
+	got, err = schemaSQL(request, objects, "")
+	if err != nil || !strings.Contains(got, "AFTER `first`, ADD UNIQUE (`new``id`)") {
+		t.Fatal(got, err)
+	}
+	request.After = "missing"
+	if _, err = schemaSQL(request, objects, ""); err == nil {
+		t.Fatal("missing position accepted")
+	}
+	request.After = "first"
+	request.AutoIndex = "INDEX; DROP TABLE items"
+	if _, err = schemaSQL(request, objects, ""); err == nil {
+		t.Fatal("invalid index accepted")
+	}
+	request.AutoIndex = "INDEX"
+	request.ColumnEdits = map[string]string{"type": "INT"}
+	if _, err = schemaSQL(request, objects, ""); err == nil {
+		t.Fatal("index without AUTO_INCREMENT accepted")
+	}
+	request = SASchemaChange{Database: "db", Table: "items", Kind: "column", Action: "edit", Original: "first", Name: "first", ColumnEdits: map[string]string{}, After: "second"}
+	got, err = schemaSQL(request, objects, "")
+	if err != nil || !strings.Contains(got, "INT NOT NULL COMMENT 'preserve' AFTER `second`") {
+		t.Fatal(got, err)
+	}
+	request.After = "first"
+	if _, err = schemaSQL(request, objects, ""); err == nil {
+		t.Fatal("self position accepted")
+	}
+}
+
+func TestColumnDropRequiresExplicitMatchingForeignKeys(t *testing.T) {
+	objects := []SASchemaObject{{Kind: "column", Name: "parent_id", Definition: "INT"}, {Kind: "foreignKey", Name: "fk`parent", Definition: "(`parent_id`) REFERENCES `parent` (`id`)"}, {Kind: "foreignKey", Name: "other", Definition: "(`other_id`) REFERENCES `parent` (`id`)"}}
+	r := SASchemaChange{Database: "db", Table: "items", Kind: "column", Action: "drop", Original: "parent_id", DropForeignKeys: []string{"fk`parent"}}
+	got, err := schemaSQL(r, objects, "")
+	if err != nil || got != "ALTER TABLE `db`.`items` DROP FOREIGN KEY `fk``parent`, DROP COLUMN `parent_id`" {
+		t.Fatal(got, err)
+	}
+	for _, names := range [][]string{{"other"}, {"missing"}, {"fk`parent", "fk`parent"}} {
+		r.DropForeignKeys = names
+		if _, err = schemaSQL(r, objects, ""); err == nil {
+			t.Fatal("unrelated/missing/duplicate constraint accepted", names)
+		}
+	}
+}
+
+func TestNativeIndexNameCanBeAssignedByServer(t *testing.T) {
+	request := SASchemaChange{Database: "db", Table: "items", Kind: "index", Action: "add", IndexKind: "INDEX", Definition: "(`name`(20), `id`)"}
+	got, err := schemaSQL(request, nil, "")
+	if err != nil || got != "ALTER TABLE `db`.`items` ADD INDEX (`name`(20), `id`)" {
+		t.Fatal(got, err)
+	}
+	request.Action = "edit"
+	if _, err = schemaSQL(request, nil, ""); err == nil {
+		t.Fatal("unnamed index replacement accepted")
+	}
+}
+
+func TestAcknowledgedSchemaWarningFailureCannotReplay(t *testing.T) {
+	connector := &writeConnector{autocommit: 1, warningsReadErr: errors.New("warning metadata unavailable")}
+	session := fakeSession(t, connector)
+	plan, err := session.PrepareSchemaChange(SASchemaChange{Database: "test", Table: "sample", Kind: "column", Action: "edit", Original: "id", Name: "id", ColumnEdits: map[string]string{"type": "BIGINT"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = session.ApplySchemaChange(plan.Token); err == nil || !strings.Contains(err.Error(), "schema change was acknowledged") {
+		t.Fatal(err)
+	}
+	if _, err = session.ApplySchemaChange(plan.Token); err == nil {
+		t.Fatal("acknowledged DDL replayed")
+	}
+	if len(connector.execs) != 1 {
+		t.Fatal(connector.execs)
 	}
 }

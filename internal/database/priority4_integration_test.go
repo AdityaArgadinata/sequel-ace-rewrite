@@ -154,7 +154,16 @@ func TestPriority4Integration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out := s.ApplyCSVImport(csvPlan.Token)
+	lastProgress, totalProgress := -1, 0
+	out := s.ApplyCSVImportProgress(csvPlan.Token, func(completed, total int) {
+		if completed < lastProgress {
+			t.Fatal("CSV progress moved backwards")
+		}
+		lastProgress, totalProgress = completed, total
+	})
+	if lastProgress != out.Completed || totalProgress != out.Total {
+		t.Fatal("CSV final progress differs from outcome", lastProgress, totalProgress, out)
+	}
 	if out.Completed != 1 || !strings.Contains(out.Error, "record 2") {
 		t.Fatal(out)
 	}

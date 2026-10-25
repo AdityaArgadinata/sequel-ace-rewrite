@@ -107,12 +107,15 @@ func columnDefault(c *EditableColumn, raw, mode string) {
 	c.DefaultValue = &cell
 }
 func defaultString(value string, noBackslash bool) string {
+	return defaultQuotedString(value, noBackslash, '\'')
+}
+func defaultQuotedString(value string, noBackslash bool, quote byte) string {
 	var out strings.Builder
 	for i := 0; i < len(value); i++ {
 		c := value[i]
-		if c == '\'' && i+1 < len(value) && value[i+1] == '\'' {
+		if c == quote && i+1 < len(value) && value[i+1] == quote {
 			i++
-			out.WriteByte('\'')
+			out.WriteByte(quote)
 			continue
 		}
 		if c == '\\' && !noBackslash && i+1 < len(value) {

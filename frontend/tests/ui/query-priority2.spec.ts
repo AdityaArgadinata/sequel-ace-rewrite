@@ -76,14 +76,14 @@ test('Open SQL protects unsaved content; Save SQL does not execute it',async ({p
  await openQuery(page);
  await editor(page).fill('SELECT draft;');
  await page.evaluate(() => {(window as any).fixtureOpenFile={sql:"SELECT 'file; 😀';",name:'loaded.sql',cancelled:false};});
- await page.getByRole('button',{name:'Open SQL',exact:true}).click();
+ await page.getByRole('button',{name:'Open…',exact:true}).click();
  await expect(page.getByText('Replace unsaved editor contents?',{exact:false})).toBeVisible();
  await page.getByRole('button',{name:'Cancel',exact:true}).click();
  await expect(editor(page)).toContainText('SELECT draft;');
- await page.getByRole('button',{name:'Open SQL',exact:true}).click();
+ await page.getByRole('button',{name:'Open…',exact:true}).click();
  await page.getByRole('button',{name:'Replace editor contents',exact:true}).click();
  await expect(editor(page)).toContainText("SELECT 'file; 😀';");
- await page.getByRole('button',{name:'Save SQL',exact:true}).click();
+ await page.getByRole('button',{name:'Save Query',exact:true}).click();
  expect(await page.evaluate(() => (window as any).savedSQLFile)).toEqual({sql:"SELECT 'file; 😀';",name:'loaded.sql'});
  expect(await page.evaluate(() => (window as any).executedSQL?.length ?? 0)).toBe(0);
 });
@@ -160,7 +160,7 @@ test('Query tools and privacy controls fit an 800px window',async ({page},info) 
  await page.getByRole('combobox',{name:'Query history privacy',exact:true}).selectOption('sql');
  await page.getByRole('button',{name:'Query Favorites',exact:true}).click();
  await expect(page.getByRole('textbox',{name:'Favorite name',exact:true})).toBeVisible();
- for (const control of ['Open SQL','Save SQL','Refresh completion']) {
+ for (const control of ['Open…','Save Query','Refresh completion']) {
   const box=await page.getByRole('button',{name:control,exact:true}).boundingBox();
   expect(box && box.x>=0 && box.x+box.width<=800).toBeTruthy();
  }

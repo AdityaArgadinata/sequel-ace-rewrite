@@ -9,4 +9,9 @@ export function normalizePreferences(value:unknown):Preferences{
 }
 export function readPreferences():Preferences{try{return normalizePreferences(JSON.parse(localStorage.getItem('sa-preferences')??'{}'));}catch{return normalizePreferences({});}}
 
-export function shortcutHint(action:keyof Shortcuts){return readPreferences().shortcuts[action].replace('Mod','⌘/Ctrl');}
+export function shortcutHint(action:keyof Shortcuts){
+ const shortcut=readPreferences().shortcuts[action];
+ return /Mac/.test(navigator.platform)
+  ? shortcut.replace('Mod+','⌘').replace('Shift+','⇧').replace('Alt+','⌥').replace('Enter','↵')
+  : shortcut.replace('Mod','Ctrl');
+}

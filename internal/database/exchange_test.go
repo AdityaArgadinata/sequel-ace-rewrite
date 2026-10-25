@@ -122,3 +122,22 @@ func TestImportWarningsBounded(t *testing.T) {
 		t.Fatal(len(out.Warnings))
 	}
 }
+
+func TestNativeCSVExportOptions(t *testing.T) {
+	result := Result{Columns: []Column{{Name: "a"}, {Name: "b"}}, Rows: [][]Cell{{{Value: "NULL"}, {Null: true}}, {{Value: "line\nquote\""}, {Value: ""}}}}
+	var b bytes.Buffer
+	spec := SAExportSpec{Format: "csv", CSV: &SACSVExportOptions{Separator: ";", Header: true, NullValue: "\\N", LineEnding: "\r\n"}}
+	if n, err := WriteResultExport(&b, spec, result); err != nil || n != 2 {
+		t.Fatal(n, err)
+	}
+	if b.String() != "a;b\r\nNULL;\\N\r\n\"line\r\nquote\"\"\";\r\n" {
+		t.Fatalf("%q", b.String())
+	}
+	for _, options := range []SACSVExportOptions{{Separator: "x", LineEnding: "\n"}, {Separator: ",", LineEnding: "x"}, {Separator: ",", LineEnding: "\n", NullValue: "bad\nvalue"}} {
+		b.Reset()
+		spec.CSV = &options
+		if _, err := WriteResultExport(&b, spec, result); err == nil {
+			t.Fatal("invalid CSV settings accepted", options)
+		}
+	}
+}

@@ -69,6 +69,18 @@ func TestDatabaseDumpIntegration(t *testing.T) {
 	if err != nil || len(inv.Objects) != 9 {
 		t.Fatal(inv, err)
 	}
+	var selected bytes.Buffer
+	options := SADatabaseExportOptions{Objects: []SADumpSelection{{Kind: "TABLE", Name: "parent", Content: true}}}
+	rows, selectedErr := s.ExportSelectedDatabase(&selected, db, inv.Fingerprint, options)
+	if selectedErr != nil || rows != 1 || strings.Contains(selected.String(), "CREATE DATABASE") || strings.Contains(selected.String(), "CREATE TABLE") || strings.Contains(selected.String(), "CREATE VIEW") || strings.Contains(selected.String(), "CREATE EVENT") || !strings.Contains(selected.String(), "INSERT INTO "+qualified(db, "parent")) {
+		t.Fatal(rows, selectedErr, selected.String())
+	}
+	selected.Reset()
+	options.Objects[0] = SADumpSelection{Kind: "TABLE", Name: "parent", Structure: true, Drop: true}
+	rows, selectedErr = s.ExportSelectedDatabase(&selected, db, inv.Fingerprint, options)
+	if selectedErr != nil || rows != 0 || !strings.Contains(selected.String(), "DROP TABLE IF EXISTS "+qualified(db, "parent")) || strings.Contains(selected.String(), "INSERT INTO") {
+		t.Fatal(rows, selectedErr, selected.String())
+	}
 	var dump bytes.Buffer
 	n, err := s.ExportDatabase(&dump, db, inv.Fingerprint, true)
 	if err != nil || n != 2 {
@@ -99,7 +111,16 @@ func TestDatabaseDumpIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err, dump.String())
 	}
-	out := s.ApplySQLImport(preview.Token)
+	lastProgress, totalProgress := -1, 0
+	out := s.ApplySQLImportProgress(preview.Token, func(completed, total int) {
+		if completed < lastProgress {
+			t.Fatal("SQL progress moved backwards")
+		}
+		lastProgress, totalProgress = completed, total
+	})
+	if lastProgress != out.Completed || totalProgress != out.Total {
+		t.Fatal("SQL final progress differs from outcome", lastProgress, totalProgress, out)
+	}
 	if out.Error != "" || out.Completed != out.Total {
 		t.Fatal(out, dump.String())
 	}

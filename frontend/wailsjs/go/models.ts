@@ -448,6 +448,24 @@ export namespace database {
 	        this.line = source["line"];
 	    }
 	}
+	export class SACSVExportOptions {
+	    separator: string;
+	    header: boolean;
+	    nullValue: string;
+	    lineEnding: string;
+
+	    static createFrom(source: any = {}) {
+	        return new SACSVExportOptions(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.separator = source["separator"];
+	        this.header = source["header"];
+	        this.nullValue = source["nullValue"];
+	        this.lineEnding = source["lineEnding"];
+	    }
+	}
 	export class SACSVMapping {
 	    source: number;
 	    target: string;
@@ -500,6 +518,58 @@ export namespace database {
 	        this.name = source["name"];
 	        this.columns = this.convertValues(source["columns"], EditableColumn);
 	        this.cancelled = source["cancelled"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class SADumpSelection {
+	    kind: string;
+	    name: string;
+	    structure: boolean;
+	    content: boolean;
+	    drop: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new SADumpSelection(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.name = source["name"];
+	        this.structure = source["structure"];
+	        this.content = source["content"];
+	        this.drop = source["drop"];
+	    }
+	}
+	export class SADatabaseExportOptions {
+	    objects: SADumpSelection[];
+	    createDatabase: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new SADatabaseExportOptions(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.objects = this.convertValues(source["objects"], SADumpSelection);
+	        this.createDatabase = source["createDatabase"];
 	    }
 
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -573,7 +643,9 @@ export namespace database {
 		}
 	}
 
+
 	export class SAExportSpec {
+	    csv?: SACSVExportOptions;
 	    format: string;
 	    scope: string;
 	    browse: BrowseRequest;
@@ -587,6 +659,7 @@ export namespace database {
 
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.csv = this.convertValues(source["csv"], SACSVExportOptions);
 	        this.format = source["format"];
 	        this.scope = source["scope"];
 	        this.browse = this.convertValues(source["browse"], BrowseRequest);
@@ -684,6 +757,10 @@ export namespace database {
 	    indexKind: string;
 	    definition: string;
 	    columnEdits?: Record<string, string>;
+	    first?: boolean;
+	    after?: string;
+	    autoIndex?: string;
+	    dropForeignKeys?: string[];
 
 	    static createFrom(source: any = {}) {
 	        return new SASchemaChange(source);
@@ -700,6 +777,10 @@ export namespace database {
 	        this.indexKind = source["indexKind"];
 	        this.definition = source["definition"];
 	        this.columnEdits = source["columnEdits"];
+	        this.first = source["first"];
+	        this.after = source["after"];
+	        this.autoIndex = source["autoIndex"];
+	        this.dropForeignKeys = source["dropForeignKeys"];
 	    }
 	}
 	export class SASchemaObject {
@@ -909,6 +990,42 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.token = source["token"];
 	        this.candidates = this.convertValues(source["candidates"], nativefiles.SACandidate);
+	        this.cancelled = source["cancelled"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class SAImportFile {
+	    format: string;
+	    sql?: database.SASQLImportPreview;
+	    csv?: database.SACSVPreview;
+	    cancelled: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new SAImportFile(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.format = source["format"];
+	        this.sql = this.convertValues(source["sql"], database.SASQLImportPreview);
+	        this.csv = this.convertValues(source["csv"], database.SACSVPreview);
 	        this.cancelled = source["cancelled"];
 	    }
 

@@ -24,10 +24,6 @@ func (m *Manager) Open(c *database.Connection) (string, error) {
 		m.mu.Unlock()
 		return "", errors.New("maximum 16 query tabs")
 	}
-	if c != nil && (len(m.tabs) > 0 || m.opening > 0) {
-		m.mu.Unlock()
-		return "", errors.New("close existing tabs before connecting another server")
-	}
 	if c == nil {
 		c = m.connection
 	}

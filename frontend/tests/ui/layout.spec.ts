@@ -11,9 +11,9 @@ for (const viewport of [{width:800,height:600},{width:1280,height:720},{width:14
         await screenshot(page,info,'connection');
         await page.getByRole('button',{name:'SSH',exact:true}).click();
         await page.getByText('Password storage',{exact:true}).click();
-        await page.locator('#ssh-host').fill('ssh.example.com');
-        await page.locator('#host').fill('database.example.com');
-        await expect(page.locator('#host')).toHaveValue('database.example.com');
+        await page.getByLabel('SSH Host:',{exact:true}).fill('ssh.example.com');
+        await page.getByLabel('Host:',{exact:true}).fill('database.example.com');
+        await expect(page.getByLabel('Host:',{exact:true})).toHaveValue('database.example.com');
         await readableSelects(page);
         await page.getByRole('button',{name:'Connect',exact:true}).scrollIntoViewIfNeeded();
         const bounds=await page.getByRole('button',{name:'Connect',exact:true}).boundingBox();

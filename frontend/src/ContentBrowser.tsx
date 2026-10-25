@@ -7,14 +7,14 @@ import SADialog, {SAErrorDialog} from './SADialog';
 import RowEditor from './RowEditor';
 import SACellEditor from './SACellEditor';
 import SACSVImport from './SACSVImport';
-import SADataExport from './SADataExport';
+import {type SAExportContext} from './SAExportDialog';
 import ToolbarIcon from './ToolbarIcon';
 import {selectRows, adjacentCell, newRowCells, newRowValues} from './content-grid';
 import {readPreferences,shortcutHint} from './preferences';
 import {workspaceShortcut} from './workspace-shortcuts';
 
-type Props = {active:boolean;revision:number;onDraftChange:(draft:boolean)=>void;tab: string; databaseName: string; table: string; busy: boolean; operation: (work: () => Promise<void>, mayWrite?: boolean) => Promise<void>};
-export default function ContentBrowser({active,revision,onDraftChange,tab, databaseName, table, busy, operation}: Props) {
+type Props = {onExportContext?:(context:SAExportContext)=>void;active:boolean;revision:number;onDraftChange:(draft:boolean)=>void;tab: string; databaseName: string; table: string; busy: boolean; operation: (work: () => Promise<void>, mayWrite?: boolean) => Promise<void>};
+export default function ContentBrowser({active,revision,onDraftChange,onExportContext,tab, databaseName, table, busy, operation}: Props) {
     const activeRef=useRef(active);activeRef.current=active;
     const pointerTarget=useRef<EventTarget|null>(null);
     const initialized=useRef(false),previousActive=useRef(false);
@@ -92,6 +92,7 @@ export default function ContentBrowser({active,revision,onDraftChange,tab, datab
             setResult(output); setColumns(output.columns); setLoadedRevision(revision); setOffset(next); setJumpPage(String(Math.floor(next/limit)+1)); setApplied(signatureFor(order, desc));
         });
     }
+    useLayoutEffect(()=>{if(active)onExportContext?.({result,request:requestFor(offset),selectedRows,generatedColumns:details?.columns.filter(c=>c.generated).map(c=>c.name),blocked:dirty||!!editor||!!fieldEdit||!!cellEdit||!!insertDraft||confirmDelete});});
     async function exportCSV() {
         await operation(async () => {
             setWriteMessage('');
@@ -294,7 +295,6 @@ export default function ContentBrowser({active,revision,onDraftChange,tab, datab
         {fieldEdit && <SACellEditor key={`${fieldEdit.row}:${fieldEdit.column}`} {...fieldEdit} blocked={fieldBlocked || stale} busy={busy} onSave={saveField} onClose={closeField}/>}
         {writeError && <SAErrorDialog {...writeError} onClose={()=>setWriteError(null)}/>}
         {editor && details && <RowEditor key={`${editor}:${selectedRows.join(',')}`} details={details} row={result!.rows[selectedRows[0]]} duplicate={editor === 'duplicate'} count={editor === 'update' ? selectedRows.length : 1} busy={busy} onSave={values => void write(editor === 'update' ? 'update' : 'insert',values)} onCancel={() => setEditor(null)} />}
-        <SADataExport tab={tab} databaseName={databaseName} table={table} result={result} selectedRows={selectedRows} generatedColumns={details?.columns.filter(c=>c.generated).map(c=>c.name)} request={requestFor(offset)} busy={busy} disabled={dirty || !!editor || !!fieldEdit || !!cellEdit || !!insertDraft || confirmDelete} operation={operation}/>
         <ResultGrid initialView={gridView.current} onViewChange={view=>{gridView.current=view;}} result={displayResult} busy={busy || !!editor || !!fieldEdit || !!cellEdit || confirmDelete || !!insertError} sortDisabled={!!insertDraft}
             onEmptyDoubleClick={()=>{if(insertDraft)void saveInsert();else beginInsert();}} selected={selected} selectedRows={selectedRows} onSelect={select}
             onSelectAll={() => { if (result && !insertDraft) {setSelectedRows(result.rows.map((_,i) => i)); setSelected(0); anchor.current = 0;} }}
