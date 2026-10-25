@@ -30,7 +30,8 @@ def run(binary, report):
                 'sha256': hashlib.sha256(binary.read_bytes()).hexdigest(),
                 'status': 'failed', 'databaseQA': False, 'fullInstallQA': False}
     process = None
-    with tempfile.TemporaryDirectory(prefix='sequelx-native-qa-') as folder:
+    # shortcut: WebView2 may retain metrics locks; the ephemeral CI runner removes leftovers.
+    with tempfile.TemporaryDirectory(prefix='sequelx-native-qa-', ignore_cleanup_errors=True) as folder:
         root = Path(folder)
         env = os.environ.copy()
         for key, child in [('HOME', 'home'), ('USERPROFILE', 'home'), ('APPDATA', 'roaming'),
