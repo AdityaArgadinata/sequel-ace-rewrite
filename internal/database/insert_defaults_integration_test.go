@@ -57,7 +57,7 @@ func TestInlineInsertDefaultsIntegration(t *testing.T) {
 		}
 	}
 	if c := cols["title"]; c.DefaultValue == nil || !strings.HasPrefix(c.DefaultValue.Value, "quote' \\ é") {
-		t.Fatal("quoted default lost", c.DefaultValue)
+		t.Fatalf("quoted default lost: %+v; definition: %+v", c, run("SHOW CREATE TABLE "+target))
 	}
 	if cols["created"].DefaultExpression == "" {
 		t.Fatal("timestamp expression was treated as a literal", cols["created"])
