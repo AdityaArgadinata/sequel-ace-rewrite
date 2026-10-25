@@ -1410,8 +1410,9 @@ beserta verifikasinya selesai; tidak dianggap tercakup oleh tes fitur sebelumnya
   Windows unsigned dan instalasi pembaruan manual. Signing production bukan syarat
   distribusi GitHub saat ini. Tidak menyimpan sertifikat atau
   credential GitHub dalam app. Signing production/notarization belum diaktifkan.
-- [ ] Jalankan workflow Windows/Linux dan periksa laporan native startup; step baru
-  belum dijalankan pada runner kedua OS. QA manual koneksi, credential vault,
+- [x] Workflow Windows/Linux dan startup native lulus pada rilis v0.1.0 (lihat
+  catatan publikasi di bawah).
+- [ ] QA manual koneksi, credential vault,
   shortcut native, CRUD, import/export, upgrade/uninstall dan instalasi bersih pada
   desktop Windows/Linux tetap diperlukan. Tidak tersedia lingkungan desktop kedua
   OS pada host lokal ini.
@@ -1422,4 +1423,34 @@ beserta verifikasinya selesai; tidak dianggap tercakup oleh tes fitur sebelumnya
   disposable tidak aktif), 24 unit frontend dan 52 tes UI terkait Chromium/WebKit
   lulus, dua unit probe smoke test dan actionlint lulus. Build darwin/arm64 lokal
   diperbarui dan signature ad hoc diperiksa. QA native Windows/Linux masih terbuka;
-  prioritas 6 belum ditandai selesai. Belum dipush atau dipublish.
+  prioritas 6 belum ditandai selesai. Status push/publikasi terbaru ada di bawah.
+
+
+## Release v0.1.0 dipublikasikan — 2026-10-25
+
+- [x] Seluruh implementasi prioritas 1–6 yang tersedia dipush ke repo rewrite.
+  [v0.1.0](https://github.com/AdityaArgadinata/sequel-ace-rewrite/releases/tag/v0.1.0)
+  dipublish sebagai rilis biasa/latest, bukan prerelease. Commit binary
+  `a3cca808a947e661671b67125e95e4624f0fbd70`.
+- [x] Lima paket tersedia: macOS arm64 DMG/ZIP, Windows amd64 installer/portable
+  ZIP, Linux amd64 tar.gz, ditambah SHA256SUMS.txt. Build lokal diperbarui dengan
+  identitas v0.1.0; signature ad hoc diverifikasi. Ikon tidak berubah.
+- [x] [CI rilis](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/runs/40150462434)
+  lulus: 262 tes UI Chromium/WebKit pada masing-masing dari tiga OS, tes/vet Go,
+  credential vault native, smoke startup Linux dan Windows dari installer baru,
+  serta integrasi MySQL 8.4/MariaDB 11.4. Tes TLS khusus masih membutuhkan fixture.
+- Verifikasi lintas server menemukan dan memperbaiki default teks MySQL 8 yang
+  ditampilkan sebagai hex, serta fixture event yang sempat berjalan langsung.
+  Default hex kini memakai metadata yang didekode oleh server; event tes dijadwalkan
+  satu hari kemudian dan setting scheduler disposable dikembalikan setelah tes.
+- Job Windows pertama berhenti saat cleanup metrics WebView2 yang masih terkunci,
+  sesudah startup berhasil. Pengulangan job lulus. Main menambah toleransi cleanup
+  sementara pada runner ephemeral dan regresi untuk memastikan kegagalan startup
+  tetap dilaporkan gagal; perubahan ini hanya infrastruktur CI, binary tetap sama.
+- [ ] QA desktop manual penuh (koneksi, CRUD, native shortcut, upgrade/uninstall)
+  pada Windows/Linux tetap terbuka; smoke startup tidak membuktikan semua alur GUI.
+  Paket macOS ad hoc/tidak notarized dan Windows unsigned, sesuai keputusan
+  distribusi GitHub. Prioritas 6 tidak ditutup seluruhnya hanya karena publish.
+- [x] Kelima paket publik diunduh ulang dan SHA-256 semuanya cocok dengan
+  SHA256SUMS.txt serta digest aset GitHub. Arsip ZIP/tar dan DMG diperiksa;
+  salinan lokal terverifikasi ada di `dist/from-github/v0.1.0/`.

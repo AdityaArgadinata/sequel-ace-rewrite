@@ -17,7 +17,8 @@ builds run in CI; manual GUI validation on those platforms remains open.
 
 You do **not** need Go, Node.js, or the Wails CLI to run a prebuilt application.
 Download the assets for your OS from [GitHub Releases](https://github.com/AdityaArgadinata/sequel-ace-rewrite/releases).
-Development releases are marked as pre-releases. If a release has not been
+The current normal release is [v0.1.0](https://github.com/AdityaArgadinata/sequel-ace-rewrite/releases/tag/v0.1.0).
+Tags with a preview suffix are marked as pre-releases. If a release has not been
 published yet, repository collaborators can access its draft; other users can
 try a successful [GitHub Actions build](https://github.com/AdityaArgadinata/sequel-ace-rewrite/actions/workflows/rewrite.yml)
 by downloading and extracting its OS-specific artifact.
@@ -29,7 +30,7 @@ by downloading and extracting its OS-specific artifact.
 | Ubuntu 24.04, x64 | `linux-amd64.tar.gz` | Install the runtime packages below, extract the archive, then run `./sequelx`. |
 
 Filenames include the version, for example
-`sequelx-v0.1.0-alpha.1-macos-arm64.dmg`. CI artifacts for ordinary branch
+`sequelx-v0.1.0-macos-arm64.dmg`. CI artifacts for ordinary branch
 builds use `dev-<commit>` instead. The archive downloaded from GitHub Actions
 wraps the actual distribution files; extract it first.
 
@@ -42,7 +43,7 @@ packages, then launch from the folder containing the downloaded archive
 sudo apt-get update
 sudo apt-get install -y libgtk-3-0t64 libwebkit2gtk-4.1-0
 mkdir sequelx
-tar -xzf sequelx-v0.1.0-alpha.1-linux-amd64.tar.gz -C sequelx
+tar -xzf sequelx-v0.1.0-linux-amd64.tar.gz -C sequelx
 cd sequelx
 ./sequelx
 ```
@@ -75,7 +76,8 @@ To create a version from GitHub:
 2. Choose the branch/commit to build and enter a new `release_tag`, such as
    `v0.1.0-alpha.1`. Leave it empty for an ordinary CI build without a release.
 3. Wait for every build and database test to pass. The final job uploads all
-   five packages and checksums to a **draft pre-release**.
+   five packages and checksums to a **draft release**. A preview suffix also marks
+   the draft as a pre-release; ordinary version tags create a normal draft.
 4. Open **Releases**, inspect the draft and try the packages. Edit the notes as
    needed, then click **Publish release** when ready.
 
@@ -774,10 +776,12 @@ limit errors can be retried explicitly. No GitHub credentials are bundled.
 
 Distribution remains development grade: macOS signatures are ad hoc, Windows
 packages are unsigned. Distribution is via GitHub Releases with manual installation;
-production signing/notarization is optional outside the current distribution scope. CI now includes native startup smoke tests for Linux under Xvfb and a
+production signing/notarization is optional outside the current distribution scope.
+CI now includes native startup smoke tests for Linux under Xvfb and a
 fresh Windows NSIS installation, using empty application configuration and no SQL
-connections. JSON evidence is uploaded separately. These new jobs have not yet
-been executed on Windows/Linux; a passing startup probe does not establish full
+connections. JSON evidence is uploaded separately. The v0.1.0 workflow passed both
+startup probes, including startup from a clean Windows installation. A passing
+startup probe does not establish full
 desktop, upgrade/uninstall or database QA. See milestone priority 6 for the remaining
 manual checks. Signing guidance: [Apple Developer ID](https://developer.apple.com/developer-id/)
 and [notarization](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution).
