@@ -16,15 +16,16 @@ import (
 )
 
 type App struct {
-	workspace        workspace.Manager
-	ctx              context.Context
-	profiles         *profiles.Store
-	credentials      *credentials.Store
-	history          history.Store
-	queryFavorites   queryfavorites.Store
-	nativeMu         sync.Mutex
-	nativeToken      string
-	nativeCandidates []nativefiles.SACandidate
+	workspace          workspace.Manager
+	ctx                context.Context
+	profiles           *profiles.Store
+	credentials        *credentials.Store
+	history            history.Store
+	queryFavorites     queryfavorites.Store
+	nativeMu           sync.Mutex
+	preferenceShortcut *string
+	nativeToken        string
+	nativeCandidates   []nativefiles.SACandidate
 }
 
 func NewApp() *App                                                      { return &App{profiles: profiles.NewStore(""), credentials: credentials.New()} }

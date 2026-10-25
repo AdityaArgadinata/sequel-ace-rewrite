@@ -311,12 +311,77 @@ implemented. Database TLS verification remains enabled independently of SSH.
   cannot be rolled back. Finish any active managed transaction before editing
   MyISAM. The account needs LOCK TABLES permission. Arbitrary Query results,
   views, and ineligible tables remain read-only.
+- **New inline row:** click **+ / Insert row**, choose **Insert row** from the
+  grid context menu, or double-click the empty area below the last Content row
+  to create the same draft using column defaults. Double-click the empty area again, press
+  Enter, or click **Save new row** to insert it. Tab/Shift+Tab move between draft
+  cells; Escape or **Cancel new row** discards it. Failed inserts keep the draft
+  and offer **Edit row** / **Discard changes**. Untouched defaults are evaluated
+  by the server; auto-increment and generated values are not supplied by the draft.
+  If a saved row cannot be refreshed, reload separately instead of inserting again.
+- **Expanded cell editor:** right-click a Content cell and choose **Open cell
+  editor**, or press **Alt+Enter** from its inline editor. Text/JSON/BLOB values
+  open in a larger editor with literal Find/Next/Previous (Cmd/Ctrl+F), Text/Hex
+  representations, explicit NULL and read-only previews. JSON preview keeps large
+  numeric literals intact; JSON columns are syntax-checked before saving. Preview
+  supports text, JSON, hex and local PNG/JPEG/GIF/WebP bytes; HTML/SVG stay text.
+  Double-clicking Content still starts inline editing. Double-click a Query cell,
+  or choose **Open cell viewer**, to inspect/export its loaded value read-only.
+  Import uses a native file dialog and changes the draft only. Export writes raw
+  UTF-8 text or decoded binary bytes to a new filename, preserving BOM/CRLF/NUL;
+  NULL is not exported as an empty file. Values must fit the existing 4 MiB encoded
+  cell limit (binary imports approximately 2 MiB raw). JSON preview accepts up to
+  64 KiB input, text preview shows up to 65,536 characters, and hex preview shows
+  up to 4 KiB of bytes; previews do not change the saved value. **Save cell** uses
+  the original row snapshot for conflict detection. **Apply to new row** only
+  updates its draft; save the row separately. After a failed write, the cell draft
+  remains available for export, while another save requires closing, checking the
+  server and reloading. Cmd/Ctrl+Enter saves; Escape/Cancel discards cell edits.
+- **CRUD dialogs:** row duplication/editing and delete confirmations use
+  centered modal dialogs with the existing app icon. Delete focuses Cancel;
+  Escape cancels without writing. Structure, table/database and administration
+  changes use the same dialog style and retain their SQL review/acknowledgment
+  requirements. Errors show server details; acknowledging an error never retries
+  a write. Successful row counts remain in the bottom status area.
 - **Grid context menu:** copy cell/row/selection, headers, CSV or SQL INSERT
   (with/without auto-increment), select/clear, edit, insert, duplicate, delete,
   set NULL, prepare a cell filter and refresh. SQL copy excludes generated columns.
+- **Database SQL transfer:** open **Connection actions → Transfer database**,
+  inspect the visible inventory, review it, then save structure and optional data.
+  Tables (including generated columns), internal foreign keys, view dependencies,
+  functions, procedures, ordered triggers and events are included. Table data is
+  loaded before triggers and foreign keys; events restore disabled for review.
+  TIMESTAMP data is read/restored in UTC; the source session time zone is restored.
+  Import the file through **Import SQL dump** on a server where the original
+  database name does not exist. Database names, DEFINER accounts and external SQL
+  references are preserved; grants and accounts are not exported. Direct database
+  copy/move retains its existing restrictions on special objects.
+  The exporter checks definitions before and after writing and publishes only a
+  completed new file. Use an account with full metadata visibility; inventories
+  cannot reveal objects hidden from that account. Pause concurrent writes/DDL:
+  this is not a consistent transactional snapshot across tables/engines.
+  Limits: 1,000 objects, 8 MiB definitions, 64 MiB file, 100,000 statements,
+  4 MiB per statement and the existing 60-second operation timeout. Unsupported
+  object kinds, unreadable definitions, ambiguous/cyclic view dependencies or
+  changed database creation collation fail explicitly. Cross-server version,
+  charset, DEFINER privileges and external dependencies require review.
+  Literal `SET SESSION sql_mode = '...'` transitions are split under their declared
+  mode and checked on the server before each imported statement. MySQL SQL_MODE
+  deprecation warnings (1287/1681/3090) are reported and allowed only for these
+  literal SETs; other warnings/errors stop import. Failure reports the statement,
+  source line and acknowledged prefix; there is no automatic retry or rollback.
+  Stored-object context follows [MySQL SHOW CREATE documentation](https://dev.mysql.com/doc/refman/8.0/en/show-create-trigger.html).
 - **Table History:** Back/Forward restores table/database/view per session,
   keeping up to 100 entries; navigating elsewhere clears the forward branch.
-  It reloads data without replaying user SQL; filter/editor drafts are not restored.
+  Each connection tab retains up to eight Content workspaces in memory: filters,
+  sorting, page, selection, scroll, column widths and unsaved row drafts return
+  when navigating tables, databases, views or connection tabs. Clean workspaces
+  are evicted first; drafts and unapplied filter changes are protected. Restoring
+  does not rerun queries or writes. Cached rows may have changed on the server;
+  writes still check the original row. SQL, schema/admin changes and transaction
+  completion invalidate snapshots and require reload before writing. Explicitly
+  discarding drafts requires confirmation. Closing the connection tab or app
+  ends this in-memory lifetime; it is not saved to disk.
 - **Structure:** inspect Columns, Indexes / Primary key, Foreign keys, and CREATE
   statement. Select a row and Edit/Drop, or double-click to edit. Add opens a new
   object form. Name + Definition SQL preserve the server's complete type and
@@ -460,9 +525,14 @@ before the content limit is checked, so a very large BLOB can exceed that limit
 in temporary memory.
 
 Cancellation or timeout discards the session and clears partial query results.
-Reaching a result limit also discards the session; any displayed truncated
-result is incomplete. Reconnect explicitly; sessions and SQL are never replayed
-automatically. A cancelled write is not guaranteed to have rolled back: verify
+When the display limit is reached, the app consumes and discards the remaining
+response within a separate budget: at most 10,000 discarded rows / 16 MiB of raw
+cell data / 2 seconds. If the current response finishes, the same pinned session,
+temporary tables, variables and transaction remain active. No query is rerun and
+no implicit COMMIT is sent. The displayed result stays incomplete, and remaining
+script statements are not executed. If the response exceeds that budget or has
+additional result sets, the session is closed and the notice asks for reconnect.
+Sessions and SQL are never replayed automatically. A cancelled write is not guaranteed to have rolled back: verify
 the server before repeating it. Rollback protects transactional engines, not
 external effects or writes to nontransactional tables.
 
@@ -514,8 +584,17 @@ Use **Cmd** on macOS or **Ctrl** on Windows/Linux with focus in the workspace.
 | Arrow keys / Home / End | Navigate grid rows or copy-menu actions |
 | Escape | Close the grid copy menu |
 
-Option+Cmd+F also focuses the Content filter on macOS. Refresh/filter shortcuts
-leave an open row editor or delete confirmation alone.
+These are defaults. **Settings → Keyboard shortcuts** remaps view commands,
+reload/filter, run current/selection, run all, and Preferences. `Mod` means Command
+on macOS and Control on Windows/Linux; optional Shift/Alt modifiers are supported.
+Save validates duplicates and reserves common editing/app/window commands.
+Repeats, input composition and AltGr text input do not execute web shortcut commands. Empty
+bindings disable a command; Reset shortcuts restores defaults. The native Settings
+menu accelerator follows the Preferences binding; the gear/menu click remains
+available if it is disabled. SQL run shortcuts act only in the SQL editor.
+Option+Cmd+F also focuses the Content filter on macOS while its default binding
+remains configured. Refresh/filter shortcuts leave an open row editor or delete
+confirmation alone; modal dialogs block workspace shortcuts.
 
 ## Development checks
 
@@ -631,17 +710,45 @@ See [LICENSE](LICENSE) for the MIT license and retained Sequel Ace attribution.
 ## Additional panels and connection options
 
 Relations edits foreign keys; Triggers supports reviewed create/drop; Table Info
-shows metadata and changes engine/default collation/comment. Users provides basic
-account/password and database/table privilege management and requires server admin
-permissions. SQL Console retains up to 500 verb/initial-response events in memory,
+shows metadata and changes engine/default collation/comment. Users provides
+account create/password/drop, rename and lock/unlock, plus explicit grant/revoke
+scopes for global, database, table, column, procedure and function privileges.
+Database-level grants escape wildcard characters unless MySQL partial_revokes
+requires literal database names. Column names are entered one per line. Delegation
+uses WITH GRANT OPTION, with a separate action to revoke that option. Existing
+roles can be assigned/revoked or set/cleared as defaults on MySQL 8+ / MariaDB 10.2+;
+role hosts apply only to MySQL. Role creation, MySQL dynamic privileges, account
+resource limits and arbitrary authentication plugins remain SQL-editor tasks.
+Account management requires privileges to inspect mysql.user, SHOW CREATE USER,
+SHOW GRANTS and, on MySQL role changes, mysql.default_roles. Previews include
+account definition, grants/role metadata and partial_revokes state in stale checks.
+Account SQL is one reviewed, single-use statement; passwords stay hidden in previews.
+Role syntax/capabilities follow [MySQL GRANT](https://dev.mysql.com/doc/refman/8.0/en/grant.html)
+and [MariaDB SET DEFAULT ROLE](https://mariadb.com/docs/server/reference/sql-statements/account-management-sql-statements/set-default-role).
+Locking an account does not terminate its existing sessions. Unsupported syntax or
+insufficient privileges fails without automatic retries. SQL Console retains up to 500 verb/initial-response events in memory,
 without query text or parameters. Changes may implicitly commit; there is no
-automatic replay or undo. Advanced native privilege/trigger controls remain open.
+automatic replay or undo. Editing an existing trigger still requires separate
+reviewed drop/create operations.
 
 Connection settings include local UNIX sockets (absolute path, no TLS/SSH), server
 session timezone, SSH agent (`SSH_AUTH_SOCK`) and pre-entered keyboard-interactive
 answers. Named zones require MySQL timezone tables. Folder paths and colors are
-saved with favorites. Preferences offers dark/light/system, editor font/size/wrap;
-Cmd/Ctrl+1–6 switches views. The Settings gear beside Console or Cmd/Ctrl+, opens the preferences dialog;
+saved with favorites. **Folders** on the connection sidebar creates persistent
+empty/nested folders, renames/moves subtrees, or removes folders while moving all
+their favorites to Unfiled. Profile IDs and credential-store entries are preserved.
+Folder filter/collapse controls organize the list; an individual favorite moves via
+its Folder field and Save Changes. Paths support ten levels/200 UTF-8 bytes, with
+no implicit merges. Folder changes validate all profiles first and publish each
+profile atomically, then the folder document. Multi-profile changes are not atomic;
+a failure reports its completed prefix. Reload before retrying a partial operation.
+The existing profile v1 format stays readable; .folders-v1 stores empty folder paths.
+Preferences offers dark/light/system, editor font/size/wrap, SQL tab width (2/4/8),
+default Content page size (25/50/100/200) and shortcut remapping. The page default
+applies only to newly opened table workspaces, preserving existing pages/drafts.
+Reset preferences restores these settings without clearing favorites or SQL drafts.
+Preferences and bindings persist in localStorage using the existing key/legacy values.
+Cmd/Ctrl+1–6 switches views by default. The Settings gear beside Console or Cmd/Ctrl+, opens the preferences dialog;
 there is no extra preferences toolbar row. A native Settings menu is also available.
 
 AWS IAM needs `aws` available in the app environment with configured credentials;
@@ -655,3 +762,22 @@ Query exposes server HELP. **Save print view** exports the loaded result as HTML
 open it in a browser and choose **Print / Save PDF**. It never reruns SQL and marks
 truncated results. Native print dialogs and external AWS/Vault account QA are still
 open. See [milestone.md](milestone.md) for all remaining parity/verification work.
+
+
+Preferences includes an explicit **Check for updates** button. It fetches public
+GitHub release metadata (up to 100 recent releases), compares complete SemVer tags
+and excludes prereleases unless enabled. CI embeds the release tag; local builds
+are identified as development builds. **Open release downloads** opens the trusted
+repository release page in your browser. Installation is manual; no automatic
+network checks, package installation or session shutdown occurs. Offline/API rate
+limit errors can be retried explicitly. No GitHub credentials are bundled.
+
+Distribution remains development grade: macOS signatures are ad hoc, Windows
+packages are unsigned. Distribution is via GitHub Releases with manual installation;
+production signing/notarization is optional outside the current distribution scope. CI now includes native startup smoke tests for Linux under Xvfb and a
+fresh Windows NSIS installation, using empty application configuration and no SQL
+connections. JSON evidence is uploaded separately. These new jobs have not yet
+been executed on Windows/Linux; a passing startup probe does not establish full
+desktop, upgrade/uninstall or database QA. See milestone priority 6 for the remaining
+manual checks. Signing guidance: [Apple Developer ID](https://developer.apple.com/developer-id/)
+and [notarization](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution).

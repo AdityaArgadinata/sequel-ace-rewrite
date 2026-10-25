@@ -30,3 +30,23 @@ test('copy encodes CSV and SQL without treating user values as SQL', () => {
  assert.match(copyRows(columns,rows,'headers'),/^key`\tbytes\tnull\n/);
  assert.equal(copyRows(columns,[],'tsv'),'');
 });
+
+test('new rows preview defaults without writing expressions, generated or automatic values',async()=>{
+ const {newRowCells,newRowValues}=await import('../src/content-grid.ts');
+ const columns=[
+  {name:'id',autoIncrement:true},
+  {name:'count',defaultValue:{value:'0',null:false,binary:false}},
+  {name:'name',defaultValue:{value:'',null:false,binary:false}},
+  {name:'required',nullable:false},
+  {name:'optional',nullable:true},
+  {name:'created',defaultExpression:'CURRENT_TIMESTAMP'},
+  {name:'computed',generated:true},
+ ];
+ const cells=newRowCells(columns);
+ assert.equal(cells[0].null,true);assert.equal(cells[1].value,'0');assert.equal(cells[2].null,false);assert.equal(cells[2].value,'');assert.equal(cells[3].null,true);assert.equal(cells[5].value,'CURRENT_TIMESTAMP');
+ assert.deepEqual(Object.keys(newRowValues(columns,cells,{})),['required']);
+ cells[2]={value:'edited',null:false,binary:false};cells[3]={value:'42',null:false,binary:false};
+ const values=newRowValues(columns,cells,{name:cells[2],required:cells[3]});
+ assert.deepEqual(Object.keys(values),['name','required']);assert.equal(values.name.value,'edited');
+ assert.equal(columns[2].defaultValue.value,'');
+});

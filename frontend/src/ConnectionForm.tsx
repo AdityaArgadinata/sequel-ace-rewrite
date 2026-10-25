@@ -1,8 +1,9 @@
 import {FormEvent, useEffect, useState} from 'react';
-import {DeleteProfile, ListProfiles, SaveProfile, SaveCredentials, LoadCredentials, DeleteCredentials} from '../wailsjs/go/main/App';
+import {DeleteProfile, ListProfiles, SaveProfile, SaveCredentials, LoadCredentials, DeleteCredentials, ListFavoriteFolders} from '../wailsjs/go/main/App';
 import {credentials, database, profiles, tunnel, nativefiles,authproviders} from '../wailsjs/go/models';
 import ToolbarIcon from './ToolbarIcon';
 import Splitter from './Splitter';
+import SAFavoriteFolders from './SAFavoriteFolders';
 import SANativeImport from './SANativeImport';
 
 type Props = {busy: boolean; onConnect: (connection: database.Connection, state?:nativefiles.SASession) => Promise<void>; sidebarWidth: number; onSidebarResize: (value: number) => void};
@@ -10,6 +11,7 @@ type Props = {busy: boolean; onConnect: (connection: database.Connection, state?
 export default function ConnectionForm({busy, onConnect, sidebarWidth, onSidebarResize}: Props) {
     const [saved, setSaved] = useState<profiles.Profile[]>([]);
     const [selected, setSelected] = useState('');
+ const [folders,setFolders]=useState<string[]>([]),[folderFilter,setFolderFilter]=useState(''),[collapsed,setCollapsed]=useState<string[]>([]),[showFolders,setShowFolders]=useState(false);
     const [initialDatabase,setInitialDatabase]=useState('');
     const [nativeState,setNativeState]=useState<nativefiles.SASession|undefined>();
     const [name, setName] = useState('');
@@ -58,6 +60,8 @@ export default function ConnectionForm({busy, onConnect, sidebarWidth, onSidebar
         return () => { active = false; };
     }, []);
 
+    useEffect(()=>{let active=true;ListFavoriteFolders().then(list=>{if(active)setFolders(list);}).catch(e=>{if(active)setNotice(String(e));});return()=>{active=false;};},[saved]);
+    async function reloadFolders(){const list=await ListProfiles();setSaved(list);const p=list.find(p=>p.id===selected);if(p)setFolder(p.folder??'');setFolders(await ListFavoriteFolders());setFolderFilter('');setStorageError('');}
     function choose(id: string) {
         const p = saved.find(profile => profile.id === id);
         setNativeState(undefined);applyProfile(p);
@@ -139,16 +143,19 @@ export default function ConnectionForm({busy, onConnect, sidebarWidth, onSidebar
             <button className={`favorite quick ${!selected ? 'selected' : ''}`} disabled={busy || saving} onClick={() => choose('')}><span className="quick-symbol">ϟ</span> QUICK CONNECT</button>
             <h2>FAVORITES</h2>
             <div className="favorites-list" role="list" aria-label="Saved connections">
-                {[...saved].sort((a,b)=>(a.folder??'').localeCompare(b.folder??'')||a.name.localeCompare(b.name)).map((p,index,list) => <div role="listitem" key={p.id}>{p.folder && (index===0||list[index-1].folder!==p.folder) && <h3 className="favorite-folder">{p.folder}</h3>}<button title={`${p.host}:${p.port}`} className={`favorite ${selected === p.id ? 'selected' : ''}`} disabled={busy || saving || loading} onClick={() => choose(p.id)}><ToolbarIcon name="database" /><span style={{borderLeft:p.color&&p.color!=='none'?`3px solid ${p.color}`:undefined,paddingLeft:4}}>{p.name}</span></button></div>)}
+                <label className="favorites-folder-filter">Folder<select aria-label="Filter favorite folder" value={folderFilter} onChange={e=>setFolderFilter(e.target.value)}><option value="">All folders</option><option value="@unfiled">Unfiled</option>{folders.map(f=><option key={f} value={`folder:${f}`}>{f}</option>)}</select></label>
+                {[...new Set([...folders,...saved.map(p=>p.folder??'')])].sort().map(group=>{if(folderFilter && (folderFilter==='@unfiled'?group!=='':group!==folderFilter.slice(7)&&!group.startsWith(folderFilter.slice(7)+'/')))return null;if(collapsed.some(parent=>group!==parent&&group.startsWith(parent+'/')))return null;const entries=saved.filter(p=>(p.folder??'')===group).sort((a,b)=>a.name.localeCompare(b.name));return <div key={group}>{group&&<h3 className="favorite-folder"><button aria-label={`Toggle favorite folder ${group}`} aria-expanded={!collapsed.includes(group)} onClick={()=>setCollapsed(old=>old.includes(group)?old.filter(f=>f!==group):[...old,group])}>{collapsed.includes(group)?'▸':'▾'} {group}</button></h3>}{!collapsed.includes(group)&&entries.map(p=><div role="listitem" key={p.id}><button title={`${p.host}:${p.port}`} className={`favorite ${selected === p.id ? 'selected' : ''}`} disabled={busy || saving || loading} onClick={()=>choose(p.id)}><ToolbarIcon name="database"/><span style={{borderLeft:p.color&&p.color!=='none'?`3px solid ${p.color}`:undefined,paddingLeft:4}}>{p.name}</span></button></div>)}</div>;})}
 
             </div>
             <div className="sidebar-bottom">
                 <button aria-label="New connection" title="New connection" disabled={busy || saving} onClick={() => choose('')}>＋</button>
+                <button type="button" className="favorite-folders-button" disabled={busy||saving||!!storageError} onClick={()=>setShowFolders(v=>!v)}>Folders</button>
                 <button aria-label="Delete favorite" title="Delete favorite" disabled={busy || saving || !selected || !!storageError} onClick={() => setConfirmDelete(true)}>−</button>
             </div>
         </aside>
         <Splitter label="Favorites sidebar width" controls="favorites-panel" axis="x" value={sidebarWidth} min={15} max={35} onChange={onSidebarResize} />
         <section className="connection-pane">
+            {showFolders&&<SAFavoriteFolders folders={folders} disabled={busy||saving} onReload={reloadFolders} onBusyChange={setSaving} onClose={()=>setShowFolders(false)}/>}
             <h1>Enter connection details below, or choose a favorite</h1>
             <SANativeImport disabled={busy || saving} onReload={retry} onSession={state=>{applyProfile(state.profile);setNativeState(state);setInitialDatabase(state.database);setNotice(state.notice);}}/>
             <form onSubmit={e => void connect(e)} className="connection-form">

@@ -85,7 +85,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install Linux desktop dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config gnome-keyring dbus-x11
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config gnome-keyring dbus-x11 xvfb x11-utils
       - name: Install Windows installer tools
         if: runner.os == 'Windows'
         shell: powershell
@@ -102,7 +102,7 @@ jobs:
         working-directory: frontend
       - name: Check Go formatting
         run: |
-          unformatted="$(gofmt -l app.go main.go export.go internal)"
+          unformatted="$(gofmt -l .)"
           if [ -n "$unformatted" ]; then
             printf '%s\n' "$unformatted"
             exit 1
@@ -148,6 +148,8 @@ jobs:
             go test ./...
             go vet ./...
           fi
+      - name: Test native smoke probes
+        run: python -m unittest discover -s tools -p 'test_*.py'
       - name: Test native Windows credential vault
         if: runner.os == 'Windows'
         env:
@@ -176,15 +178,41 @@ jobs:
         run: |
           node -e 'const fs = require("fs"); const p = "wails.json"; const config = JSON.parse(fs.readFileSync(p)); config.info.productVersion = process.env.BUILD_VERSION; fs.writeFileSync(p, JSON.stringify(config, null, 2) + "\n");'
       - name: Build desktop application
+        env:
+          BUILD_LABEL: ${{ needs.prepare.outputs.label }}
         run: |
           if [ "$RUNNER_OS" = Linux ]; then
-            wails build -platform linux/amd64 -tags webkit2_41
+            wails build -platform linux/amd64 -tags webkit2_41 -ldflags "-X main.buildVersion=$BUILD_LABEL"
           elif [ "$RUNNER_OS" = Windows ]; then
-            wails build -platform windows/amd64 -nsis
+            wails build -platform windows/amd64 -nsis -ldflags "-X main.buildVersion=$BUILD_LABEL"
             test -f build/bin/sequelx-amd64-installer.exe
           else
-            wails build -platform darwin/arm64
+            wails build -platform darwin/arm64 -ldflags "-X main.buildVersion=$BUILD_LABEL"
           fi
+      - name: Native Linux startup with isolated configuration
+        if: runner.os == 'Linux'
+        run: dbus-run-session -- xvfb-run -a python3 tools/native_smoke.py build/bin/sequelx --report qa/native-startup-linux.json
+      - name: Clean Windows installer startup
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $target = Join-Path $env:RUNNER_TEMP 'sequelx-clean-install'
+          if (Test-Path $target) { throw 'Clean install path already exists' }
+          $setup = Start-Process -FilePath 'build/bin/sequelx-amd64-installer.exe' -ArgumentList '/S',("/D=" + $target) -PassThru
+          if (!$setup.WaitForExit(120000)) { $setup.Kill(); throw 'Installer timed out' }
+          if ($setup.ExitCode -ne 0) { throw 'Installer failed' }
+          $binary = Join-Path $target 'sequelx.exe'
+          if (!(Test-Path $binary)) { throw 'Installed executable missing' }
+          if (!(Test-Path (Join-Path $target 'LICENSE'))) { throw 'Installed license missing' }
+          python tools/native_smoke.py $binary --report qa/native-startup-windows.json
+          if ($LASTEXITCODE -ne 0) { throw 'Native Windows smoke test failed' }
+      - name: Upload native startup evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-startup-${{ matrix.os }}
+          path: qa/
+          if-no-files-found: ignore
       - name: Package distribution files
         env:
           BUILD_LABEL: ${{ needs.prepare.outputs.label }}
@@ -250,7 +278,9 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
         run: |
-          gh release create "$RELEASE_TAG" dist/* --target "$GITHUB_SHA" --draft --prerelease --title "sequelx $RELEASE_TAG" --notes-file docs/release-notes.md
+          flags=(--draft)
+          if [[ "$RELEASE_TAG" == *-* ]]; then flags+=(--prerelease); fi
+          gh release create "$RELEASE_TAG" dist/* --target "$GITHUB_SHA" "${flags[@]}" --title "sequelx $RELEASE_TAG" --notes-file docs/release-notes.md
 
   database-integration:
     name: Database (${{ matrix.image }})

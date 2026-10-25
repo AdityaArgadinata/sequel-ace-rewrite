@@ -55,10 +55,12 @@ type Column struct {
 }
 
 type Result struct {
-	Columns    []Column `json:"columns"`
-	Rows       [][]Cell `json:"rows"`
-	Truncated  bool     `json:"truncated"`
-	DurationMS int64    `json:"durationMS"`
+	Columns       []Column `json:"columns"`
+	Rows          [][]Cell `json:"rows"`
+	Truncated     bool     `json:"truncated"`
+	SessionClosed bool     `json:"sessionClosed"`
+	Notice        string   `json:"notice,omitempty"`
+	DurationMS    int64    `json:"durationMS"`
 }
 
 // Batch contains only new rows. Offset lets consumers reject late or out-of-order
@@ -380,7 +382,9 @@ func (s *Session) executeWithRowLimit(statement string, args []any, emit func(Ba
 		s.txUnverified = true
 	}
 	start := time.Now()
-	rows, err := s.queryContext(ctx, statement, args...)
+	readCtx, cancelRead := context.WithCancel(ctx)
+	defer cancelRead()
+	rows, err := s.queryContext(readCtx, statement, args...)
 	if err != nil {
 		return Result{}, s.queryError(err)
 	}
@@ -401,15 +405,11 @@ func (s *Session) executeWithRowLimit(statement string, args []any, emit func(Ba
 		}
 		sent, batchBytes, lastFlush = len(result.Rows), 0, time.Now()
 	}
-	var bytes int
+	var bytes, discardedBytes int
 	for rows.Next() {
 		// Drivers can still yield buffered rows after cancellation.
 		if err := ctx.Err(); err != nil {
 			return Result{}, s.queryError(err)
-		}
-		if len(result.Rows) == maxRows {
-			result.Truncated = true
-			break
 		}
 		raw := make([][]byte, len(types))
 		dest := make([]any, len(types))
@@ -418,6 +418,16 @@ func (s *Session) executeWithRowLimit(statement string, args []any, emit func(Ba
 		}
 		if err = rows.Scan(dest...); err != nil {
 			return Result{}, s.queryError(err)
+		}
+		rawBytes := 0
+		for _, value := range raw {
+			rawBytes += len(value)
+		}
+		if len(result.Rows) == maxRows {
+			result.Truncated = true
+			result.Notice = fmt.Sprintf("Showing the first %d rows; the result is incomplete.", maxRows)
+			discardedBytes = rawBytes
+			break
 		}
 		values := make([]Cell, len(types))
 		rowBytes := 0
@@ -428,6 +438,8 @@ func (s *Session) executeWithRowLimit(statement string, args []any, emit func(Ba
 		bytes += rowBytes
 		if bytes > MaxResultBytes {
 			result.Truncated = true
+			result.Notice = "The 4 MiB display limit was reached; the result is incomplete."
+			discardedBytes = rawBytes
 			break
 		}
 		result.Rows = append(result.Rows, values)
@@ -442,28 +454,38 @@ func (s *Session) executeWithRowLimit(statement string, args []any, emit func(Ba
 	if err = rows.Err(); err != nil {
 		return Result{}, s.queryError(err)
 	}
-	// CALL can return several result sets even with multi-statements disabled.
-	// This first UI only displays one set: discard the session instead of draining
-	// an arbitrarily large undisplayed second set.
-	if !result.Truncated && rows.NextResultSet() {
+	if result.Truncated {
+		complete, drainErr := finishLimitedRows(readCtx, rows, len(types), discardedBytes, cancelRead)
+		if ctx.Err() != nil {
+			return Result{}, s.queryError(ctx.Err())
+		}
+		if drainErr != nil && readCtx.Err() == nil {
+			return Result{}, s.queryError(drainErr)
+		}
+		result.SessionClosed = !complete || readCtx.Err() != nil
+	} else if rows.NextResultSet() {
 		result.Truncated = true
+		result.SessionClosed = true
+		result.Notice = "Additional result sets were not displayed."
 	}
-	if err = rows.Err(); err != nil {
+	if err = rows.Err(); err != nil && !result.SessionClosed {
 		return Result{}, s.queryError(err)
 	}
-	if result.Truncated {
-		// Closing unread rows can drain an unbounded server result. Abort instead;
-		// reconnect is explicit because cancellation destroys the pinned session.
-		s.Cancel()
-		// Mark the physical connection bad before rows.Close can drain unread rows.
+	if result.SessionClosed {
+		// Never let Close drain an unbounded response or reuse an unread protocol.
+		s.failed = true
+		cancelRead()
 		_ = s.conn.Raw(func(any) error { return driver.ErrBadConn })
+		result.Notice += " The response could not be completed within the safety budget; the session was closed. Reconnect before continuing."
+	} else if result.Truncated {
+		result.Notice += " The remaining response was read and discarded; the session remains active."
 	}
-	if err = rows.Close(); err != nil && !result.Truncated {
+	if err = rows.Close(); err != nil && !result.SessionClosed {
 		return Result{}, s.queryError(err)
 	}
 	result.DurationMS = time.Since(start).Milliseconds()
 	flush()
-	if err := ctx.Err(); err != nil && !result.Truncated {
+	if err := ctx.Err(); err != nil {
 		return Result{}, s.queryError(err)
 	}
 	return result, nil
@@ -477,7 +499,7 @@ func (s *Session) catalog(statement string) (Result, error) {
 		return Result{}, err
 	}
 	if result.Truncated {
-		return Result{}, fmt.Errorf("database catalog exceeds its safety limit (%d entries or %d MiB); the incomplete list was discarded and the session was closed", MaxCatalogRows, MaxResultBytes/(1024*1024))
+		return Result{}, fmt.Errorf("database catalog exceeds its safety limit (%d entries or %d MiB); the incomplete list was discarded. %s", MaxCatalogRows, MaxResultBytes/(1024*1024), result.Notice)
 	}
 	return result, nil
 }

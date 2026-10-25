@@ -11,12 +11,12 @@ test('Create table previews SQL and refreshes the catalog after confirmation',as
  await openContent(page);await manager(page);await page.getByRole('textbox',{name:'Object table',exact:true}).fill('new_table');
  await objectPreview(page);await expect(button(page,'Apply object change')).toBeDisabled();expect(await page.evaluate(()=>(window as any).objectApplies?.length ?? 0)).toBe(0);
  await objectAck(page);await screenshot(page,info,'objects-preview');await button(page,'Apply object change').click();
- await expect(page.getByRole('region',{name:'Manage tables and databases'})).toContainText('1 of 1 statements acknowledged');await expect(button(page,'new_table')).toBeVisible();
+ await expect(page.getByRole('region',{name:'Manage tables and databases'})).toContainText('1 of 1 statements acknowledged');await button(page,'OK').click();await expect(button(page,'new_table')).toBeVisible();
 });
 
 test('Create database and copy options send the reviewed typed request',async({page})=>{
  await openContent(page);await manager(page);await page.getByRole('combobox',{name:'Object kind',exact:true}).selectOption('database');await page.getByRole('textbox',{name:'Object database',exact:true}).fill('created_db');await objectPreview(page);await objectAck(page);await button(page,'Apply object change').click();
- await expect(page.getByRole('combobox',{name:'Select Database',exact:true}).locator('option')).toContainText(['created_db']);
+ await button(page,'OK').click();await expect(page.getByRole('combobox',{name:'Select Database',exact:true}).locator('option')).toContainText(['created_db']);
  await page.getByRole('combobox',{name:'Object action',exact:true}).selectOption('copy');await page.getByRole('textbox',{name:'Object database',exact:true}).fill('mysql');await page.getByRole('textbox',{name:'Object new name',exact:true}).fill('copied_db');await page.getByRole('checkbox',{name:'Include data',exact:true}).uncheck();await objectPreview(page);await objectAck(page);await button(page,'Apply object change').click();
  expect(await page.evaluate(()=>(window as any).objectApplies.at(-1))).toMatchObject({kind:'database',action:'copy',database:'mysql',name:'copied_db',includeData:false});
 });

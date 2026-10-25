@@ -15,21 +15,28 @@ import (
 
 // Administration plans are session-local, single-use and never persist passwords.
 type SAAdminRequest struct {
-	Kind       string   `json:"kind"`
-	Action     string   `json:"action"`
-	Database   string   `json:"database"`
-	Table      string   `json:"table"`
-	Name       string   `json:"name"`
-	Timing     string   `json:"timing"`
-	Event      string   `json:"event"`
-	Body       string   `json:"body"`
-	Engine     string   `json:"engine"`
-	Collation  string   `json:"collation"`
-	Comment    string   `json:"comment"`
-	User       string   `json:"user"`
-	Host       string   `json:"host"`
-	Password   string   `json:"password"`
-	Privileges []string `json:"privileges"`
+	Kind        string   `json:"kind"`
+	Action      string   `json:"action"`
+	Database    string   `json:"database"`
+	Table       string   `json:"table"`
+	Name        string   `json:"name"`
+	Timing      string   `json:"timing"`
+	Event       string   `json:"event"`
+	Body        string   `json:"body"`
+	Engine      string   `json:"engine"`
+	Collation   string   `json:"collation"`
+	Comment     string   `json:"comment"`
+	User        string   `json:"user"`
+	Host        string   `json:"host"`
+	Password    string   `json:"password"`
+	Privileges  []string `json:"privileges"`
+	Scope       string   `json:"scope"`
+	Columns     []string `json:"columns"`
+	GrantOption bool     `json:"grantOption"`
+	NewUser     string   `json:"newUser"`
+	NewHost     string   `json:"newHost"`
+	Role        string   `json:"role"`
+	RoleHost    string   `json:"roleHost"`
 }
 type saAdminPending struct {
 	request                         SAAdminRequest
@@ -102,9 +109,10 @@ func adminString(v, mode string) string {
 	return "'" + strings.ReplaceAll(v, "'", "''") + "'"
 }
 
-var adminPrivileges = map[string]bool{"SELECT": true, "INSERT": true, "UPDATE": true, "DELETE": true, "CREATE": true, "DROP": true, "ALTER": true, "INDEX": true, "REFERENCES": true, "TRIGGER": true, "CREATE VIEW": true, "SHOW VIEW": true, "EXECUTE": true, "CREATE ROUTINE": true, "ALTER ROUTINE": true, "EVENT": true}
-
 func adminSQL(r SAAdminRequest, mode string) (string, string, error) {
+	return adminSQLForServer(r, mode, "5.7.44", false)
+}
+func adminSQLForServer(r SAAdminRequest, mode, version string, partialRevokes bool) (string, string, error) {
 	fail := func() (string, string, error) { return "", "", errors.New("invalid administration request") }
 	if r.Kind == "trigger" {
 		if !validName(r.Database) || !validName(r.Table) || !validName(r.Name) {
@@ -161,30 +169,9 @@ func adminSQL(r SAAdminRequest, mode string) (string, string, error) {
 	case "drop":
 		v := "DROP USER " + account
 		return v, v, nil
-	case "grant", "revoke":
-		if !validName(r.Database) || len(r.Privileges) == 0 {
-			return fail()
-		}
-		for _, p := range r.Privileges {
-			if !adminPrivileges[p] {
-				return fail()
-			}
-		}
-		scope := quoteIdentifier(r.Database) + ".*"
-		if r.Table != "" {
-			if !validName(r.Table) {
-				return fail()
-			}
-			scope = qualified(r.Database, r.Table)
-		}
-		verb, end := "GRANT ", " TO "
-		if r.Action == "revoke" {
-			verb, end = "REVOKE ", " FROM "
-		}
-		v := verb + strings.Join(r.Privileges, ", ") + " ON " + scope + end + account
-		return v, v, nil
+	default:
+		return accountPrivilegesSQL(r, mode, version, partialRevokes)
 	}
-	return fail()
 }
 func (s *Session) adminSnapshot(ctx context.Context, r SAAdminRequest) ([32]byte, error) {
 	// Fetch complete trigger/account metadata inside the same serialized operation.
@@ -264,6 +251,11 @@ func (s *Session) adminSnapshot(ctx context.Context, r SAAdminRequest) ([32]byte
 			if err = grants.Scan(&v); err != nil {
 				break
 			}
+			size += len(v)
+			if size > MaxResultBytes || len(data) >= MaxCatalogRows {
+				grants.Close()
+				return [32]byte{}, errors.New("administration metadata exceeds limits")
+			}
 			data = append(data, []string{v})
 		}
 		if err == nil {
@@ -272,6 +264,65 @@ func (s *Session) adminSnapshot(ctx context.Context, r SAAdminRequest) ([32]byte
 		grants.Close()
 		if err != nil {
 			return [32]byte{}, s.queryError(err)
+		}
+	}
+	if r.Kind == "user" && len(data) > 0 {
+		var mode, version string
+		if err := s.conn.QueryRowContext(ctx, "SELECT @@session.sql_mode,VERSION()").Scan(&mode, &version); err != nil {
+			return [32]byte{}, s.queryError(err)
+		}
+		if supportsPartialRevokes(version) {
+			var partial bool
+			if err := s.conn.QueryRowContext(ctx, "SELECT @@global.partial_revokes").Scan(&partial); err != nil {
+				return [32]byte{}, s.queryError(err)
+			}
+			data = append(data, []string{fmt.Sprint(partial)})
+		}
+		queries := []string{"SHOW CREATE USER " + adminString(r.User, mode) + "@" + adminString(r.Host, mode)}
+		if strings.Contains(r.Action, "Role") {
+			if q := roleSnapshotQuery(r, mode, version); q != "" {
+				queries = append(queries, q)
+			}
+			if !strings.Contains(strings.ToLower(version), "mariadb") {
+				queries = append(queries, "SELECT DEFAULT_ROLE_USER,DEFAULT_ROLE_HOST FROM mysql.default_roles WHERE USER="+adminString(r.User, mode)+" AND HOST="+adminString(r.Host, mode)+" ORDER BY DEFAULT_ROLE_USER,DEFAULT_ROLE_HOST")
+			}
+		}
+		for _, q := range queries {
+			rows, err := s.queryContext(ctx, q)
+			if err != nil {
+				return [32]byte{}, s.queryError(err)
+			}
+			cols, err := rows.Columns()
+			if err != nil {
+				rows.Close()
+				return [32]byte{}, s.queryError(err)
+			}
+			for rows.Next() {
+				raw := make([][]byte, len(cols))
+				ptr := make([]any, len(raw))
+				for i := range raw {
+					ptr[i] = &raw[i]
+				}
+				if err := rows.Scan(ptr...); err != nil {
+					rows.Close()
+					return [32]byte{}, s.queryError(err)
+				}
+				line := []string{}
+				for _, v := range raw {
+					size += len(v)
+					if size > MaxResultBytes || len(data) >= MaxCatalogRows {
+						rows.Close()
+						return [32]byte{}, errors.New("administration metadata exceeds limits")
+					}
+					line = append(line, string(v))
+				}
+				data = append(data, line)
+			}
+			err = rows.Err()
+			rows.Close()
+			if err != nil {
+				return [32]byte{}, s.queryError(err)
+			}
 		}
 	}
 	encoded, _ := json.Marshal(data)
@@ -288,7 +339,19 @@ func (s *Session) PrepareAdmin(r SAAdminRequest) (SASchemaPlan, error) {
 	if err != nil {
 		return SASchemaPlan{}, err
 	}
-	statement, preview, err := adminSQL(r, mode)
+	version := ""
+	partialRevokes := false
+	if r.Kind == "user" {
+		if err := s.conn.QueryRowContext(ctx, "SELECT VERSION()").Scan(&version); err != nil {
+			return SASchemaPlan{}, s.queryError(err)
+		}
+		if supportsPartialRevokes(version) {
+			if err := s.conn.QueryRowContext(ctx, "SELECT @@global.partial_revokes").Scan(&partialRevokes); err != nil {
+				return SASchemaPlan{}, s.queryError(err)
+			}
+		}
+	}
+	statement, preview, err := adminSQLForServer(r, mode, version, partialRevokes)
 	if err != nil {
 		return SASchemaPlan{}, err
 	}

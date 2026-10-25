@@ -37,3 +37,15 @@ export function copyRows(columns: database.Column[], rows: database.Cell[][], fo
     if (format === 'headers' || format === 'csv') lines.unshift(columns.map(c => format === 'csv' ? csv(c.name) : c.name).join(format === 'csv' ? ',' : '\t'));
     return lines.join(format === 'csv' ? '\r\n' : '\n');
 }
+
+export function newRowCells(columns: database.EditableColumn[]): database.Cell[] {
+    return columns.map(column => ({...(column.defaultValue ?? {value:column.defaultExpression || '',null:!column.defaultExpression,binary:/^(?:VARBINARY|BINARY|.*BLOB|GEOMETRY|POINT|LINESTRING|POLYGON|MULTIPOINT|MULTILINESTRING|MULTIPOLYGON|GEOMETRYCOLLECTION)(?:\b|$)/i.test(column.type ?? '')})})) as database.Cell[];
+}
+export function newRowValues(columns: database.EditableColumn[], cells: database.Cell[], changed: Record<string,database.Cell>): Record<string,database.Cell> {
+    const values:Record<string,database.Cell>=Object.create(null);
+    columns.forEach((column,i)=>{
+        if(column.generated || (column.autoIncrement && cells[i].null))return;
+        if(Object.hasOwn(changed,column.name) || (!column.autoIncrement && !column.nullable && !column.defaultValue && !column.defaultExpression))values[column.name]=cells[i];
+    });
+    return values;
+}

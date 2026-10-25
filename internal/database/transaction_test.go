@@ -15,6 +15,7 @@ import (
 
 // A connector fake exercises database/sql error paths without network access.
 type writeConnector struct {
+	schemaSource  string
 	catalogCount  int
 	noPrimary     bool
 	nonNullText   bool
@@ -73,6 +74,12 @@ func (r *writeRows) Next(dest []driver.Value) error {
 }
 func (c *writeConn) QueryContext(_ context.Context, q string, _ []driver.NamedValue) (driver.Rows, error) {
 	switch {
+	case strings.HasPrefix(q, "SHOW CREATE TABLE "):
+		source := c.c.schemaSource
+		if source == "" {
+			source = "CREATE TABLE `sample` (`id` int NOT NULL, `text` varchar(20))"
+		}
+		return &writeRows{[]string{"Table", "Create Table"}, [][]driver.Value{{"sample", source}}}, nil
 	case c.c.catalogCount > 0 && (q == "SHOW DATABASES" || strings.HasPrefix(q, "SHOW FULL TABLES FROM ")):
 		rows := make([][]driver.Value, c.c.catalogCount)
 		for i := range rows {
@@ -108,7 +115,7 @@ func (c *writeConn) QueryContext(_ context.Context, q string, _ []driver.NamedVa
 		return &writeRows{[]string{"value"}, [][]driver.Value{{"1"}}}, nil
 	}
 }
-func fakeSession(t *testing.T, c *writeConnector) *Session {
+func fakeSession(t *testing.T, c driver.Connector) *Session {
 	t.Helper()
 	db := sql.OpenDB(c)
 	conn, err := db.Conn(context.Background())
@@ -335,11 +342,11 @@ func TestCatalogHasSeparateRowBudget(t *testing.T) {
 				result, err = s.Tables("test")
 			}
 			if kind == "catalog overflow" {
-				if err == nil || len(result.Rows) != 0 || s.Connected() {
+				if err == nil || len(result.Rows) != 0 || !s.Connected() {
 					t.Fatal("partial catalog exposed", len(result.Rows), err)
 				}
 			} else if kind == "query" {
-				if err != nil || len(result.Rows) != MaxRows || !result.Truncated || s.Connected() {
+				if err != nil || len(result.Rows) != MaxRows || !result.Truncated || result.SessionClosed || !s.Connected() {
 					t.Fatal("query budget changed", len(result.Rows), err)
 				}
 			} else if err != nil || len(result.Rows) != 509 || result.Truncated || !s.Connected() || s.TransactionStatus() != "idle" {

@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sequel-rewrite/internal/sqlscript"
@@ -32,7 +33,7 @@ func (s *Session) PreviewSQLImport(name, source string) (SASQLImportPreview, err
 	if err != nil {
 		return SASQLImportPreview{}, err
 	}
-	statements, err := sqlscript.ParseWithLimits(source, mode, 64*1024*1024, 100000)
+	statements, err := sqlscript.ParseImport(source, mode)
 	if err != nil {
 		return SASQLImportPreview{}, err
 	}
@@ -74,12 +75,14 @@ func (s *Session) ApplySQLImport(token string) SABatchOutcome {
 		return out
 	}
 	for i, statement := range p.statements {
+		out.Statement = i + 1
+		out.Line = statement.Line
 		if err := s.conn.QueryRowContext(ctx, "SELECT @@session.sql_mode").Scan(&mode); err != nil {
 			out.Error = s.queryError(err).Error()
 			out.Uncertain = true
 			return out
 		}
-		if mode != p.mode {
+		if mode != statement.Mode {
 			out.Error = "script SQL_MODE changed; stopped before the next statement. Review the remaining file under the new mode"
 			return out
 		}
@@ -97,7 +100,18 @@ func (s *Session) ApplySQLImport(token string) SABatchOutcome {
 			return out
 		}
 		if warnings != "" {
-			out.Warnings = fmt.Sprintf("Statement %d: %s", i+1, warnings)
+			appendImportWarning(&out, i+1, warnings)
+			if sqlscript.IsLiteralModeChange(statement.SQL) {
+				informational, err := s.onlyModeDeprecations(ctx)
+				if err != nil {
+					out.Error = err.Error()
+					out.Uncertain = true
+					return out
+				}
+				if informational {
+					continue
+				}
+			}
 			out.Error = "SQL import stopped after a server warning"
 			return out
 		}
@@ -133,4 +147,44 @@ func sqlImportSample(statements []sqlscript.SAStatement) string {
 		sample.WriteString(";\n")
 	}
 	return sample.String()
+}
+
+// MySQL 5.7 warns when restoring its own deprecated SQL_MODE values. These
+// exact deprecation codes on a literal mode SET do not indicate data coercion.
+func (s *Session) onlyModeDeprecations(ctx context.Context) (bool, error) {
+	rows, err := s.queryContext(ctx, "SHOW WARNINGS")
+	if err != nil {
+		return false, s.queryError(err)
+	}
+	defer rows.Close()
+	safe := true
+	for rows.Next() {
+		var level, message string
+		var code int
+		if err := rows.Scan(&level, &code, &message); err != nil {
+			return false, s.queryError(err)
+		}
+		if level != "Note" && code != 1287 && code != 1681 && code != 3090 {
+			safe = false
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return false, s.queryError(err)
+	}
+	return safe, nil
+}
+
+func appendImportWarning(out *SABatchOutcome, statement int, message string) {
+	const max = 32 * 1024
+	if len(out.Warnings) >= max {
+		return
+	}
+	out.Warnings += fmt.Sprintf("Statement %d: %s\n", statement, message)
+	if len(out.Warnings) > max {
+		out.Warnings = out.Warnings[:max]
+		for !utf8.ValidString(out.Warnings) {
+			out.Warnings = out.Warnings[:len(out.Warnings)-1]
+		}
+		out.Warnings += "\nAdditional warnings omitted.\n"
+	}
 }

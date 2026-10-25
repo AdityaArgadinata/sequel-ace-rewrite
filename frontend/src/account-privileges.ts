@@ -1,0 +1,3 @@
+const common=['SELECT','INSERT','UPDATE','DELETE','CREATE','DROP','ALTER','INDEX','REFERENCES','TRIGGER','CREATE VIEW','SHOW VIEW'];
+const databasePrivileges=[...common,'EXECUTE','CREATE ROUTINE','ALTER ROUTINE','EVENT','CREATE TEMPORARY TABLES','LOCK TABLES'];
+export function privilegesFor(scope:string){if(scope==='global')return [...databasePrivileges,'PROCESS','RELOAD','SHUTDOWN','FILE','SHOW DATABASES','SUPER','REPLICATION CLIENT','REPLICATION SLAVE','CREATE USER','CREATE TABLESPACE'];if(scope==='column')return ['SELECT','INSERT','UPDATE','REFERENCES'];if(scope==='procedure'||scope==='function')return ['EXECUTE','ALTER ROUTINE'];if(scope==='table')return common;return databasePrivileges;}

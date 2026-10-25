@@ -100,8 +100,8 @@ func TestStructureIntegration(t *testing.T) {
 		cols = append(cols, fmt.Sprintf("c%d INT", i))
 	}
 	run(&s, "CREATE TABLE "+quoteIdentifier(name)+".wide ("+strings.Join(cols, ",")+") ENGINE=InnoDB")
-	if _, err := s.Structure(name, "wide"); err == nil || s.Connected() {
-		t.Fatal("truncated catalog reported complete or session retained")
+	if _, err := s.Structure(name, "wide"); err == nil || !s.Connected() {
+		t.Fatal("truncated catalog reported complete or session lost")
 	}
 }
 

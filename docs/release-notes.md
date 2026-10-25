@@ -1,14 +1,17 @@
-Development preview of sequelx, a Go/Wails desktop MySQL and MariaDB client.
+sequelx, a Go/Wails desktop MySQL and MariaDB client.
 
-## Changes in v0.1.0-alpha.2
+## Changes in v0.1.0
 
-- Renamed the app to **sequelx**, with the new transparent app icon.
-- Added the Settings gear beside Console and the shared Preferences dialog.
-- Improved Content sorting, multiple filters, inline editing, row actions and selection.
-- Added query favorites/history, SQL file handling, completion, and Cmd/Ctrl+A/C in result grids.
-- Added reviewed Structure/schema changes, table/database operations, data transfer and native favorites migration.
-- Matched the Structure column layout, attribute checkboxes and Type/Extra dropdowns to the original app. Encoding and Collation options come from the server.
-- Added metadata/admin panels and strengthened session, transaction and cancellation handling.
+- Add rows inline with the plus/Insert button or by double-clicking empty Content space. Save draft rows by double-clicking empty space; write failures preserve the draft with Edit row / Discard changes actions.
+- Unified create/update/delete dialogs, clearer typography, consistent row height and row selection.
+- Read large query results with bounded draining to preserve the session when possible.
+- Expanded TEXT/JSON/BLOB cell editing and binary import/export, with conflict and NULL handling.
+- Restore Content filters, sorting, page, selection, widths and drafts when switching table workspaces within the running app.
+- Export/import database SQL including tables, dependent views, routines, triggers and disabled events, with review and size limits.
+- Added SQL indentation/page-size preferences, shortcut remapping and persistent favorite folders.
+- Expanded account privileges, lock/rename actions and version-gated role management.
+- Added manual update checks in Settings. Downloads and installation remain manual.
+- CI builds packages for three operating systems and includes isolated native startup probes for Windows/Linux.
 
 ## Downloads and installation
 

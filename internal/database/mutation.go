@@ -10,13 +10,15 @@ import (
 )
 
 type EditableColumn struct {
-	Name          string `json:"name"`
-	Type          string `json:"type"`
-	Primary       bool   `json:"primary"`
-	Identity      bool   `json:"identity"`
-	AutoIncrement bool   `json:"autoIncrement"`
-	Generated     bool   `json:"generated"`
-	Nullable      bool   `json:"nullable"`
+	Name              string `json:"name"`
+	Type              string `json:"type"`
+	Primary           bool   `json:"primary"`
+	Identity          bool   `json:"identity"`
+	AutoIncrement     bool   `json:"autoIncrement"`
+	Generated         bool   `json:"generated"`
+	Nullable          bool   `json:"nullable"`
+	DefaultValue      *Cell  `json:"defaultValue"`
+	DefaultExpression string `json:"defaultExpression"`
 }
 type TableDetails struct {
 	Engine   string           `json:"engine"`
@@ -146,7 +148,14 @@ func (s *Session) TableDetails(db, table string) (TableDetails, error) {
 	if s.conn == nil {
 		return TableDetails{}, errors.New("connect first")
 	}
-	return s.tableDetails(ctx, db, table)
+	details, err := s.tableDetails(ctx, db, table)
+	if err != nil || !details.Editable {
+		return details, err
+	}
+	if err = s.insertDefaults(ctx, db, table, &details); err != nil {
+		return TableDetails{}, err
+	}
+	return details, nil
 }
 func cellArgument(c Cell) (any, error) {
 	if c.Null {

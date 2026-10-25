@@ -31,6 +31,8 @@ type SABatchOutcome struct {
 	Error     string `json:"error"`
 	Uncertain bool   `json:"uncertain"`
 	Warnings  string `json:"warnings"`
+	Statement int    `json:"statement"`
+	Line      int    `json:"line"`
 }
 type saObjectPending struct {
 	plan        SAObjectPlan

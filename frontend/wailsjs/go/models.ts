@@ -234,6 +234,8 @@ export namespace database {
 	    autoIncrement: boolean;
 	    generated: boolean;
 	    nullable: boolean;
+	    defaultValue?: Cell;
+	    defaultExpression: string;
 
 	    static createFrom(source: any = {}) {
 	        return new EditableColumn(source);
@@ -248,7 +250,27 @@ export namespace database {
 	        this.autoIncrement = source["autoIncrement"];
 	        this.generated = source["generated"];
 	        this.nullable = source["nullable"];
+	        this.defaultValue = this.convertValues(source["defaultValue"], Cell);
+	        this.defaultExpression = source["defaultExpression"];
 	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class Mutation {
 	    database: string;
@@ -294,6 +316,8 @@ export namespace database {
 	    columns: Column[];
 	    rows: Cell[][];
 	    truncated: boolean;
+	    sessionClosed: boolean;
+	    notice?: string;
 	    durationMS: number;
 
 	    static createFrom(source: any = {}) {
@@ -305,6 +329,8 @@ export namespace database {
 	        this.columns = this.convertValues(source["columns"], Column);
 	        this.rows = this.convertValues(source["rows"], Cell);
 	        this.truncated = source["truncated"];
+	        this.sessionClosed = source["sessionClosed"];
+	        this.notice = source["notice"];
 	        this.durationMS = source["durationMS"];
 	    }
 
@@ -360,6 +386,13 @@ export namespace database {
 	    host: string;
 	    password: string;
 	    privileges: string[];
+	    scope: string;
+	    columns: string[];
+	    grantOption: boolean;
+	    newUser: string;
+	    newHost: string;
+	    role: string;
+	    roleHost: string;
 
 	    static createFrom(source: any = {}) {
 	        return new SAAdminRequest(source);
@@ -382,6 +415,13 @@ export namespace database {
 	        this.host = source["host"];
 	        this.password = source["password"];
 	        this.privileges = source["privileges"];
+	        this.scope = source["scope"];
+	        this.columns = source["columns"];
+	        this.grantOption = source["grantOption"];
+	        this.newUser = source["newUser"];
+	        this.newHost = source["newHost"];
+	        this.role = source["role"];
+	        this.roleHost = source["roleHost"];
 	    }
 	}
 	export class SABatchOutcome {
@@ -390,6 +430,8 @@ export namespace database {
 	    error: string;
 	    uncertain: boolean;
 	    warnings: string;
+	    statement: number;
+	    line: number;
 
 	    static createFrom(source: any = {}) {
 	        return new SABatchOutcome(source);
@@ -402,6 +444,8 @@ export namespace database {
 	        this.error = source["error"];
 	        this.uncertain = source["uncertain"];
 	        this.warnings = source["warnings"];
+	        this.statement = source["statement"];
+	        this.line = source["line"];
 	    }
 	}
 	export class SACSVMapping {
@@ -476,6 +520,59 @@ export namespace database {
 		    return a;
 		}
 	}
+	export class SADumpObject {
+	    kind: string;
+	    name: string;
+	    dependencies: string[];
+
+	    static createFrom(source: any = {}) {
+	        return new SADumpObject(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.name = source["name"];
+	        this.dependencies = source["dependencies"];
+	    }
+	}
+	export class SADatabaseInventory {
+	    database: string;
+	    fingerprint: string;
+	    objects: SADumpObject[];
+	    notice: string;
+
+	    static createFrom(source: any = {}) {
+	        return new SADatabaseInventory(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.database = source["database"];
+	        this.fingerprint = source["fingerprint"];
+	        this.objects = this.convertValues(source["objects"], SADumpObject);
+	        this.notice = source["notice"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
 	export class SAExportSpec {
 	    format: string;
 	    scope: string;
@@ -765,6 +862,40 @@ export namespace main {
 	        this.cancelled = source["cancelled"];
 	    }
 	}
+	export class SACellFile {
+	    value: database.Cell;
+	    name: string;
+	    cancelled: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new SACellFile(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.value = this.convertValues(source["value"], database.Cell);
+	        this.name = source["name"];
+	        this.cancelled = source["cancelled"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class SAFavoritesPreview {
 	    token: string;
 	    candidates: nativefiles.SACandidate[];
@@ -933,6 +1064,38 @@ export namespace nativefiles {
 
 export namespace profiles {
 
+	export class FolderChange {
+	    action: string;
+	    folder: string;
+	    destination: string;
+
+	    static createFrom(source: any = {}) {
+	        return new FolderChange(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.action = source["action"];
+	        this.folder = source["folder"];
+	        this.destination = source["destination"];
+	    }
+	}
+	export class FolderOutcome {
+	    completed: number;
+	    total: number;
+	    error: string;
+
+	    static createFrom(source: any = {}) {
+	        return new FolderOutcome(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.completed = source["completed"];
+	        this.total = source["total"];
+	        this.error = source["error"];
+	    }
+	}
 	export class Profile {
 	    auth?: authproviders.SASettings;
 	    socket?: string;
@@ -1020,6 +1183,7 @@ export namespace sqlscript {
 	    from: number;
 	    to: number;
 	    line: number;
+	    mode: string;
 
 	    static createFrom(source: any = {}) {
 	        return new SAStatement(source);
@@ -1031,6 +1195,7 @@ export namespace sqlscript {
 	        this.from = source["from"];
 	        this.to = source["to"];
 	        this.line = source["line"];
+	        this.mode = source["mode"];
 	    }
 	}
 
@@ -1097,6 +1262,33 @@ export namespace tunnel {
 		    }
 		    return a;
 		}
+	}
+
+}
+
+export namespace updates {
+
+	export class Result {
+	    current: string;
+	    latest: string;
+	    available: boolean;
+	    development: boolean;
+	    url: string;
+	    preview: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new Result(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.current = source["current"];
+	        this.latest = source["latest"];
+	        this.available = source["available"];
+	        this.development = source["development"];
+	        this.url = source["url"];
+	        this.preview = source["preview"];
+	    }
 	}
 
 }

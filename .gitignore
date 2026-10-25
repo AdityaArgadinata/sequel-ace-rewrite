@@ -9,3 +9,4 @@
 /build/windows/installer/tmp/
 /frontend/test-results/
 /frontend/playwright-report/
+/tools/__pycache__/

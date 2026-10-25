@@ -4,6 +4,7 @@ package sqlscript
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -17,6 +18,7 @@ type SAStatement struct {
 	From int    `json:"from"`
 	To   int    `json:"to"`
 	Line int    `json:"line"`
+	Mode string `json:"mode"`
 }
 
 // Offsets use UTF-16 code units, matching desktop editor selections.
@@ -47,6 +49,18 @@ func Parse(source, sqlMode string) ([]SAStatement, error) {
 	return ParseWithLimits(source, sqlMode, MaxBytes, MaxStatements)
 }
 func ParseWithLimits(source, sqlMode string, maxBytes, maxStatements int) ([]SAStatement, error) {
+	return parse(source, sqlMode, maxBytes, maxStatements, false)
+}
+
+// Dump imports allow only literal session SQL_MODE transitions; each statement
+// records the mode used to split it, which must match the server before execution.
+func ParseImport(source, mode string) ([]SAStatement, error) {
+	return parse(source, mode, 64*1024*1024, 100000, true)
+}
+
+var literalMode = regexp.MustCompile(`(?is)^\s*SET\s+SESSION\s+sql_mode\s*=\s*'([A-Z0-9_,]*)'\s*$`)
+
+func parse(source, sqlMode string, maxBytes, maxStatements int, importModes bool) ([]SAStatement, error) {
 	statements := []SAStatement{}
 	if len(source) > maxBytes || !utf8.ValidString(source) || strings.ContainsRune(source, 0) {
 		return statements, fmt.Errorf("SQL must be valid UTF-8 without NUL, at most %d MiB", maxBytes/(1024*1024))
@@ -84,7 +98,15 @@ func ParseWithLimits(source, sqlMode string, maxBytes, maxStatements int) ([]SAS
 		}
 		from, atLine := position(start + left)
 		to, _ := position(start + left + len(text))
-		statements = append(statements, SAStatement{text, from, to, atLine})
+		statements = append(statements, SAStatement{SQL: text, From: from, To: to, Line: atLine, Mode: sqlMode})
+		if importModes {
+			if match := literalMode.FindStringSubmatch(withoutLeadingComments(text)); match != nil {
+				sqlMode = match[1]
+				modes = "," + strings.ToUpper(sqlMode) + ","
+				noBackslash = strings.Contains(modes, ",NO_BACKSLASH_ESCAPES,")
+				ansiQuotes = strings.Contains(modes, ",ANSI_QUOTES,")
+			}
+		}
 		if len(statements) > maxStatements {
 			return fmt.Errorf("script exceeds %d statements", maxStatements)
 		}
@@ -217,4 +239,32 @@ func ParseWithLimits(source, sqlMode string, maxBytes, maxStatements int) ([]SAS
 		return statements, err
 	}
 	return statements, nil
+}
+
+// Only ordinary leading comments may be ignored when recognizing a mode switch.
+func withoutLeadingComments(text string) string {
+	for {
+		text = strings.TrimSpace(text)
+		if strings.HasPrefix(text, "#") || strings.HasPrefix(text, "-- ") || strings.HasPrefix(text, "--\n") {
+			i := strings.IndexByte(text, '\n')
+			if i < 0 {
+				return ""
+			}
+			text = text[i+1:]
+			continue
+		}
+		if strings.HasPrefix(text, "/*") && !strings.HasPrefix(text, "/*!") && !strings.HasPrefix(text, "/*M!") {
+			i := strings.Index(text, "*/")
+			if i < 0 {
+				return text
+			}
+			text = text[i+2:]
+			continue
+		}
+		return text
+	}
+}
+
+func IsLiteralModeChange(source string) bool {
+	return literalMode.MatchString(withoutLeadingComments(source))
 }

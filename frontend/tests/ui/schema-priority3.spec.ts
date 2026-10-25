@@ -53,7 +53,7 @@ test('Foreign keys retain composite definitions and use a new replacement name',
 test('A failed preview never writes and Cancel discards the form',async({page})=>{
  await openStructure(page);await button(page,'Add column').click();await name(page).fill('blocked');
  await page.evaluate(()=>{(window as any).schemaPrepareError='finish the active or unverified transaction with COMMIT/ROLLBACK before editing schema';});
- await button(page,'Preview schema SQL').click();await expect(page.locator('.schema-editor [role=alert]')).toContainText('COMMIT/ROLLBACK');
+ await button(page,'Preview schema SQL').click();await expect(page.getByRole('dialog',{name:'Unable to prepare schema change'})).toContainText('COMMIT/ROLLBACK');await button(page,'OK').click();
  expect(await page.evaluate(()=>(window as any).schemaAttempts?.length ?? 0)).toBe(0);
  await button(page,'Cancel schema change').click();await expect(page.locator('.schema-editor')).toHaveCount(0);await expect(button(page,'Add column')).toBeEnabled();
 });
@@ -62,7 +62,7 @@ test('A stale apply consumes its preview without automatic retry',async({page})=
  await openStructure(page);await button(page,'Add column').click();await name(page).fill('new');await preview(page);
  await page.evaluate(()=>{(window as any).schemaApplyError='schema changed since preview; reload structure and prepare again';});
  await ack(page).check();await button(page,'Apply schema change').click();
- await expect(page.getByRole('alert').filter({hasText:'schema changed since preview'})).toBeVisible();await expect(button(page,'Apply schema change')).toHaveCount(0);
+ await expect(page.getByRole('alert').filter({hasText:'schema changed since preview'})).toBeVisible();await button(page,'OK').click();await expect(button(page,'Apply schema change')).toHaveCount(0);
  expect(await page.evaluate(()=>(window as any).schemaAttempts.length)).toBe(1);expect(await page.evaluate(()=>(window as any).schemaApplies?.length ?? 0)).toBe(0);
 });
 

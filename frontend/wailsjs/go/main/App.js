@@ -34,6 +34,14 @@ export function Cancel(arg1) {
   return window['go']['main']['App']['Cancel'](arg1);
 }
 
+export function ChangeFavoriteFolder(arg1) {
+  return window['go']['main']['App']['ChangeFavoriteFolder'](arg1);
+}
+
+export function CheckForUpdates(arg1) {
+  return window['go']['main']['App']['CheckForUpdates'](arg1);
+}
+
 export function ClearHistory() {
   return window['go']['main']['App']['ClearHistory']();
 }
@@ -82,12 +90,24 @@ export function ExportDataFile(arg1, arg2, arg3) {
   return window['go']['main']['App']['ExportDataFile'](arg1, arg2, arg3);
 }
 
+export function ExportDatabaseFile(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ExportDatabaseFile'](arg1, arg2, arg3, arg4);
+}
+
 export function ExportTableCSV(arg1, arg2, arg3) {
   return window['go']['main']['App']['ExportTableCSV'](arg1, arg2, arg3);
 }
 
 export function ImportNativeFavorites(arg1, arg2) {
   return window['go']['main']['App']['ImportNativeFavorites'](arg1, arg2);
+}
+
+export function InspectDatabase(arg1, arg2) {
+  return window['go']['main']['App']['InspectDatabase'](arg1, arg2);
+}
+
+export function ListFavoriteFolders() {
+  return window['go']['main']['App']['ListFavoriteFolders']();
 }
 
 export function ListHistory() {
@@ -116,6 +136,10 @@ export function NewTab() {
 
 export function OpenCSV(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['OpenCSV'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function OpenCellFile(arg1) {
+  return window['go']['main']['App']['OpenCellFile'](arg1);
 }
 
 export function OpenNativeFavorites() {
@@ -166,6 +190,10 @@ export function Query(arg1, arg2) {
   return window['go']['main']['App']['Query'](arg1, arg2);
 }
 
+export function SaveCellFile(arg1) {
+  return window['go']['main']['App']['SaveCellFile'](arg1);
+}
+
 export function SaveCredentials(arg1, arg2) {
   return window['go']['main']['App']['SaveCredentials'](arg1, arg2);
 }
@@ -188,6 +216,10 @@ export function SaveSPF(arg1, arg2) {
 
 export function SaveSQLFile(arg1, arg2) {
   return window['go']['main']['App']['SaveSQLFile'](arg1, arg2);
+}
+
+export function SetPreferencesShortcut(arg1) {
+  return window['go']['main']['App']['SetPreferencesShortcut'](arg1);
 }
 
 export function StreamPreparedQuery(arg1, arg2, arg3, arg4, arg5) {

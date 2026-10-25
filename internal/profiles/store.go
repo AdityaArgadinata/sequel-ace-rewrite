@@ -151,6 +151,9 @@ func read(path, id string) (Profile, error) {
 func (s *Store) List() ([]Profile, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.list()
+}
+func (s *Store) list() ([]Profile, error) {
 	dir, err := s.directory()
 	if err != nil {
 		return nil, err
@@ -190,6 +193,9 @@ func (s *Store) List() ([]Profile, error) {
 func (s *Store) Save(p Profile) (Profile, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.save(p)
+}
+func (s *Store) save(p Profile) (Profile, error) {
 	p.Name, p.Host = strings.TrimSpace(p.Name), strings.TrimSpace(p.Host)
 	if err := validate(p); err != nil {
 		return Profile{}, err

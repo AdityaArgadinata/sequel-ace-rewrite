@@ -3,6 +3,7 @@ import {Structure, ApplySchemaChange} from '../wailsjs/go/main/App';
 import {database} from '../wailsjs/go/models';
 import ResultGrid from './ResultGrid';
 import Splitter from './Splitter';
+import {SAErrorDialog} from './SADialog';
 import SASchemaEditor from './SASchemaEditor';
 import {workspaceShortcut} from './workspace-shortcuts';
 import ToolbarIcon from './ToolbarIcon';
@@ -142,7 +143,7 @@ export default function StructureView({initialSection,tab, databaseName, table, 
         {section!=='columns' && <div className="query-heading"><strong>{section==='definition' ? 'CREATE statement' : 'Foreign keys'}</strong><button disabled={busy || !!editor} onClick={()=>setSection('columns')}>Columns & Indexes</button></div>}
         {editor && <SASchemaEditor key={`${editor.kind}:${editor.action}:${editor.object?.name ?? ''}`} {...editor} tab={tab} databaseName={databaseName} table={table} busy={busy} operation={operation} onApply={apply} onCancel={()=>setEditor(null)}/>}
                 {structure?.reason && <p className="notice">{structure.reason}</p>}
-        {error && <p role="alert" className="notice">{error}</p>}
+        {error && <SAErrorDialog title="Unable to change structure" message={error} onClose={()=>setError('')}/>}
         {section === 'columns' ? <div className="structure-stack">
             <div id={columnsID} className="structure-columns" style={{flexBasis:`${height}%`}}>
                 <ResultGrid result={structure ? fieldsResult(structure.columns) : null} busy={busy || !!editor} selected={selectedColumn} onSelect={setSelectedColumn} onEditCell={row=>{if(!draft)open('column','edit',row);}} columnLabels={columnLabels} initialWidths={structureWidths} renderCell={renderField} emptyMessage="No structure available." />

@@ -112,3 +112,13 @@ func TestSQLDumpPreviewKeepsTheFirstStatementAndMarksTruncation(t *testing.T) {
 		t.Fatal("preview skipped/truncated source without notice")
 	}
 }
+
+func TestImportWarningsBounded(t *testing.T) {
+	var out SABatchOutcome
+	appendImportWarning(&out, 1, strings.Repeat("😀", 20000))
+	first := out.Warnings
+	appendImportWarning(&out, 2, "must not grow")
+	if len(out.Warnings) > 33*1024 || out.Warnings != first || !strings.HasSuffix(out.Warnings, "Additional warnings omitted.\n") {
+		t.Fatal(len(out.Warnings))
+	}
+}

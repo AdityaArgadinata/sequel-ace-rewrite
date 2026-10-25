@@ -1,3 +1,4 @@
+import SADialog from './SADialog';
 import {useState} from 'react';
 import {database} from '../wailsjs/go/models';
 
@@ -9,7 +10,7 @@ export default function RowEditor({details, row, busy, onSave, onCancel, duplica
         setValues(old => old.map((v, index) => index === i ? new database.Cell({...v, ...patch}) : v));
         setIncluded(old => old.map((v, index) => index === i ? true : v));
     }
-    return <form className="row-editor" aria-label={duplicate ? 'Duplicate row' : row ? 'Edit row' : 'Insert row'} onSubmit={e => {
+    return <SADialog title={duplicate ? 'Duplicate row' : row ? 'Edit row' : 'Insert row'} onCancel={onCancel} busy={busy} wide><form className="row-editor" aria-label={duplicate ? 'Duplicate row' : row ? 'Edit row' : 'Insert row'} onSubmit={e => {
         e.preventDefault(); const output: Record<string, database.Cell> = Object.create(null);
         details.columns.forEach((c, i) => { if (included[i] && !c.generated) output[c.name] = values[i]; });
         onSave(output);
@@ -24,5 +25,5 @@ export default function RowEditor({details, row, busy, onSave, onCancel, duplica
             <label><input type="checkbox" disabled={busy || c.generated || (count > 1 && (c.primary || c.identity)) || !included[i] || values[i].null} checked={values[i].binary} onChange={e => change(i, {binary: e.target.checked})} /> Hex</label>
         </div>)}</div>
         <div><button type="submit" disabled={busy || (!!row && !included.some(Boolean))}>{count > 1 ? 'Save selected rows' : 'Save row'}</button> <button type="button" disabled={busy} onClick={onCancel}>Cancel</button></div>
-    </form>;
+    </form></SADialog>;
 }

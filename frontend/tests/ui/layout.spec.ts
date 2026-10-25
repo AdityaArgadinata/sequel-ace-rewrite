@@ -59,7 +59,8 @@ for (const viewport of [{width:800,height:600},{width:1280,height:720},{width:14
 test('row editor, errors, Structure and Query controls',async ({page},info) => {
     await page.setViewportSize({width:1280,height:720});
     await openContent(page);
-    await page.getByRole('button',{name:'Insert row',exact:true}).click();
+    await page.locator('.content-grid tbody tr').first().click();
+    await page.getByRole('button',{name:'Edit row',exact:true}).click();
     await page.getByRole('checkbox',{name:'Write name',exact:true}).check();
     await page.getByRole('textbox',{name:'Value name',exact:true}).fill('A long sample value with accents é and descenders gjpqy');
     await expect(page.getByRole('textbox',{name:'Value name',exact:true})).toHaveValue('A long sample value with accents é and descenders gjpqy');

@@ -4,15 +4,19 @@ import {database} from '../wailsjs/go/models';
 import {copyRows, selectRows} from './content-grid';
 import {columnWidth, fittedColumnWidth, gridShortcut, selectedRow} from './grid-navigation';
 
-export default function ResultGrid({result, busy, selected, onSelect, columnLabels, initialWidths, checkboxColumns, emptyMessage, showColumnTypes = false, sortColumn, descending, onSort, onEditCell, cellEditor, renderCell, selectedRows, onSelectAll, onClearSelection, tableName, databaseName, sqlColumns, autoIncrementColumns = [], actions = []}: {result: database.Result | null; busy: boolean; selected?: number; onSelect?: (row: number, modifiers?: {toggle: boolean; range: boolean}) => void; selectedRows?: number[]; onSelectAll?: () => void; onClearSelection?: () => void; tableName?: string; databaseName?: string; sqlColumns?: string[]; autoIncrementColumns?: string[]; actions?: {label: string; disabled?: boolean | ((row: number, column: number) => boolean); run: (row: number, column: number) => void}[]; columnLabels?: Record<string, string>; initialWidths?: Record<string, number>; checkboxColumns?: Record<string, string>; emptyMessage?: string; showColumnTypes?: boolean; sortColumn?: string; descending?: boolean; onSort?: (column: string) => void; onEditCell?: (row: number, column: number) => void; renderCell?: (row:number,column:number) => ReactNode | undefined; cellEditor?: {row: number; column: number; content: ReactNode}}) {
+export type GridView={scrollTop:number;scrollLeft:number;widths:Record<string,number>};
+
+export default function ResultGrid({initialView,onViewChange,result, busy, selected, onSelect, columnLabels, initialWidths, checkboxColumns, emptyMessage, showColumnTypes = false, sortColumn, descending, onSort, onEditCell, cellEditor, renderCell, onEmptyDoubleClick, sortDisabled, selectedRows, onSelectAll, onClearSelection, tableName, databaseName, sqlColumns, autoIncrementColumns = [], actions = []}: {initialView?:GridView;onViewChange?:(view:GridView)=>void;result: database.Result | null; busy: boolean; selected?: number; onSelect?: (row: number, modifiers?: {toggle: boolean; range: boolean}) => void; selectedRows?: number[]; onSelectAll?: () => void; onClearSelection?: () => void; tableName?: string; databaseName?: string; sqlColumns?: string[]; autoIncrementColumns?: string[]; actions?: {label: string; disabled?: boolean | ((row: number, column: number) => boolean); run: (row: number, column: number) => void}[]; columnLabels?: Record<string, string>; initialWidths?: Record<string, number>; checkboxColumns?: Record<string, string>; emptyMessage?: string; showColumnTypes?: boolean; sortColumn?: string; descending?: boolean; onSort?: (column: string) => void; onEditCell?: (row: number, column: number) => void; onEmptyDoubleClick?: () => void; sortDisabled?: boolean; renderCell?: (row:number,column:number) => ReactNode | undefined; cellEditor?: {row: number; column: number; content: ReactNode}}) {
     const grid = useRef<HTMLDivElement>(null);
     const [selection, setSelection] = useState(-1);
     const [localRows,setLocalRows]=useState<number[]>([]);
     const anchor=useRef(-1);
     const localSelection=selected===undefined && selectedRows===undefined && !onSelect;
-    const [widths, setWidths] = useState<Record<string, number>>({});
+    const [widths, setWidths] = useState<Record<string, number>>(()=>({...initialView?.widths}));
     const [menu, setMenu] = useState<{row: number; column: number; x: number; y: number} | null>(null);
     const [copyError, setCopyError] = useState('');
+    useLayoutEffect(()=>{if(grid.current && initialView){grid.current.scrollTop=initialView.scrollTop;grid.current.scrollLeft=initialView.scrollLeft;}},[]);
+    useLayoutEffect(()=>{if(grid.current)onViewChange?.({widths,scrollTop:grid.current.scrollTop,scrollLeft:grid.current.scrollLeft});},[widths]);
     const drag = useRef<{x: number; width: number; key: string} | null>(null);
     useLayoutEffect(() => {
         if(localSelection){setSelection(-1);setLocalRows([]);anchor.current=-1;setMenu(null);}
@@ -63,7 +67,13 @@ export default function ResultGrid({result, busy, selected, onSelect, columnLabe
         void copyText(cells.map(cell => cell.null ? 'NULL' : cell.value).join('\t'));
     }
     return <div ref={grid} className={`results ${showColumnTypes ? 'content-grid' : ''}`} aria-label="Query results" tabIndex={0}
-        onScroll={event => event.currentTarget.style.setProperty('--grid-scroll-top',`${event.currentTarget.scrollTop}px`)}
+        onDoubleClick={event=>{
+            if(busy || !onEmptyDoubleClick || !result?.columns.length || (event.target as HTMLElement).closest('tr,button,input,textarea,select,[role=menu]'))return;
+            const rows=event.currentTarget.querySelectorAll('tbody tr');
+            const bottom=(rows.length ? rows[rows.length-1] : event.currentTarget.querySelector('thead'))?.getBoundingClientRect().bottom ?? event.currentTarget.getBoundingClientRect().top;
+            if(event.clientY>=bottom){event.preventDefault();onEmptyDoubleClick();}
+        }}
+        onScroll={event => {event.currentTarget.style.setProperty('--grid-scroll-top',`${event.currentTarget.scrollTop}px`);onViewChange?.({widths,scrollTop:event.currentTarget.scrollTop,scrollLeft:event.currentTarget.scrollLeft});}}
         onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setMenu(null); }}
         onKeyDown={event => {
             if (event.key === 'Escape') { setMenu(null); return; }
@@ -86,7 +96,7 @@ export default function ResultGrid({result, busy, selected, onSelect, columnLabe
         {copyError && <div role="alert">{copyError}</div>}
         {result && result.columns.length ? <table style={{width:result.columns.reduce((total, _, i) => total + widthFor(i), 0)}}>
             <colgroup>{result.columns.map((_, i) => <col key={i} style={{width:widthFor(i)}} />)}{showColumnTypes && <col />}</colgroup>
-            <thead><tr>{result.columns.map((column, i) => <th key={i} title={column.type} aria-sort={onSort ? (sortColumn === column.name ? descending ? 'descending' : 'ascending' : 'none') : undefined}>{onSort ? <button className="column-sort" disabled={busy} onClick={() => onSort(column.name)}>{columnLabels?.[column.name] ?? column.name}{sortColumn === column.name ? descending ? ' ▾' : ' ▴' : ''}</button> : columnLabels?.[column.name] ?? column.name}{showColumnTypes && <small className="column-type">{column.type}</small>}
+            <thead><tr>{result.columns.map((column, i) => <th key={i} title={column.type} aria-sort={onSort ? (sortColumn === column.name ? descending ? 'descending' : 'ascending' : 'none') : undefined}>{onSort ? <button className="column-sort" disabled={busy || sortDisabled} onClick={() => onSort(column.name)}>{columnLabels?.[column.name] ?? column.name}{sortColumn === column.name ? descending ? ' ▾' : ' ▴' : ''}</button> : columnLabels?.[column.name] ?? column.name}{showColumnTypes && <small className="column-type">{column.type}</small>}
                 <span className="column-resizer" role="separator" tabIndex={0} aria-label={`Resize ${columnLabels?.[column.name] ?? column.name} column`} aria-orientation="vertical" aria-valuemin={48} aria-valuemax={800} aria-valuenow={widthFor(i)}
                     onKeyDown={event => {
                         const next = event.key === 'Home' ? 48 : event.key === 'End' ? 800 : event.key === 'ArrowLeft' ? widthFor(i)-10 : event.key === 'ArrowRight' ? widthFor(i)+10 : undefined;

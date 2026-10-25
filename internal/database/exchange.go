@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/base64"
 	"encoding/csv"
@@ -269,6 +270,10 @@ func (s *Session) ExportData(w io.Writer, spec SAExportSpec) (int64, error) {
 			}
 		}
 	}
+	return s.exportQuery(ctx, w, spec.Format, r.Database, r.Table, statement, args)
+}
+
+func (s *Session) exportQuery(ctx context.Context, w io.Writer, format, db, table, statement string, args []any) (int64, error) {
 	rows, err := s.queryContext(ctx, statement, args...)
 	if err != nil {
 		return 0, s.queryError(err)
@@ -289,7 +294,7 @@ func (s *Session) ExportData(w io.Writer, spec SAExportSpec) (int64, error) {
 	for i, t := range types {
 		cols[i] = Column{Name: t.Name(), Type: t.DatabaseTypeName()}
 	}
-	d, err := newDataWriter(w, spec.Format, cols, r.Database, r.Table)
+	d, err := newDataWriter(w, format, cols, db, table)
 	if err != nil {
 		return 0, err
 	}

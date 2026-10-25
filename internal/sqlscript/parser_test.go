@@ -76,3 +76,21 @@ func TestDumpLimitsDoNotChangeInteractiveLimits(t *testing.T) {
 		t.Fatal(len(got), err)
 	}
 }
+
+func TestImportModeTransitions(t *testing.T) {
+	source := "-- header\nSET SESSION sql_mode = 'NO_BACKSLASH_ESCAPES';\nSELECT 'ends in \\';\nSET SESSION sql_mode = '';\nSELECT 'escape \\' quote';"
+	result, err := ParseImport(source, "")
+	if err != nil || len(result) != 4 {
+		t.Fatal(result, err)
+	}
+	if result[0].Mode != "" || result[1].Mode != "NO_BACKSLASH_ESCAPES" || result[2].Mode != "NO_BACKSLASH_ESCAPES" || result[3].Mode != "" {
+		t.Fatal(result)
+	}
+	if interactive, err := Parse(source, ""); err == nil && len(interactive) == 4 {
+		t.Fatal("interactive parser unexpectedly switched modes")
+	}
+	result, err = ParseImport("SET SESSION sql_mode = CONCAT('ANSI','_QUOTES'); SELECT 1", "")
+	if err != nil || result[1].Mode != "" {
+		t.Fatal("expression mode changes must remain unrecognized", result, err)
+	}
+}

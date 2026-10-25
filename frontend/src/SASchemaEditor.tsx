@@ -1,3 +1,4 @@
+import SADialog, {SAErrorDialog} from './SADialog';
 import {useState} from 'react';
 import {PrepareSchemaChange} from '../wailsjs/go/main/App';
 import {database} from '../wailsjs/go/models';
@@ -16,7 +17,7 @@ export default function SASchemaEditor({columnEdits,proposedName,tab,databaseNam
   setPlan(null);setAck(false);setError('');
   await operation(async()=>{try{setPlan(await PrepareSchemaChange(tab,new database.SASchemaChange({database:databaseName,table,kind,action,original:object?.name ?? '',name,indexKind,definition,columnEdits})));}catch(e){setError(String(e));throw e;}});
  }
- return <form className="schema-editor" aria-label={title} onSubmit={e=>{e.preventDefault();void prepare();}}>
+ return <SADialog title={title} onCancel={onCancel} busy={busy} wide><form className="schema-editor" aria-label={title} onSubmit={e=>{e.preventDefault();void prepare();}}>
   <div className="schema-editor-heading"><strong>{title} · {databaseName}.{table}</strong><button type="button" disabled={busy} onClick={onCancel}>Cancel schema change</button></div>
   <p>Review the SQL before applying. Schema changes can lock or rebuild the table, discard data and implicitly commit. Rollback cannot undo DDL. No automatic retry.</p>
   {action==='drop' ? <p>Drop <strong>{object?.name}</strong> from this table. Removing a column also removes its data; the server enforces dependent constraints.</p> : <>
@@ -29,11 +30,11 @@ export default function SASchemaEditor({columnEdits,proposedName,tab,databaseNam
    <p>One definition only; SQL comments and statement separators outside quoted text are not accepted. The server validates supported attributes and dependencies.</p>
   </>}
   {kind==='foreignKey' && action==='edit' && <p>Use a new constraint name for replacement. This supports MySQL 5.7 without disabling foreign key checks or issuing separate drop/add commands.</p>}
-  {error && <p className="notice" role="alert">{error}</p>}
+  {error && <SAErrorDialog title="Unable to prepare schema change" message={error} onClose={()=>setError('')}/>}
   <button type="submit" disabled={busy || (action!=='drop' && (!name.trim() || !definition.trim()))}>Preview schema SQL</button>
   {plan && <div className="schema-preview"><pre aria-label="Schema SQL preview">{plan.sql};</pre>
    <label><input type="checkbox" disabled={busy} checked={ack} onChange={e=>setAck(e.target.checked)}/>I reviewed this SQL and accept the schema/data changes.</label>
    <button type="button" className="primary" disabled={busy || !ack} onClick={()=>{const token=plan.token;setPlan(null);setAck(false);void onApply(token);}}>Apply schema change</button>
   </div>}
- </form>;
+ </form></SADialog>;
 }

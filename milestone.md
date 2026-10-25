@@ -1129,3 +1129,297 @@ versi/bundle ID macOS, permission executable Linux dan validitas DMG lulus.
 162 tes UI Chromium/WebKit lulus pada setiap platform; native GUI install
 Windows/Linux serta publisher signing/notarization tetap belum divalidasi.
 Salinan paket terverifikasi tersimpan di `dist/from-github/v0.1.0-alpha.2/`.
+
+
+### Draft insert langsung di Content — 2026-10-24
+
+- Double-click area kosong di bawah data membuat satu draft row inline dari
+  default struktur. Double-click berikutnya, Enter atau Save new row menyimpan;
+  Tab/Shift+Tab berpindah kolom, Escape/Cancel new row membuang draft.
+- Kegagalan insert membuka dialog Unable to write row dengan Edit row dan
+  Discard changes. Isian tetap tersedia untuk diperbaiki. Hasil write yang tidak
+  pasti tidak diulang otomatis; refresh yang gagal setelah insert sukses tidak
+  menyisakan draft yang bisa tersimpan dua kali.
+- Default yang tidak diedit tidak dikirim ulang ke INSERT: server tetap mengisi
+  default, auto-increment dan ekspresi waktu; generated tidak ditulis. MySQL 5.7
+  bisa menampilkan emoji default sebagai ? pada metadata meski nilai server
+  masih utuh; pratinjau mengikuti metadata, insert mempertahankan default server.
+- Verifikasi: seluruh tes Go dengan MySQL 5.7 disposable, go vet dan tes race
+  metadata/insert lulus. 15 unit frontend dan TypeScript lulus. Regresi UI penuh
+  meluluskan 170 tes; dua assertion lama triple-click disesuaikan karena kini
+  membuat draft, lalu seluruh 26 tes fokus final Chromium/WebKit lulus.
+- Build lokal macOS ARM64 diperbarui di rewrite/build/bin/sequelx.app.
+  Native GUI Windows/Linux belum diuji ulang. Belum dipush atau dirilis.
+
+
+### Dialog CRUD bergaya Sequel Ace — 2026-10-24
+
+- Konfirmasi delete row dipindahkan dari panel inline ke modal berikon sequelx,
+  judul Delete selected row?/Delete rows?, identitas baris dan tombol Cancel
+  sebagai fokus awal. Escape membatalkan tanpa write; fokus kembali ke pembuka.
+- Form Insert/Edit/Duplicate, editor kolom/index/foreign key, preview perubahan
+  tabel/database dan administrasi memakai modal yang sama. Preview SQL,
+  acknowledgment, konfirmasi nama dan batasan write tetap dipertahankan.
+- Kegagalan create/update/delete menampilkan detail server dalam modal. Error
+  setelah write sukses dipisahkan dari error write agar tidak mendorong insert
+  ulang. Hasil parsial operasi objek tampil dalam modal; jumlah row sukses tetap
+  di status bawah. Menutup error tidak mengulang operasi.
+- Verifikasi: 173 tes regresi UI lulus pada run penuh; satu masalah fokus editor
+  WebKit diperbaiki. Dua belas tes inline insert dan delapan tes CRUD final
+  Chromium/WebKit lulus, termasuk pembukaan lewat keyboard, fokus Cancel,
+  Escape, pemulihan fokus dan tidak ada write ulang. 15 unit frontend,
+  TypeScript dan lint localization lulus. Modal diperiksa lewat screenshot.
+- Build lokal macOS ARM64 diperbarui. Native GUI Windows/Linux belum diuji
+  ulang; belum dipush atau dipublikasikan sebagai release.
+
+
+### Tipografi dialog dan Insert inline dari tombol plus — 2026-10-24
+
+- Tombol +/Insert row dan menu konteks Insert row memanggil alur draft inline
+  yang sama dengan double-click area kosong. Draft muncul di bawah data,
+  mengikuti default struktur dan langsung memfokuskan sel pertama. Satu draft
+  aktif pada satu waktu; belum ada write saat tombol diklik.
+- Dialog dirapikan dengan judul 17px semibold, body 13px dengan line-height
+  konsisten, informasi pendukung 12px, ikon 64px dan tombol 32px. Teks delete
+  dipersingkat; nama tabel dipisahkan dari paragraf dan identitas baris tampil
+  dalam area ringkas. Peringatan cascade dan partial write tetap terlihat.
+- Verifikasi: 60 tes UI Chromium/WebKit, 15 unit frontend, TypeScript dan lint
+  localization lulus. Screenshot modal diperiksa. Tes mencakup Insert dari
+  toolbar/konteks, default, fokus, save/cancel serta regresi edit/delete.
+- Build lokal macOS ARM64 diperbarui; GUI Windows/Linux belum diuji ulang.
+  Belum dipush atau dirilis.
+
+
+## Backlog penggunaan harian lanjutan — 2026-10-24
+
+Urutan kerja setelah penyempurnaan Content dan modal CRUD:
+
+1. [x] Hasil query besar dan kestabilan sesi: pertahankan sesi ketika batas
+   tampilan tercapai jika sisa respons bisa dikonsumsi dengan anggaran terbatas;
+   tampilkan alasan hasil parsial dan kebutuhan reconnect secara akurat.
+   Cancel/timeout/transport error tetap harus menjaga kepastian transaksi.
+2. [x] Editor isi sel TEXT/JSON/BLOB: tampilan luas, pencarian, preview dan
+   import/export isi sel, dengan preservasi NULL/binary serta deteksi konflik.
+3. [x] Pemulihan workspace: filter, posisi scroll, selection dan draft ketika
+   kembali ke tabel, tanpa menjalankan ulang write atau memakai snapshot basi.
+4. [x] Transfer database lengkap: inventaris dan dukungan trigger/view/routine/
+   event, dependensi dan hasil parsial yang terverifikasi.
+5. [x] Kelengkapan penggunaan: preferences, shortcut/remapping, operasi folder
+   favorites dan pengelolaan privilege akun lanjutan.
+6. [ ] Distribusi: QA native Windows/Linux, instalasi bersih, keputusan signing/
+   notarization serta mekanisme update. Publish tetap memerlukan instruksi.
+
+Pengerjaan dimulai dari butir 1. Butir lain tetap terbuka sampai implementasi
+beserta verifikasinya selesai; tidak dianggap tercakup oleh tes fitur sebelumnya.
+
+
+### Prioritas lanjutan 1 — Hasil besar tanpa kehilangan sesi secara langsung — 2026-10-24
+
+- Batas tampilan tetap 500 baris/4 MiB. Setelah tercapai, sisa result set pertama
+  dibaca dan dibuang hingga batas 10.000 baris/16 MiB raw/2 detik. Jika selesai,
+  sesi fisik yang sama dipertahankan: tidak reconnect/replay atau COMMIT otomatis.
+- Jika anggaran terlampaui atau ada result set tambahan, respons dihentikan dan
+  sesi ditutup. Cancel pengguna, timeout operasi dan kegagalan transport tetap
+  menutup sesi. Ini bukan dukungan hasil tak terbatas atau cancel tanpa reconnect.
+- Result membawa notice dan flag sessionClosed. Query menunjukkan Partial result;
+  batas tampilan tidak lagi dilaporkan sebagai error koneksi jika sesi masih
+  aktif. Statement lanjutan dalam script tidak dijalankan setelah hasil parsial.
+  Content juga menampilkan notice untuk batas ukuran data pada satu halaman.
+- Metadata tidak pernah dianggap lengkap bila terpotong; kegagalan metadata
+  sekarang dapat mempertahankan sesi jika responsnya berhasil diselesaikan.
+- Verifikasi: seluruh tes Go pada MySQL 5.7 disposable, go vet, tes race fokus,
+  30 tes UI Chromium/WebKit, 15 unit frontend dan TypeScript lulus. Tes database
+  memverifikasi CONNECTION_ID/database/variabel/temp table, managed transaction
+  serta rollback, batas tepat/overflow, error server terlambat, deadline dan cancel.
+- Build lokal macOS ARM64 diperbarui. MySQL 8.4/MariaDB 11.4 serta GUI native
+  Windows/Linux belum diuji ulang untuk perubahan ini. Belum dipush atau dirilis.
+- Prioritas lanjutan 2–6 tetap terbuka; berikutnya editor TEXT/JSON/BLOB.
+
+
+### Prioritas lanjutan 2 — Editor isi sel TEXT/JSON/BLOB — 2026-10-24
+
+- Open cell editor pada menu konteks Content dan Alt+Enter dari editor inline
+  membuka area luas dengan pencarian literal Next/Previous (Cmd/Ctrl+F), Text/
+  Hex, NULL eksplisit, preview dan simpan melalui Cmd/Ctrl+Enter. Double-click
+  Content tetap inline. Hasil Query memiliki viewer baca-saja lewat double-click
+  atau Open cell viewer; sel generated/read-only juga hanya dapat dilihat/export.
+- Preview mendukung teks, JSON, hexdump dan gambar PNG/JPEG/GIF/WebP lokal.
+  HTML/SVG tetap berupa teks. JSON preview mempertahankan literal angka besar,
+  duplicate key dan escape; tidak menulis ulang draft lewat JSON.stringify.
+  Kolom JSON divalidasi sintaksnya sebelum write. URL gambar dibersihkan saat
+  preview ditutup/berubah.
+- Impor/ekspor satu sel memakai dialog file native. Impor hanya mengubah draft;
+  ekspor menulis UTF-8/raw binary ke nama file baru tanpa overwrite. BOM, CRLF,
+  NUL dan byte non-UTF-8 diuji round-trip. NULL berbeda dari teks/binary kosong;
+  ekspor NULL tidak membuat file kosong. Konversi hex/UTF-8 yang tidak valid ditolak.
+- Save cell memakai Mutate dan snapshot original lengkap untuk mendeteksi konflik.
+  Setelah write gagal, draft tetap dapat dilihat/ekspor; write ulang diblokir
+  sampai pengguna menutup editor, memeriksa server dan reload. Apply to new row
+  hanya mengubah draft insert, belum menulis database. Default yang tidak diubah
+  tetap tidak dikirim sebagai nilai eksplisit.
+- Batas nilai tetap 4 MiB encoded (binary sekitar 2 MiB raw). Preview JSON
+  dibatasi 64 KiB input/128 KiB formatted/64 tingkat; teks 65.536 karakter dan
+  hexdump 4 KiB. Batas preview tidak memotong nilai yang disimpan.
+- Verifikasi: seluruh tes Go dengan MySQL 5.7 disposable, go vet, race fokus
+  file/API/konflik, 19 unit frontend dan TypeScript lulus. Regresi UI penuh
+  210 tes lulus; 22 tes fokus final Chromium/WebKit lulus termasuk validasi JSON,
+  PNG lokal/cleanup, generated read-only, draft insert, kegagalan file/write,
+  pencarian dan layout 800/1280 px. Screenshot JSON dan jendela kecil diperiksa.
+- Build lokal macOS ARM64 diperbarui. Dialog file native dan GUI Windows/Linux
+  belum diuji manual ulang; MySQL 8.4/MariaDB 11.4 belum diuji untuk perubahan ini.
+  Belum dipush atau dirilis. Prioritas lanjutan 3–6 tetap terbuka.
+
+
+## Prioritas lanjutan 3 — pemulihan workspace Content (2026-10-24)
+
+- [x] Setiap tab koneksi mempertahankan filter (termasuk perubahan belum Apply),
+  sort, halaman, pilihan baris, scroll horizontal/vertikal, lebar kolom, serta
+  draft edit/insert ketika berpindah tabel, database, tampilan dan tab koneksi.
+- Snapshot disimpan di RAM untuk maksimum delapan tabel per tab koneksi.
+  Workspace bersih yang paling lama dikunjungi dapat diganti; draft baris dan
+  filter belum diterapkan dilindungi. Jika delapan workspace berisi draft,
+  pembukaan tabel baru diblokir sampai salah satu draft diselesaikan/dibatalkan.
+- Kembali ke workspace tidak mengulang query atau write. Banner menyatakan data
+  berasal dari memori; write tetap memeriksa seluruh nilai baris asli agar
+  perubahan server tidak tertimpa. SQL manual, perubahan schema/admin dan
+  COMMIT/ROLLBACK menandai snapshot usang dan memblokir write sampai reload.
+  Draft tetap tersedia; membuang draft untuk reload memerlukan konfirmasi.
+- Menutup tab koneksi/aplikasi mengakhiri penyimpanan ini; belum ada pemulihan
+  lintas restart atau penyimpanan draft ke disk. Ikon aplikasi/toolbar tetap.
+- Verifikasi khusus: 22 tes unit frontend dan 16 tes UI Chromium/WebKit lulus,
+  termasuk isolasi database/tab, cache penuh, filter belum Apply, draft insert,
+  pemulihan geometri grid, invalidasi SQL, dan konflik baris tanpa retry write.
+  Tes Go lulus tanpa server integrasi hidup pada putaran ini. Regresi lengkap:
+  228/230 lulus; dua kegagalan adalah tes edit yang masih menganggap refresh
+  katalog menghapus cache. Setelah disesuaikan dengan reload eksplisit, seluruh
+  14 tes interaksi tabel Chromium/WebKit lulus (termasuk dua kasus tersebut).
+  Build lokal darwin/arm64 `rewrite/build/bin/sequelx.app` diperbarui; verifikasi
+  codesign, localization lint dan diff whitespace lulus. Windows/Linux serta
+  interaksi native app belum diuji manual untuk perubahan ini. Belum dipush atau
+  dirilis. Prioritas lanjutan 4–6 tetap terbuka.
+
+
+## Prioritas lanjutan 4 — transfer SQL database lengkap (2026-10-24)
+
+- [x] Connection actions → Transfer database menyediakan inventaris tabel, view,
+  function, procedure, trigger dan event, jumlah tiap jenis serta dependensi view.
+  Inspect bersifat read-only; Save database SQL baru aktif sesudah review eksplisit.
+- Ekspor SQL mencakup struktur dan data opsional: tabel terlebih dahulu, lalu data,
+  foreign key, routine, view berdasarkan dependensi, trigger sesuai ACTION_ORDER,
+  dan event. Generated columns tidak disuplai lewat INSERT. NULL/binary/Unicode
+  dipertahankan, TIMESTAMP dibaca/restore dalam UTC dan zona waktu sesi asal
+  dikembalikan. Mode/collation pembuatan objek dan zona waktu event dipertahankan.
+- Event di dump dinonaktifkan; pengguna meninjau sebelum mengaktifkan jadwalnya.
+  Nama database, DEFINER dan referensi SQL eksternal dipertahankan tanpa rewrite.
+  Restore memerlukan database nama asal belum ada; akun/grants tidak ikut diekspor.
+  Direct copy/move tetap memblokir special objects; transfer lengkap melalui SQL.
+- Fingerprint definisi diperiksa sebelum dan sesudah ekspor. Metadata berubah,
+  privilege tidak cukup, jenis objek tak didukung, dependensi view ambigu/siklus,
+  atau collation database berbeda dari konteks pembuatan objek gagal eksplisit.
+  File sementara hanya dipublikasikan setelah selesai, tanpa overwrite file lama.
+- Import mengenali SET SESSION sql_mode literal dan memverifikasi mode server
+  sebelum setiap statement. Deprecation 1287/1681/3090 hanya di SET mode literal
+  dicatat tanpa menghentikan; warning lainnya/error/cancel menghentikan impor.
+  Laporan memuat prefix yang diakui server, statement/baris kegagalan, uncertainty,
+  dan warning maksimum 32 KiB. Token sekali pakai; tidak ada retry/COMMIT/ROLLBACK
+  otomatis. Hasil DDL/data sebelum kegagalan bisa sudah tersimpan.
+- Batas: 1.000 objek, 8 MiB definisi, file 64 MiB/100.000 statement, 4 MiB per
+  statement dan timeout operasi 60 detik. Inventaris hanya menampilkan objek yang
+  terlihat untuk akun tersebut; gunakan akun dengan privilege metadata lengkap.
+  Pause DDL/write untuk backup konsisten: belum ada snapshot transaksi lintas
+  tabel/engine atau remap referensi/grants lintas database/server.
+- Verifikasi: seluruh `SEQUEL_TEST_PORT=33317 go test -race ./...` dan `go vet
+  ./...` lulus pada MySQL disposable 5.7.44. Round-trip memeriksa binary/Unicode,
+  TIMESTAMP lintas zona waktu, generated/FK, view bertingkat, trigger, function,
+  routine SQL mode berbeda dan event disabled; metadata berubah sebelum/selama
+  ekspor ditolak. Restore duplikat berhenti pada CREATE DATABASE tanpa replay.
+  Seluruh 22 unit frontend, 56 tes UI transfer/workspace dan 10 tes UI transfer
+  final Chromium/WebKit lulus. Build darwin/arm64, codesign, localization lint dan
+  diff whitespace lulus. Ikon tidak berubah; belum dipush atau dirilis.
+- Belum diverifikasi manual di app native atau di Windows/Linux. MySQL 8.x dan
+  MariaDB belum diuji untuk perubahan ini; migrasi lintas versi/privilege/charset
+  memerlukan uji restore tersendiri. Prioritas 5–6 tetap terbuka.
+
+
+## Prioritas lanjutan 5 — kelengkapan penggunaan harian (2026-10-25)
+
+- [x] Preferences menambah SQL tab width 2/4/8, default halaman Content
+  25/50/100/200, reset settings dan reset shortcut. Nilai legacy theme/font/size/
+  wrap tetap terbaca. Perubahan page size hanya berlaku pada workspace tabel baru;
+  halaman/draft yang sudah terbuka tetap dipertahankan. Settings memakai gear yang
+  sama di samping Console; ikon aplikasi dan toolbar tidak diubah.
+- [x] Remapping untuk enam view, reload/filter, run current/selection, run all dan
+  Preferences. Binding memakai Mod/Shift/Alt, dapat dikosongkan untuk disable;
+  konflik, shortcut editing/app/window yang dicadangkan, repeat, composition dan AltGr
+  diperiksa. Preferences tersimpan di localStorage. Accelerator menu native ikut
+  diperbarui, termasuk saat binding Preferences dimatikan; tombol gear tetap ada.
+  Label shortcut mengikuti konfigurasi. Dialog mencegah navigasi workspace tersembunyi.
+- [x] Folder favorites persisten (termasuk folder kosong), filter/collapse, create,
+  rename/move subtree dan remove dengan memindahkan favorit ke Unfiled. ID profil,
+  seluruh pengaturan koneksi dan credential OS tetap dipertahankan. Pindah favorit
+  individual melalui Folder + Save Changes. Path maksimum 200 byte UTF-8/10 level;
+  tidak melakukan merge folder otomatis. Format profil v1 tetap kompatibel;
+  metadata folder kosong tersimpan terpisah di .folders-v1.
+- Batch folder memvalidasi profil lebih dahulu dan menulis setiap profil secara
+  atomik. Keseluruhan batch bukan transaksi file; interupsi/kegagalan dilaporkan
+  sebagai prefix selesai. Tidak menghapus profil/credential atau retry otomatis;
+  reload sebelum menyelesaikan batch parsial. Save/Connect diblokir selama batch.
+- [x] User Manager menambah scope privilege global/database/table/column/
+  procedure/function, GRANT OPTION dan revoke delegasi, rename, lock/unlock, serta
+  assign/revoke/default/clear default untuk role yang sudah ada pada MySQL 8+ dan
+  MariaDB 10.2+. Host role hanya dipakai MySQL. Wildcard nama database di-escape
+  sesuai partial_revokes, agar grant tidak melebar ke database lain.
+- Semua perubahan akun tetap satu statement dengan preview, acknowledgment dan
+  token sekali pakai. Snapshot mencakup grants, SHOW CREATE USER (termasuk lock/
+  password policy), grants role, default role dan partial_revokes untuk menolak
+  preview basi. SQL/password tidak masuk activity log; preview password disamarkan.
+  Akun/grants tidak ditulis otomatis. Lock tidak memutus sesi yang sudah terbuka.
+- Batas UI privilege: subset static privileges yang ditampilkan; role creation,
+  dynamic privileges MySQL, resource limits dan pilihan authentication plugin
+  tetap melalui SQL editor. Server/akun yang tak mendukung metadata atau syntax
+  tersebut gagal eksplisit; diperlukan privilege administrasi server yang sesuai.
+- Verifikasi: seluruh `SEQUEL_TEST_PORT=33317 go test -race ./...` lulus di
+  MySQL disposable 5.7.44; tes akun/race final juga lulus setelah validasi rename.
+  Tes live membuktikan privilege kolom tidak melebar, escape wildcard database,
+  grant routine, grant/revoke global, revoke delegasi, lock/unlock, rename dan penolakan snapshot
+  akun yang berubah. Tes unit memeriksa syntax role MySQL/MariaDB dan gate versi,
+  konflik shortcut, AltGr/composition/repeat, kompatibilitas preferences/profil,
+  subtree/empty folder, serta penolakan dokumen corrupt/future version sebelum write.
+- Seluruh 24 unit frontend dan 258 regresi UI Chromium/WebKit lulus; 18 tes prioritas
+  5 final diulang dan lulus setelah guard AltGr/reset delegasi. UI diverifikasi
+  pada lebar 800/1280. Native menu parser dan disable/remap accelerator diuji unit.
+  `go vet`, lint English localization, diff whitespace dan codesign lulus. Build
+  lokal darwin/arm64 `rewrite/build/bin/sequelx.app` diperbarui. Belum dipush/dirilis.
+- Belum diuji manual pada app native macOS/Windows/Linux. Role/default-role dan
+  partial_revokes MySQL 8/MariaDB baru diverifikasi pada generator/validator SQL,
+  belum pada server live tersebut. Native accelerator bergantung perilaku OS dan
+  layout keyboard; QA native lintas platform tetap bagian prioritas 6 yang terbuka.
+
+
+## Prioritas lanjutan 6 — distribusi (mulai 2026-10-25)
+
+- [x] Cek pembaruan manual di Settings/Preferences. Hanya membaca maksimal 100
+  metadata rilis GitHub saat tombol diklik; stable dipisahkan dari prerelease.
+  Perbandingan mengikuti SemVer. CI menyertakan tag penuh di binary; build lokal
+  ditandai development. Tidak mengunduh/mengganti app atau menutup sesi otomatis.
+- [x] CI disiapkan untuk startup native Linux melalui Xvfb dan Windows dari
+  hasil instalasi NSIS ke direktori baru. Konfigurasi kosong, tanpa koneksi SQL;
+  laporan JSON mencatat OS/arsitektur/hash binary dan jendela yang teramati.
+  Smoke test ini hanya membuktikan startup, bukan seluruh QA desktop/installer.
+- [x] Keputusan pengguna: distribusi melalui GitHub Releases, memakai signature ad hoc macOS,
+  Windows unsigned dan instalasi pembaruan manual. Signing production bukan syarat
+  distribusi GitHub saat ini. Tidak menyimpan sertifikat atau
+  credential GitHub dalam app. Signing production/notarization belum diaktifkan.
+- [ ] Jalankan workflow Windows/Linux dan periksa laporan native startup; step baru
+  belum dijalankan pada runner kedua OS. QA manual koneksi, credential vault,
+  shortcut native, CRUD, import/export, upgrade/uninstall dan instalasi bersih pada
+  desktop Windows/Linux tetap diperlukan. Tidak tersedia lingkungan desktop kedua
+  OS pada host lokal ini.
+- Opsional di luar cakupan distribusi GitHub saat ini: signing production Windows
+  dan Developer ID/notarization macOS. Paket sekarang tidak boleh dianggap telah
+  notarized; peringatan publisher dari OS masih mungkin muncul.
+- Verifikasi lokal: Go race suite lulus (integrasi database dilewati karena server
+  disposable tidak aktif), 24 unit frontend dan 52 tes UI terkait Chromium/WebKit
+  lulus, dua unit probe smoke test dan actionlint lulus. Build darwin/arm64 lokal
+  diperbarui dan signature ad hoc diperiksa. QA native Windows/Linux masih terbuka;
+  prioritas 6 belum ditandai selesai. Belum dipush atau dipublish.

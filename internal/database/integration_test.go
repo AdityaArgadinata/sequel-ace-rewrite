@@ -124,8 +124,11 @@ func TestIntegration(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(streamed, r.Rows) {
 		t.Fatalf("truncated stream differs from final result: %v", err)
 	}
-	if !r.Truncated || len(r.Rows) != MaxRows || s.Connected() {
-		t.Fatalf("row limit did not discard session: %d, %v", len(r.Rows), r.Truncated)
+	if !r.Truncated || len(r.Rows) != MaxRows || r.SessionClosed || !s.Connected() {
+		t.Fatalf("row limit did not preserve session: %d, %v", len(r.Rows), r.Truncated)
+	}
+	if err := s.Disconnect(); err != nil {
+		t.Fatal(err)
 	}
 	connect()
 	if err := s.UseDatabase(name); err != nil {
@@ -141,8 +144,11 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !r.Truncated || len(r.Rows) != 0 || s.Connected() {
-		t.Fatal("byte limit did not discard session")
+	if !r.Truncated || len(r.Rows) != 0 || r.SessionClosed || !s.Connected() {
+		t.Fatal("byte limit did not preserve session")
+	}
+	if err := s.Disconnect(); err != nil {
+		t.Fatal(err)
 	}
 	connect()
 	if err := s.UseDatabase(name); err != nil {

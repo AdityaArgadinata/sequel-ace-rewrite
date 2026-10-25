@@ -908,3 +908,72 @@ td.null {
     background-repeat:no-repeat; background-position:right 3px center;
 }
 .structure-workspace .schema-notice { margin:0; padding:3px 6px; max-height:55px; overflow:auto; flex-shrink:0; border-top:1px solid var(--separator); font-size:11px; }
+.insert-draft-actions { display:flex; align-items:center; flex-shrink:0; gap:8px; padding:3px 6px; border-top:1px solid var(--separator); background:var(--surface); font-size:11px; flex-wrap:wrap; }
+.insert-draft-actions button { padding:2px 8px; font-size:11px; }
+.insert-error-dialog { width:360px; max-width:calc(100vw - 32px); padding:24px 20px 20px; border:1px solid var(--separator); border-radius:12px; background:var(--surface); color:var(--text); text-align:center; box-shadow:0 12px 40px #0006; }
+.insert-error-dialog::backdrop { background:#0003; }
+.insert-error-dialog>img { width:64px; height:64px; object-fit:contain; margin-bottom:12px; }
+.insert-error-dialog h2 { font-size:17px; font-weight:600; line-height:1.25; letter-spacing:-.2px; margin:8px 0 16px; }
+.insert-error-dialog p { font-size:13px; font-weight:400; line-height:1.45; margin:0 0 12px; }
+.insert-error-message { white-space:pre-wrap; overflow-wrap:anywhere; max-height:180px; overflow:auto; margin:18px 0; }
+.insert-error-dialog>button { display:block; width:100%; margin-top:8px; padding:5px 10px; min-height:32px; font-size:13px; font-weight:500; line-height:20px; }
+.insert-error-dialog h2 { color:var(--text); }
+
+.sa-dialog-wide { width:640px; text-align:left; }
+.insert-error-dialog { max-height:calc(100dvh - 32px); overflow:auto; }
+.sa-dialog-wide>img { display:block; margin:0 auto 12px; width:64px; height:64px; }
+.sa-dialog-wide>h2 { text-align:center; }
+.sa-dialog-wide form { margin:0; padding:0; border:0; background:transparent; }
+.sa-dialog-wide pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:30vh; overflow:auto; }
+.sa-dialog-wide .row-editor-fields { max-height:40vh; overflow:auto; }
+.sa-dialog-wide .transfer-preview { margin:0; }
+.insert-error-dialog .delete-confirmation { text-align:center; background:transparent; padding:0; border:0; margin:0 0 16px; max-height:none; overflow:visible; }
+.insert-error-dialog .delete-confirmation dl { max-height:96px; overflow:auto; margin:12px 0 0; padding:8px 12px; border:1px solid var(--separator); border-radius:6px; text-align:left; font-size:12px; line-height:1.4; }
+.insert-error-dialog .delete-confirmation dl>div { display:flex; gap:12px; justify-content:space-between; }
+.insert-error-dialog .delete-confirmation dt { color:var(--muted); flex-shrink:0; }
+.insert-error-dialog .delete-confirmation dd { margin:0; overflow-wrap:anywhere; }
+.insert-error-dialog .dialog-object-name { font-size:12px; font-weight:500; overflow-wrap:anywhere; }
+.insert-error-dialog .dialog-secondary { font-size:12px; color:var(--muted); }
+.insert-error-dialog .danger { color:#fff; background:#c33131; border-color:#c33131; }
+
+.cell-detail { display:flex; flex-direction:column; gap:10px; min-width:0; }
+.sa-dialog-wide:has(.cell-detail) { width:820px; }
+.sa-dialog-wide:has(.cell-detail)>img { display:none; }
+.cell-detail .cell-detail-label { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin:0; overflow-wrap:anywhere; }
+.cell-detail-label span,.cell-detail-help { color:var(--muted); font-size:11px; }
+.cell-detail-controls,.cell-detail-search,.cell-detail-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.cell-detail-controls label { display:flex; align-items:center; gap:6px; }
+.cell-detail-search input { flex:1; min-width:100px; }
+.cell-detail-value,.cell-detail-preview { width:100%; height:clamp(140px,40vh,420px); min-height:140px; overflow:auto; border:1px solid var(--border); border-radius:4px; background:var(--field); padding:10px; font:12px/1.5 var(--editor-font,ui-monospace,monospace); }
+.cell-detail-value { resize:vertical; tab-size:2; white-space:pre; }
+.cell-detail-preview pre { font:inherit; margin:0; white-space:pre-wrap; overflow-wrap:anywhere; max-height:none; }
+.cell-detail-preview>img { display:block; max-width:100%; max-height:220px; object-fit:contain; margin:0 auto 12px; }
+.cell-detail .cell-detail-help { margin:0; font-size:11px; line-height:1.4; }
+.cell-detail-actions>span { flex:1; }
+.cell-detail [role=alert],.cell-detail [role=status] { margin:0; font-size:12px; overflow-wrap:anywhere; }
+
+.content-restored { flex-shrink:0; padding:4px 7px; border-bottom:1px solid var(--separator); color:var(--muted); font-size:11px; line-height:1.4; }
+.content-restored button { margin-left:8px; padding:2px 7px; font-size:11px; }
+
+.database-inventory{max-height:200px;overflow:auto;border:1px solid var(--separator);margin:8px 0;font-size:12px;line-height:1.4}
+.database-inventory table{width:100%;border-collapse:collapse;text-align:left}
+.database-inventory th{position:sticky;top:0;background:var(--surface)}
+.database-inventory th,.database-inventory td{padding:4px 8px;border-bottom:1px solid var(--separator);overflow-wrap:anywhere}
+.database-transfer-options{display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:12px}
+.sa-preferences details{margin:14px 0;padding:10px 0;border-top:1px solid var(--separator);border-bottom:1px solid var(--separator)}
+.sa-preferences p{font-size:12px;line-height:1.5}
+.shortcut-settings label{display:grid;grid-template-columns:minmax(100px,1fr) minmax(100px,1fr);font-size:12px;margin-top:8px}
+.shortcut-settings input{width:100%;min-width:0;font:12px ui-monospace,Menlo,monospace}
+.favorite-folder-manager{padding:10px;margin:0 0 18px;border:1px solid var(--border);font-size:12px;max-height:50vh;overflow:auto}
+.favorite-folder-manager header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.favorite-folder-manager p{line-height:1.5}
+.favorite-folder-manager fieldset{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border:0;padding:0}
+.favorite-folder-manager label{display:flex;flex-direction:column;gap:4px;min-width:0}
+.favorite-folder-manager input,.favorite-folder-manager select{max-width:100%}
+.favorites-folder-filter{display:flex;flex-direction:column;gap:4px;padding:4px 8px;color:var(--muted);font-size:11px}
+.favorites-folder-filter select{width:100%;min-width:0}
+.favorite-folder button{width:100%;min-width:0;overflow:hidden;text-overflow:ellipsis;text-align:left;white-space:nowrap;border:0;background:transparent;font-size:11px;color:var(--muted);padding:2px 0}
+
+.favorites-sidebar .sidebar-bottom .favorite-folders-button{width:auto;flex:1;min-width:0;max-width:70px;padding:0 4px;font-size:11px;overflow:hidden}
+
+.update-settings{border-top:1px solid var(--separator);padding-top:12px;margin:12px 0;font-size:12px}

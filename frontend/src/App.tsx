@@ -1,3 +1,4 @@
+import SACellEditor from './SACellEditor';
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {Cancel, Connect, Connected, Databases, Disconnect, Tables, UseDatabase, NewTab, CloseTab, Transaction, TransactionStatus, WorkspaceInfo, PrepareSQL, StreamPreparedQuery, CompletionSchema, OpenSQLFile, SaveSQLFile, SaveSPF} from '../wailsjs/go/main/App';
 import {database, nativefiles} from '../wailsjs/go/models';
@@ -9,6 +10,7 @@ import Splitter from './Splitter';
 import ContentBrowser from './ContentBrowser';
 import StructureView from './StructureView';
 import SAAdminPanel from './SAAdminPanel';
+import {shortcutHint,readPreferences} from './preferences';
 import SAPreferences,{openPreferences} from './SAPreferences';
 import SAHelp from './SAHelp';
 import HistoryPanel from './HistoryPanel';
@@ -17,11 +19,15 @@ import SAQueryFavorites from './SAQueryFavorites';
 import ResultGrid from './ResultGrid';
 import SAObjectManager from './SAObjectManager';
 import SASQLImport from './SASQLImport';
+import SADatabaseTransfer from './SADatabaseTransfer';
 import SADataExport from './SADataExport';
+import {contentPageKey,visitContentPage,type ContentPage} from './content-workspaces';
 import {workspaceShortcut} from './workspace-shortcuts';
 
-function Workspace({tab, connectionName, onClose, onNewTab, initialState}: {tab: string; connectionName: string; initialState?:nativefiles.SASession; onClose: () => Promise<void>; onNewTab: () => void}) {
+function Workspace({tab, active:workspaceActive, connectionName, onClose, onNewTab, initialState}: {tab: string; active:boolean; connectionName: string; initialState?:nativefiles.SASession; onClose: () => Promise<void>; onNewTab: () => void}) {
     const [sidebarWidth, setSidebarWidth] = useState(20.5);
+ const [,setPreferences]=useState(readPreferences);
+ useEffect(()=>{const reload=()=>setPreferences(readPreferences());window.addEventListener('sa-preferences',reload);return()=>window.removeEventListener('sa-preferences',reload);},[]);
     const [editorHeight, setEditorHeight] = useState(32);
     const cancelRequested = useRef(false);
     const [selection,setSelection] = useState({from:0,to:0,head:0});
@@ -35,8 +41,17 @@ function Workspace({tab, connectionName, onClose, onNewTab, initialState}: {tab:
     const [completion,setCompletion] = useState<{database:string;rows:database.Cell[][];limited:boolean}>({database:'',rows:[],limited:false});
     const [completionAttempt,setCompletionAttempt] = useState('');
     const [showSQLImport,setShowSQLImport]=useState(false);
+ const [showDatabaseTransfer,setShowDatabaseTransfer]=useState(false);
     const [showObjects,setShowObjects]=useState(false);
     const [catalogEpoch,setCatalogEpoch]=useState(0);
+    const [contentRevision,setContentRevision]=useState(0);
+    const [contentPages,setContentPages]=useState<ContentPage[]>([]);
+    const contentPagesRef=useRef<ContentPage[]>([]),draftPages=useRef(new Set<string>());
+    function rememberContent(database:string,table:string){
+        const next=visitContentPage(contentPagesRef.current,{database,table},draftPages.current);
+        if(!next){setProblem(true);setMessage('Eight table workspaces contain drafts. Finish or cancel a draft before opening another table.');return false;}
+        contentPagesRef.current=next;setContentPages(next);return true;
+    }
     const [historyNotice,setHistoryNotice] = useState('');
     const [transaction, setTransaction] = useState('idle');
     const [connected, setConnected] = useState(true);
@@ -56,7 +71,14 @@ function Workspace({tab, connectionName, onClose, onNewTab, initialState}: {tab:
     const [showHistory, setShowHistory] = useState(false);
     const [historyPrivacy,setHistoryPrivacy] = useState<'off'|'metadata'|'sql'>('off');
     const [result, setResult] = useState<database.Result | null>(null);
+    const [queryCell,setQueryCell]=useState<{name:string;type:string;value:database.Cell}|null>(null);
+    function inspectQueryCell(row:number,column:number){if(!busy && result?.rows[row]?.[column])setQueryCell({name:result.columns[column].name,type:result.columns[column].type,value:result.rows[row][column]});}
 
+    function changeView(next:typeof view){
+        if(next==='content' && selectedTable && !rememberContent(selectedDB,selectedTable))return;
+        setView(next);
+    }
+    useEffect(()=>{if(connected && view==='content' && selectedTable && !contentPagesRef.current.some(p=>p.database===selectedDB && p.table===selectedTable))rememberContent(selectedDB,selectedTable);},[connected,view,selectedDB,selectedTable]);
     async function operation(work: () => Promise<void>, mayWrite = false) {
         setBusy(true);
         setProblem(false);
@@ -116,6 +138,7 @@ function Workspace({tab, connectionName, onClose, onNewTab, initialState}: {tab:
         if (busy || !connected) return;
         const entry = historyIndex === undefined ? {database:selectedDB,table:name,view:view === 'structure' ? 'structure' as const : 'content' as const} : tableHistory[historyIndex];
         if (!entry) return;
+        if(entry.view==='content' && !rememberContent(entry.database,entry.table))return;
         if (entry.database !== selectedDB) {
             setSelectedTable(''); setResult(null);
             let ready = false;
@@ -146,7 +169,7 @@ function Workspace({tab, connectionName, onClose, onNewTab, initialState}: {tab:
             setDatabases(list.rows.map(row => row[0].value));
             setTables(name ? (await Tables(tab, name)).rows.map(row => row[0].value) : []);
             setCompletionAttempt('');
-            setMessage('Daftar database dan tabel diperbarui.');
+            setMessage('Daftar database dan tabel diperbarui.');setContentRevision(v=>v+1);
         });
     }
 
@@ -155,7 +178,7 @@ function Workspace({tab, connectionName, onClose, onNewTab, initialState}: {tab:
         const info=await WorkspaceInfo(tab);const active=info.rows[0]?.[1];const db=active && !active.null ? active.value : '';
         setSelectedDB(db);const names=db ? (await Tables(tab,db)).rows.map(r=>r[0].value) : [];setTables(names);
         if(!names.includes(selectedTable)){setSelectedTable('');setView('query');}
-        setTableHistory([]);setTableHistoryIndex(-1);setCompletionAttempt('');setCatalogEpoch(v=>v+1);
+        setTableHistory([]);setTableHistoryIndex(-1);setCompletionAttempt('');setCatalogEpoch(v=>v+1);setContentRevision(v=>v+1);
     }
     async function transactionAction(action: 'begin' | 'commit' | 'rollback') {
         await operation(async () => {
@@ -163,6 +186,7 @@ function Workspace({tab, connectionName, onClose, onNewTab, initialState}: {tab:
             setMessage(action === 'begin' ? 'Transaksi aktif. Gunakan Commit/Rollback untuk mengakhirinya.' : `${action.toUpperCase()} diterima server. Reload Content untuk melihat data terbaru. Perubahan pada tabel nontransaksional tidak dapat di-rollback.`);
             setResult(null);
         }, true);
+        if(action!=='begin')setContentRevision(v=>v+1);
     }
     const completionSchema=useMemo(() => {
         const schema:Record<string,string[]> = Object.create(null);
@@ -193,6 +217,7 @@ function Workspace({tab, connectionName, onClose, onNewTab, initialState}: {tab:
     async function run(runScope=scope) {
         if (busy || !connected) return;
         cancelRequested.current=false;setResult(null);setQueryResults([]);setRunSummary('');setHistoryNotice('');
+        let executed=false;
         await operation(async () => {
             const plan=await PrepareSQL(tab,sql,runScope,selection.from,selection.to,selection.head);
             const complete:typeof queryResults=[];
@@ -209,11 +234,17 @@ function Workspace({tab, connectionName, onClose, onNewTab, initialState}: {tab:
                     });
                     setResult(null);
                     try {
+                        executed=true;
                         const output=await StreamPreparedQuery(tab,id,statement.sql,historyPrivacy,plan.sqlMode);
                         accepting=false;completed++;
                         complete.push({index:index+1,line:statement.line,result:output});if (complete.length>5) complete.shift();
                         setQueryResults([...complete]);setResult(output);
-                        if (output.truncated) throw new Error('Result limit or additional result set reached; the session was closed. Remaining statements were not executed.');
+                        if (output.truncated) {
+                            const notice=output.notice || (output.sessionClosed ? 'Partial result; the session was closed. Reconnect before continuing.' : 'Partial result; check the connection status before continuing.');
+                            const remaining=index<plan.statements.length-1;
+                            const message=`${remaining ? 'Stopped after' : 'Completed'} ${completed} of ${plan.statements.length} statements. ${notice}${remaining ? ' Remaining statements were not executed.' : ''} Earlier changes may require COMMIT in an open transaction.`;
+                            setRunSummary(message);setMessage(message);return;
+                        }
                     } finally {accepting=false;stop();}
                 }
                 const message=`Completed ${completed} of ${plan.statements.length} statements. Earlier changes may require COMMIT in an open transaction.`;
@@ -224,6 +255,7 @@ function Workspace({tab, connectionName, onClose, onNewTab, initialState}: {tab:
                 setRunSummary(message);throw new Error(message);
             }
         },true);
+        if(executed)setContentRevision(v=>v+1);
     }
 
     const workspaceRoot=useRef<HTMLElement>(null);
@@ -233,7 +265,7 @@ function Workspace({tab, connectionName, onClose, onNewTab, initialState}: {tab:
             const action=workspaceShortcut(event,/Mac/.test(navigator.platform));
             if(!action||action==='refresh'||action==='filter')return;
             event.preventDefault();
-            if(!busy&&connected&&(action==='query'||selectedTable))setView(action);
+            if(!busy&&connected&&(action==='query'||selectedTable))changeView(action);
         };
         window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler);
     },[busy,connected,selectedTable]);
@@ -243,12 +275,13 @@ function Workspace({tab, connectionName, onClose, onNewTab, initialState}: {tab:
                 <strong className="connection-title" title={connectionName}>{connected ? `${serverVersion ? `(${serverVersion.includes('MariaDB') ? 'MariaDB' : 'MySQL'} ${serverVersion}) ` : ''}${connectionName}${selectedDB ? `/${selectedDB}` : ''}${selectedTable ? `/${selectedTable}` : ''}` : 'sequelx'}</strong>
                 <label className="database-picker"><select aria-label="Select Database" value={selectedDB} disabled={!connected || busy} onChange={e => void chooseDatabase(e.target.value)}><option value="" disabled>Choose Database…</option>{databases.map(name => <option key={name} value={name}>{name}</option>)}</select><span>Select Database</span></label>
                 <nav className="view-toolbar" aria-label="Database views">
-                    {(['structure', 'content', 'relations', 'triggers', 'info', 'query'] as const).map((icon, i) => <button key={icon} disabled={!connected || busy || (icon !== 'query' && !selectedTable)} aria-current={icon === view && connected ? 'page' : undefined} title={`${['Structure','Content','Relations','Triggers','Table Info','Query'][i]} (⌘/Ctrl+${i+1})`} onClick={() => setView(icon)}><ToolbarIcon name={icon} /><span>{['Structure','Content','Relations','Triggers','Table Info','Query'][i]}</span></button>)}
+                    {(['structure', 'content', 'relations', 'triggers', 'info', 'query'] as const).map((icon, i) => <button key={icon} disabled={!connected || busy || (icon !== 'query' && !selectedTable)} aria-current={icon === view && connected ? 'page' : undefined} title={`${['Structure','Content','Relations','Triggers','Table Info','Query'][i]} (${shortcutHint(icon) || 'shortcut disabled'})`} onClick={() => changeView(icon)}><ToolbarIcon name={icon} /><span>{['Structure','Content','Relations','Triggers','Table Info','Query'][i]}</span></button>)}
                 </nav>
                 <div className="history-tools"><div><button disabled={busy || !connected || tableHistoryIndex <= 0} aria-label="Back" onClick={() => void visitTable('',tableHistoryIndex-1)}>‹</button><button disabled={busy || !connected || tableHistoryIndex >= tableHistory.length-1} aria-label="Forward" onClick={() => void visitTable('',tableHistoryIndex+1)}>›</button></div><span>Table History</span></div>
                 <button className="toolbar-item" disabled={!connected || busy} onClick={()=>setView('users')}><ToolbarIcon name="users"/><span>Users</span></button>
-                <button className="toolbar-item" disabled={!connected || busy} onClick={()=>setView('console')}><ToolbarIcon name="console"/><span>Console</span></button><button className="toolbar-item settings-button" aria-label="Settings" title="Settings (⌘/Ctrl+,)" onClick={openPreferences}><ToolbarIcon name="settings"/><span>Settings</span></button>
+                <button className="toolbar-item" disabled={!connected || busy} onClick={()=>setView('console')}><ToolbarIcon name="console"/><span>Console</span></button><button className="toolbar-item settings-button" aria-label="Settings" title={`Settings (${shortcutHint('preferences') || 'shortcut disabled'})`} onClick={openPreferences}><ToolbarIcon name="settings"/><span>Settings</span></button>
             </header>
+            {showDatabaseTransfer && <SADatabaseTransfer tab={tab} databaseName={selectedDB} busy={busy} operation={operation} onClose={()=>setShowDatabaseTransfer(false)} onImport={()=>{setShowDatabaseTransfer(false);setShowSQLImport(true);}}/>}
             {showSQLImport && <SASQLImport tab={tab} busy={busy} operation={operation} onRefresh={reloadObjects} onClose={()=>setShowSQLImport(false)}/>}
             {showObjects && <SAObjectManager tab={tab} databaseName={selectedDB} table={selectedTable} busy={busy} operation={operation} onRefresh={reloadObjects} onClose={()=>setShowObjects(false)}/>}
             {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} busy={busy} onLoadSQL={text => requestSQL(text)} />}
@@ -264,7 +297,8 @@ function Workspace({tab, connectionName, onClose, onNewTab, initialState}: {tab:
                             <button disabled={busy} onClick={onNewTab}>New query tab</button>
                             <button disabled={busy} onClick={()=>void operation(async()=>{const saved=await SaveSPF(tab,new nativefiles.SASession({database:selectedDB,table:selectedTable,view,sql,profile:{}}));setMessage(saved ? 'Password-free SPF saved. SQL text can contain secrets; review before sharing.' : 'Session save cancelled.');})}>Save SPF session</button>
  <button disabled={busy} onClick={e=>{e.currentTarget.closest('details')?.removeAttribute('open');setShowSQLImport(false);setShowObjects(true);}}>Manage tables/databases</button>
- <button disabled={busy} onClick={e=>{e.currentTarget.closest('details')?.removeAttribute('open');setShowObjects(false);setShowSQLImport(true);}}>Import SQL dump</button>
+ <button disabled={busy} onClick={e=>{e.currentTarget.closest('details')?.removeAttribute('open');setShowObjects(false);setShowDatabaseTransfer(false);setShowSQLImport(true);}}>Import SQL dump</button>
+ <button disabled={busy} onClick={e=>{e.currentTarget.closest('details')?.removeAttribute('open');setShowObjects(false);setShowSQLImport(false);setShowDatabaseTransfer(true);}}>Transfer database</button>
                             <button disabled={busy} onClick={() => void onClose()}>Disconnect</button>
                             <button onClick={() => setShowHistory(v => !v)}>{historyPrivacy==='sql' ? 'Query history (SQL)' : 'Query history (metadata)'}</button>
                             <details className="transaction-menu"><summary>Transaction: {transaction}</summary><div className="transaction-controls" aria-label="Transaction controls">
@@ -281,7 +315,8 @@ function Workspace({tab, connectionName, onClose, onNewTab, initialState}: {tab:
                     </div>
                 </aside>
                 <Splitter label="Tables sidebar width" controls={`tables-panel-${tab}`} axis="x" value={sidebarWidth} min={15} max={35} onChange={setSidebarWidth} />
-                {(['triggers','info','users','console'] as string[]).includes(view) && connected ? <SAAdminPanel key={`${view}:${catalogEpoch}:${selectedDB}:${selectedTable}`} kind={view as 'triggers'|'info'|'users'|'console'} tab={tab} databaseName={selectedDB} table={selectedTable} busy={busy} operation={operation} onChanged={()=>setCompletionAttempt('')}/> : (view === 'structure' || view === 'relations') && connected && selectedTable ? <StructureView initialSection={view==='relations'?'foreignKeys':'columns'} key={`${view}:${catalogEpoch}:${selectedDB}:${selectedTable}`} tab={tab} databaseName={selectedDB} table={selectedTable} busy={busy} operation={operation} onSchemaChanged={()=>setCompletionAttempt('')} /> : view === 'content' && connected && selectedTable ? <ContentBrowser key={`${catalogEpoch}:${selectedDB}:${selectedTable}`} tab={tab} databaseName={selectedDB} table={selectedTable} busy={busy} operation={operation} /> : <section className="query-workspace" aria-label="Query">
+                {contentPages.map(page=><ContentBrowser key={contentPageKey(page)} tab={tab} databaseName={page.database} table={page.table} active={workspaceActive && view==='content' && connected && selectedDB===page.database && selectedTable===page.table} revision={contentRevision} busy={busy} operation={operation} onDraftChange={draft=>{const key=contentPageKey(page);if(draft)draftPages.current.add(key);else draftPages.current.delete(key);}}/>)}
+                {(['triggers','info','users','console'] as string[]).includes(view) && connected ? <SAAdminPanel key={`${view}:${catalogEpoch}:${selectedDB}:${selectedTable}`} kind={view as 'triggers'|'info'|'users'|'console'} tab={tab} databaseName={selectedDB} table={selectedTable} busy={busy} operation={operation} onChanged={()=>{setCompletionAttempt('');setContentRevision(v=>v+1);}}/> : (view === 'structure' || view === 'relations') && connected && selectedTable ? <StructureView initialSection={view==='relations'?'foreignKeys':'columns'} key={`${view}:${catalogEpoch}:${selectedDB}:${selectedTable}`} tab={tab} databaseName={selectedDB} table={selectedTable} busy={busy} operation={operation} onSchemaChanged={()=>{setCompletionAttempt('');setContentRevision(v=>v+1);}} /> : view === 'content' && connected && selectedTable ? null : <section className="query-workspace" aria-label="Query">
 
                     <SAHelp tab={tab} busy={busy} operation={operation}/><div className="sql-file-tools">
                         <button disabled={busy} onClick={() => void openSQL()}>Open SQL</button><button disabled={busy} onClick={() => void saveSQL()}>Save SQL</button>
@@ -296,7 +331,7 @@ function Workspace({tab, connectionName, onClose, onNewTab, initialState}: {tab:
                         </div>
                         <div><select aria-label="Execution scope" disabled={busy} value={scope} onChange={e => setScope(e.target.value as typeof scope)}><option value="current">Current statement</option><option value="selection">Selection</option><option value="all">All statements</option></select>
                             {busy && <button aria-label="Cancel query" onClick={cancelQuery}>Cancel</button>}
-                            <button className="primary" disabled={busy || !connected || !sql.trim() || (scope==='selection' && selection.from===selection.to)} onClick={() => void run()}>Run Query <span className="shortcut">⌘/Ctrl ↵</span></button>
+                            <button className="primary" disabled={busy || !connected || !sql.trim() || (scope==='selection' && selection.from===selection.to)} onClick={() => void run()}>Run Query <span className="shortcut">{shortcutHint('run')}</span></button>
                         </div>
                     </div>
                     {historyPrivacy==='sql' && <p className="query-privacy-note">SQL text may contain secrets. Executed SQL is saved locally as plain text. Choose Off or Metadata only to stop saving SQL; remove existing text in History.</p>}
@@ -305,8 +340,9 @@ function Workspace({tab, connectionName, onClose, onNewTab, initialState}: {tab:
                     {runSummary && <p className="script-summary" role="status">{runSummary}</p>}
                     {queryResults.length>0 && <nav className="sql-result-tabs" aria-label="Statement results">{queryResults.map(entry => <button key={entry.index} disabled={busy} aria-pressed={result===entry.result} onClick={() => setResult(entry.result)}>Statement {entry.index} · line {entry.line} · {entry.result.rows.length} rows</button>)}<span>Latest 5 results retained.</span></nav>}
                     <SADataExport tab={tab} databaseName={selectedDB} table={selectedTable} result={result} busy={busy} operation={operation}/>
-                    <ResultGrid result={result} busy={busy} />
-                    <div className="results-footer"><span>{result ? `${result.rows.length} rows loaded` : '0 rows'}{result ? (busy ? ' · running' : ` · ${result.durationMS} ms`) : ''}</span><span>Read-only result grid</span></div>
+                    <ResultGrid result={result} busy={busy} onEditCell={inspectQueryCell} actions={[{label:'Open cell viewer',disabled:busy,run:inspectQueryCell}]} />
+                    {queryCell && <SACellEditor {...queryCell} nullable={queryCell.value.null} editable={false} busy={busy} onClose={()=>setQueryCell(null)}/>}
+                    <div className="results-footer"><span>{result?.truncated ? 'Partial result · ' : ''}{result ? `${result.rows.length} rows loaded` : '0 rows'}{result ? (busy ? ' · running' : ` · ${result.durationMS} ms`) : ''}</span><span>Read-only result grid</span></div>
                 </section>}
             </div>
             {(busy || problem || !connected) && <footer className="status-bar operation-status">
@@ -318,6 +354,8 @@ function Workspace({tab, connectionName, onClose, onNewTab, initialState}: {tab:
 
 
 export default function App() {
+ const [,setPreferences]=useState(readPreferences);
+ useEffect(()=>{const reload=()=>setPreferences(readPreferences());window.addEventListener('sa-preferences',reload);return()=>window.removeEventListener('sa-preferences',reload);},[]);
     const [connectionName, setConnectionName] = useState('sequelx');
     const [nativeStates,setNativeStates]=useState<Record<string,nativefiles.SASession>>({});
     const [tabs, setTabs] = useState<string[]>([]);
@@ -350,13 +388,13 @@ export default function App() {
                 if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
                 e.preventDefault(); const next = tabs[(tabs.indexOf(id) + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length]; setActive(next); document.getElementById(`tab-${next}`)?.focus();
             }}>Query {id}</button><button aria-label={`Close Query ${id}`} title="Close session; uncommitted transactions are not preserved" disabled={busy} onClick={() => void closeTab(id)}>×</button></div>)}</div><button disabled={busy || tabs.length >= 16} onClick={() => void addTab()} aria-label="New query tab">＋</button><button disabled={busy} onClick={() => { void Disconnect().then(() => { setTabs([]); setActive(''); }).catch(e => setMessage(String(e))); }}>Disconnect all</button></div>
-            {tabs.map(id => <div className="tab-pane" key={id} id={`pane-${id}`} role="tabpanel" aria-labelledby={`tab-${id}`} hidden={id !== active}><Workspace tab={id} initialState={nativeStates[id]} connectionName={connectionName} onClose={() => closeTab(id)} onNewTab={() => { if (tabs.length < 16 && !busy) void addTab(); }} /></div>)}
+            {tabs.map(id => <div className="tab-pane" key={id} id={`pane-${id}`} role="tabpanel" aria-labelledby={`tab-${id}`} hidden={id !== active}><Workspace tab={id} active={id===active} initialState={nativeStates[id]} connectionName={connectionName} onClose={() => closeTab(id)} onNewTab={() => { if (tabs.length < 16 && !busy) void addTab(); }} /></div>)}
         </> : <div className="app-shell"><header className="main-toolbar">
                 <strong className="connection-title">sequelx</strong>
                 <label className="database-picker"><select aria-label="Select Database" disabled><option>Choose Database…</option></select><span>Select Database</span></label>
                 <nav className="view-toolbar" aria-label="Database views">{(['structure','content','relations','triggers','info','query'] as const).map((icon, i) => <button key={icon} disabled><ToolbarIcon name={icon}/><span>{['Structure','Content','Relations','Triggers','Table Info','Query'][i]}</span></button>)}</nav>
                 <div className="history-tools"><div><button disabled aria-label="Back">‹</button><button disabled aria-label="Forward">›</button></div><span>Table History</span></div>
-                <button className="toolbar-item" disabled><ToolbarIcon name="users"/><span>Users</span></button><button className="toolbar-item" disabled><ToolbarIcon name="console"/><span>Console</span></button><button className="toolbar-item settings-button" aria-label="Settings" title="Settings (⌘/Ctrl+,)" onClick={openPreferences}><ToolbarIcon name="settings"/><span>Settings</span></button>
+                <button className="toolbar-item" disabled><ToolbarIcon name="users"/><span>Users</span></button><button className="toolbar-item" disabled><ToolbarIcon name="console"/><span>Console</span></button><button className="toolbar-item settings-button" aria-label="Settings" title={`Settings (${shortcutHint('preferences') || 'shortcut disabled'})`} onClick={openPreferences}><ToolbarIcon name="settings"/><span>Settings</span></button>
             </header><ConnectionForm busy={busy} onConnect={connect} sidebarWidth={sidebarWidth} onSidebarResize={setSidebarWidth} /></div>}
         {message && <div className="notice" role="alert">{message}</div>}
     </div>;

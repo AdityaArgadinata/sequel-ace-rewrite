@@ -42,6 +42,8 @@ test('double click selects text and edits inline without changing cell geometry'
  const name = () => page.locator('tbody tr').first().locator('td').nth(1);
  await page.getByRole('button',{name:'Refresh databases and tables',exact:true}).click();
  await page.getByRole('button',{name:'db',exact:true}).click();
+ // Catalog refresh invalidates cached rows; explicitly reload before editing.
+ await page.getByRole('button',{name:'Reload content',exact:true}).click();
  const before = await name().boundingBox();
  await name().dblclick();
  await expect.poll(() => page.getByLabel('Cell value',{exact:true}).evaluate((node: HTMLTextAreaElement) => node.selectionEnd - node.selectionStart)).toBe('Sample 3'.length);
@@ -106,6 +108,8 @@ test('empty grid space does not select table text and cell editing remains selec
  const blank = {x:bounds.x+30,y:Math.min(bounds.y+bounds.height-20,row.y+row.height+50)};
  await page.mouse.click(blank.x,blank.y,{clickCount:3});
  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe('');
+ await expect(page.getByRole('button',{name:'Cancel new row',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Cancel new row',exact:true}).click();
  await page.mouse.move(bounds.x+15,row.y+10);
  await page.mouse.down();
  await page.mouse.move(blank.x,blank.y,{steps:8});
