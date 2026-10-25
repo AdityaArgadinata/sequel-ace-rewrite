@@ -61,7 +61,7 @@ function Workspace({tab, active:workspaceActive, connectionName, onClose, onNewT
     const [serverVersion, setServerVersion] = useState('');
     const [problem, setProblem] = useState(false);
     const [busy, setBusy] = useState(false);
-    const [message, setMessage] = useState('Hubungkan server untuk memulai.');
+    const [message, setMessage] = useState('Connect to a server to get started.');
     const [databases, setDatabases] = useState<string[]>([]);
     const [selectedDB, setSelectedDB] = useState('');
     useLayoutEffect(()=>registerDatabase(tab,selectedDB),[tab,selectedDB,registerDatabase]);
@@ -90,10 +90,10 @@ function Workspace({tab, active:workspaceActive, connectionName, onClose, onNewT
     async function operation(work: () => Promise<void>, mayWrite = false) {
         setBusy(true);
         setProblem(false);
-        setMessage('Memproses…');
+        setMessage('Working…');
         try {
             await work();
-            setMessage(previous => previous === 'Memproses…' ? 'Selesai.' : previous);
+            setMessage(previous => previous === 'Working…' ? 'Done.' : previous);
         } catch (error) {
             setProblem(true);
             setMessage(String(error));
@@ -104,11 +104,11 @@ function Workspace({tab, active:workspaceActive, connectionName, onClose, onNewT
                 setTransaction(await TransactionStatus(tab));
                 if (!live) {
                     setDatabases([]); setTables([]); setSelectedDB(''); setSelectedTable('');
-                    setMessage(previous => `${previous} Sesi tab ini tidak aktif; tutup tab lalu hubungkan ulang.${mayWrite ? " Periksa hasil query pengubah data sebelum mengulang; tidak ada retry otomatis." : ""}`);
+                    setMessage(previous => `${previous} This tab’s session is inactive. Close the tab and reconnect.${mayWrite ? " Check the outcome of data changes before retrying. Changes are not retried automatically." : ""}`);
                 }
             } catch {
                 setConnected(false); setTransaction('disconnected'); setProblem(true);
-                setMessage('Backend tidak tersedia. Jalankan jendela desktop melalui Wails.');
+                setMessage('Backend unavailable. Open the desktop app through Wails.');
             }
             setBusy(false);
         }
@@ -125,7 +125,7 @@ function Workspace({tab, active:workspaceActive, connectionName, onClose, onNewT
                 if(initialState.sql){setSQL(initialState.sql);setEditorDirty(true);}
                 if(initialState.database){await UseDatabase(tab,initialState.database);setSelectedDB(initialState.database);const tables=await Tables(tab,initialState.database);setTables(tables.rows.map(r=>r[0].value));if(initialState.table && tables.rows.some(r=>r[0].value===initialState.table)){setSelectedTable(initialState.table);setView(initialState.view==='structure' ? 'structure' : initialState.view==='content' ? 'content' : 'query');}}
             }
-            setMessage('Terhubung. Tiap tab memakai sesi database terpisah.');
+            setMessage('Connected. Each tab uses a separate database session.');
         });
         return EventsOn('history:error', (message: string) => setHistoryNotice(message));
     }, [tab]);
@@ -140,7 +140,7 @@ function Workspace({tab, active:workspaceActive, connectionName, onClose, onNewT
             setSelectedDB(name);
             const list = await Tables(tab, name);
             setTables(list.rows.map(row => row[0].value));
-            setMessage(`Database aktif: ${name}`);
+            setMessage(`Active database: ${name}`);
         });
     }
 
@@ -179,7 +179,7 @@ function Workspace({tab, active:workspaceActive, connectionName, onClose, onNewT
             setDatabases(list.rows.map(row => row[0].value));
             setTables(name ? (await Tables(tab, name)).rows.map(row => row[0].value) : []);
             setCompletionAttempt('');
-            setMessage('Daftar database dan tabel diperbarui.');setContentRevision(v=>v+1);
+            setMessage('Database and table lists refreshed.');setContentRevision(v=>v+1);
         });
     }
 
@@ -193,7 +193,7 @@ function Workspace({tab, active:workspaceActive, connectionName, onClose, onNewT
     async function transactionAction(action: 'begin' | 'commit' | 'rollback') {
         await operation(async () => {
             await Transaction(tab, action);
-            setMessage(action === 'begin' ? 'Transaksi aktif. Gunakan Commit/Rollback untuk mengakhirinya.' : `${action.toUpperCase()} diterima server. Reload Content untuk melihat data terbaru. Perubahan pada tabel nontransaksional tidak dapat di-rollback.`);
+            setMessage(action === 'begin' ? 'Transaction active. Use Commit or Rollback to finish.' : `${action.toUpperCase()} acknowledged by the server. Reload Content to view the latest data. Changes to nontransactional tables cannot be rolled back.`);
             setResult(null);
         }, true);
         if(action!=='begin')setContentRevision(v=>v+1);

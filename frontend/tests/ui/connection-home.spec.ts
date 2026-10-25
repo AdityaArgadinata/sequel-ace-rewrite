@@ -3,6 +3,7 @@ import {openApp,openContent,screenshot} from './fixture';
 
 for(const viewport of [{width:1408,height:996},{width:800,height:600}])test(`Connection home matches the reference proportions at ${viewport.width}x${viewport.height}`,async({page},info)=>{
  await page.setViewportSize(viewport);await openApp(page);
+ await expect(page.getByRole('checkbox',{name:'Require SSL',exact:true})).not.toBeChecked();
  await expect(page.getByLabel('Time Zone:',{exact:true})).toHaveValue('');
  await expect(page.getByRole('option',{name:'Use Server Time Zone',exact:true})).toHaveCount(1);
  await expect(page.getByLabel('Folder:',{exact:true})).toBeHidden();
@@ -12,7 +13,7 @@ for(const viewport of [{width:1408,height:996},{width:800,height:600}])test(`Con
  const field=await page.locator('.connection-form>fieldset').boundingBox(),pane=await page.locator('.connection-pane').boundingBox();
  expect(Math.abs(field!.x+field!.width/2-(pane!.x+pane!.width/2))).toBeLessThan(2);
  expect(field!.width).toBe(425);
- if(viewport.height>900)expect(field!.y).toBeGreaterThan(viewport.height*.3);
+ if(viewport.height>900)expect(field!.y).toBeLessThan(viewport.height*.35);
  await page.getByRole('button',{name:'Connect',exact:true}).scrollIntoViewIfNeeded();
  const connect=await page.getByRole('button',{name:'Connect',exact:true}).boundingBox();
  expect(connect!.y+connect!.height).toBeLessThanOrEqual(viewport.height);

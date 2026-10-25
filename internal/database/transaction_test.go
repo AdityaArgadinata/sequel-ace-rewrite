@@ -15,21 +15,23 @@ import (
 
 // A connector fake exercises database/sql error paths without network access.
 type writeConnector struct {
-	warningsReadErr error
-	schemaSource    string
-	defaultLiteral  string
-	catalogCount    int
-	noPrimary       bool
-	nonNullText     bool
-	indexes         [][]driver.Value
-	engine          string
-	unlockErr       error
-	lockErr         error
-	execs           []string
-	affected        int64
-	execErr         error
-	autocommit      int64
-	failWriteOnly   bool
+	warningsReadErr   error
+	autocommitReadErr error
+	manualReadErr     error
+	schemaSource      string
+	defaultLiteral    string
+	catalogCount      int
+	noPrimary         bool
+	nonNullText       bool
+	indexes           [][]driver.Value
+	engine            string
+	unlockErr         error
+	lockErr           error
+	execs             []string
+	affected          int64
+	execErr           error
+	autocommit        int64
+	failWriteOnly     bool
 }
 
 func (c *writeConnector) Connect(context.Context) (driver.Conn, error) { return &writeConn{c}, nil }
@@ -76,6 +78,10 @@ func (r *writeRows) Next(dest []driver.Value) error {
 }
 func (c *writeConn) QueryContext(_ context.Context, q string, _ []driver.NamedValue) (driver.Rows, error) {
 	switch {
+	case q == "SELECT 1" && c.c.manualReadErr != nil:
+		return nil, c.c.manualReadErr
+	case q == "SELECT @@session.autocommit" && c.c.autocommitReadErr != nil:
+		return nil, c.c.autocommitReadErr
 	case strings.HasPrefix(q, "SELECT COLUMN_DEFAULT FROM information_schema.COLUMNS "):
 		return &writeRows{[]string{"default"}, [][]driver.Value{{c.c.defaultLiteral}}}, nil
 	case strings.HasPrefix(q, "SHOW CREATE TABLE "):
@@ -165,8 +171,14 @@ func TestManagedTransaction(t *testing.T) {
 	if _, err := s.Query("SELECT 1"); err != nil {
 		t.Fatal(err)
 	}
+	if s.TransactionStatus() != "idle" {
+		t.Fatal("successful read dirtied an idle session")
+	}
+	if _, err := s.Query("SET @session_value=1"); err != nil {
+		t.Fatal(err)
+	}
 	if s.TransactionStatus() != "unverified" {
-		t.Fatal("manual SQL was assumed idle")
+		t.Fatal("arbitrary SQL was assumed idle")
 	}
 	if err := s.Transaction("begin"); err == nil {
 		t.Fatal("begin implicitly committed manual SQL")
@@ -366,5 +378,58 @@ func TestCatalogHasSeparateRowBudget(t *testing.T) {
 				t.Fatal("509-entry catalog closed session", len(result.Rows), err, s.TransactionStatus())
 			}
 		})
+	}
+}
+
+func TestSuccessfulReadPreservesTransactionCertainty(t *testing.T) {
+	for _, tc := range []struct {
+		name              string
+		auto              int64
+		prior             string
+		readErr, stateErr error
+		want              string
+		fails             bool
+	}{
+		{name: "idle", auto: 1, want: "idle"},
+		{name: "autocommit off", auto: 0, want: "unverified"},
+		{name: "already unverified", auto: 1, prior: "unverified", want: "unverified"},
+		{name: "active", auto: 1, prior: "active", want: "active"},
+		{name: "read failure", auto: 1, readErr: &mysql.MySQLError{Number: 1064, Message: "read failed"}, want: "unverified", fails: true},
+		{name: "verification failure", auto: 1, stateErr: &mysql.MySQLError{Number: 1227, Message: "state unavailable"}, want: "unverified", fails: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &writeConnector{autocommit: tc.auto, manualReadErr: tc.readErr, autocommitReadErr: tc.stateErr}
+			s := fakeSession(t, c)
+			s.transaction = tc.prior == "active"
+			s.txUnverified = tc.prior == "unverified"
+			_, err := s.Query("SELECT 1")
+			if (err != nil) != tc.fails || s.TransactionStatus() != tc.want {
+				t.Fatal(err, s.TransactionStatus())
+			}
+			if len(c.execs) != 0 {
+				t.Fatal("read unexpectedly resolved a transaction", c.execs)
+			}
+		})
+	}
+}
+
+func TestReadThenMoveSchemaColumn(t *testing.T) {
+	c := &writeConnector{autocommit: 1}
+	s := fakeSession(t, c)
+	if _, err := s.Query("/* browse manually */ SELECT 1"); err != nil {
+		t.Fatal(err)
+	}
+	plan, err := s.PrepareSchemaChange(SASchemaChange{Database: "test", Table: "sample", Kind: "column", Action: "edit", Original: "text", Name: "text", ColumnEdits: map[string]string{}, First: true})
+	if err != nil {
+		t.Fatal("successful read blocked moving a column", err)
+	}
+	if !strings.HasSuffix(plan.SQL, " FIRST") {
+		t.Fatal(plan.SQL)
+	}
+	if _, err = s.ApplySchemaChange(plan.Token); err != nil {
+		t.Fatal(err)
+	}
+	if len(c.execs) != 1 || !strings.HasPrefix(c.execs[0], "ALTER TABLE ") {
+		t.Fatal("unexpected write or transaction resolution", c.execs)
 	}
 }

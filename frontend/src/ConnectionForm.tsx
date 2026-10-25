@@ -1,9 +1,10 @@
-import {FormEvent, useEffect, useId, useState} from 'react';
-import {DeleteProfile, ListProfiles, SaveProfile, SaveCredentials, LoadCredentials, DeleteCredentials, ListFavoriteFolders} from '../wailsjs/go/main/App';
+import {FormEvent, useEffect, useId, useRef, useState} from 'react';
+import {DeleteProfile, ListProfiles, SaveProfile, SaveCredentials, LoadCredentials, DeleteCredentials, ListFavoriteFolders, ChangeFavoriteFolder} from '../wailsjs/go/main/App';
 import {credentials, database, profiles, tunnel, nativefiles,authproviders} from '../wailsjs/go/models';
 import ToolbarIcon from './ToolbarIcon';
+import favoriteFolderIcon from './assets/favorite-folder.png';
 import Splitter from './Splitter';
-import SAFavoriteFolders from './SAFavoriteFolders';
+import SADialog from './SADialog';
 import SANativeImport from './SANativeImport';
 
 type Props = {active?:boolean; busy: boolean; onConnect: (connection: database.Connection, state?:nativefiles.SASession) => Promise<void>; sidebarWidth: number; onSidebarResize: (value: number) => void};
@@ -15,7 +16,7 @@ export default function ConnectionForm({active=true, busy, onConnect, sidebarWid
     const formID=useId();
     const [saved, setSaved] = useState<profiles.Profile[]>([]);
     const [selected, setSelected] = useState('');
- const [folders,setFolders]=useState<string[]>([]),[folderFilter,setFolderFilter]=useState(''),[collapsed,setCollapsed]=useState<string[]>([]),[showFolders,setShowFolders]=useState(false);
+ const [folders,setFolders]=useState<string[]>([]),[collapsed,setCollapsed]=useState<string[]>([]),[showFolders,setShowFolders]=useState(false);
     const [initialDatabase,setInitialDatabase]=useState('');
     const [nativeState,setNativeState]=useState<nativefiles.SASession|undefined>();
     const [name, setName] = useState('');
@@ -32,6 +33,7 @@ export default function ConnectionForm({active=true, busy, onConnect, sidebarWid
  const [timeZone,setTimeZone]=useState('');
  const [customTimeZone,setCustomTimeZone]=useState(false);
  const [folder,setFolder]=useState('');
+ const [selectedFolder,setSelectedFolder]=useState(''),[editingFolder,setEditingFolder]=useState<string|null>(null),[folderName,setFolderName]=useState(''),[folderMenu,setFolderMenu]=useState(false);
  const [color,setColor]=useState('');
  const [agent,setAgent]=useState(false);
  const [interactive,setInteractive]=useState(false);
@@ -49,7 +51,7 @@ export default function ConnectionForm({active=true, busy, onConnect, sidebarWid
     const [sshPassword, setSSHPassword] = useState('');
     const [keyPassphrase, setKeyPassphrase] = useState('');
     const [remember, setRemember] = useState(false);
-    const [tls, setTLS] = useState(true);
+    const [tls, setTLS] = useState(false);
     const [caPEM, setCA] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -67,7 +69,7 @@ export default function ConnectionForm({active=true, busy, onConnect, sidebarWid
     }, [active]);
 
     useEffect(()=>{let active=true;ListFavoriteFolders().then(list=>{if(active)setFolders(list);}).catch(e=>{if(active)setNotice(String(e));});return()=>{active=false;};},[saved]);
-    async function reloadFolders(){const list=await ListProfiles();setSaved(list);const p=list.find(p=>p.id===selected);if(p)setFolder(p.folder??'');setFolders(await ListFavoriteFolders());setFolderFilter('');setStorageError('');}
+    async function reloadFolders(){const list=await ListProfiles();setSaved(list);const p=list.find(p=>p.id===selected);if(p)setFolder(p.folder??'');setFolders(await ListFavoriteFolders());setStorageError('');}
     function choose(id: string) {
         const p = saved.find(profile => profile.id === id);
         setNativeState(undefined);applyProfile(p);
@@ -76,7 +78,7 @@ export default function ConnectionForm({active=true, busy, onConnect, sidebarWid
         setAuth(p?.auth?.provider??'');setRegion(p?.auth?.region??'');setAWSProfile(p?.auth?.awsProfile??'');setVaultAddress(p?.auth?.vaultAddress??'');setVaultMount(p?.auth?.vaultMount??'database');setVaultRole(p?.auth?.vaultRole??'');setVaultNamespace(p?.auth?.vaultNamespace??'');setVaultToken('');setInitialDatabase(p?.initialDatabase ?? '');setSocket(p?.socket??'');setSocketEnabled(!!p?.socket);setTimeZone(p?.timeZone??'');setCustomTimeZone(false);setFolder(p?.folder??'');setColor(p?.color??'');setAgent(p?.ssh?.useAgent??false);setInteractive(p?.ssh?.keyboardInteractive??false);setChallenge('');
         setSelected(p?.id ?? ''); setName(p?.name ?? '');
         setHost(p?.host ?? '127.0.0.1'); setPort(String(p?.port ?? 3306));
-        setUser(p?.user ?? 'root'); setTLS(p?.tls ?? true); setCA(p?.caPEM ?? '');
+        setUser(p?.user ?? 'root'); setTLS(p?.tls ?? false); setCA(p?.caPEM ?? '');
         setPassword(''); setSSHPassword(''); setKeyPassphrase(''); setRemember(false);
         setSSHEnabled(!!p?.ssh); setSSHHost(p?.ssh?.host ?? ''); setSSHPort(String(p?.ssh?.port ?? 22));
         setSSHUser(p?.ssh?.user ?? ''); setSSHKey(p?.ssh?.keyFile ?? ''); setKnownHosts(p?.ssh?.knownHosts ?? '');
@@ -106,7 +108,7 @@ export default function ConnectionForm({active=true, busy, onConnect, sidebarWid
             setSelected(p.id); setName(p.name); setHost(p.host);
             setSaved(previous => [...previous.filter(item => item.id !== p.id), p].sort((a, b) => a.name.localeCompare(b.name)));
             setConfirmDelete(false);
-            if (remember) { await SaveCredentials(p.id, secrets()); setNotice('Profil dan password tersimpan di credential store OS.'); } else { setNotice('Profil tersimpan. Password tidak ikut disimpan.'); }
+            if (remember) { await SaveCredentials(p.id, secrets()); setNotice('Connection and passwords saved in the OS credential store.'); } else { setNotice('Connection saved. Passwords were not saved.'); }
         } catch (error) { setNotice(String(error)); }
         finally { setSaving(false); }
     }
@@ -116,9 +118,49 @@ export default function ConnectionForm({active=true, busy, onConnect, sidebarWid
         try {
             await DeleteProfile(selected);
             setSaved(previous => previous.filter(p => p.id !== selected));
-            choose(''); setNotice('Profil dihapus.');
+            choose(''); setNotice('Connection deleted.');
         } catch (error) { setNotice(String(error)); }
         finally { setSaving(false); }
+    }
+
+    const folderActionsRef=useRef<HTMLDivElement>(null);
+    useEffect(()=>{
+        if(!folderMenu)return;
+        function close(event:PointerEvent){if(!folderActionsRef.current?.contains(event.target as Node))setFolderMenu(false);}
+        function escape(event:KeyboardEvent){if(event.key==='Escape'){setFolderMenu(false);folderActionsRef.current?.querySelector<HTMLButtonElement>('[aria-haspopup]')?.focus();}}
+        document.addEventListener('pointerdown',close);document.addEventListener('keydown',escape);
+        return()=>{document.removeEventListener('pointerdown',close);document.removeEventListener('keydown',escape);};
+    },[folderMenu]);
+    async function changeFolder(action:string, source:string, destination='') {
+        setSaving(true);setNotice('');
+        try {const result=await ChangeFavoriteFolder(new profiles.FolderChange({action,folder:source,destination}));await reloadFolders();if(result.error)throw new Error(`${result.completed} of ${result.total} updates saved. ${result.error}`);setSelectedFolder(action==='remove'?'':destination||source);return true;}
+        catch(error){setNotice(String(error));return false;}finally{setSaving(false);}
+    }
+    async function deleteFolder(){
+        setShowFolders(false);setSaving(true);let completed=0;
+        try{for(const p of saved.filter(p=>p.folder===selectedFolder||p.folder?.startsWith(selectedFolder+'/'))){await DeleteProfile(p.id);completed++;}const result=await ChangeFavoriteFolder(new profiles.FolderChange({action:'remove',folder:selectedFolder}));if(result.error)throw new Error(result.error);choose('');setSelectedFolder('');}
+        catch(error){setNotice(`${completed} favorites deleted. ${String(error)} Reload before retrying.`);}
+        finally{try{await reloadFolders();}catch(error){setNotice(String(error));}setSaving(false);}
+    }
+    function requestDeleteFolder(){
+        if(saved.some(p=>p.folder===selectedFolder||p.folder?.startsWith(selectedFolder+'/'))||folders.some(f=>f.startsWith(selectedFolder+'/')))setShowFolders(true);else void deleteFolder();
+    }
+    async function newFolder(){
+        setFolderMenu(false);const parent=selectedFolder?selectedFolder+'/':'';let path=parent+'New Folder',i=2;
+        while(folders.includes(path))path=parent+'New Folder '+i++;
+        if(await changeFolder('create',path)){setCollapsed(old=>old.filter(f=>!path.startsWith(f+'/')));setEditingFolder(path);setFolderName(path.split('/').at(-1)!);}
+    }
+    async function renameFolder(){
+        if(editingFolder===null)return;const source=editingFolder;setEditingFolder(null);
+        const destination=source.slice(0,source.lastIndexOf('/')+1)+folderName.trim();
+        if(destination!==source)await changeFolder('rename',source,destination);
+    }
+    async function dropFavorite(event:React.DragEvent,destination:string){
+        event.preventDefault();event.stopPropagation();if(busy||saving)return;
+        const source=event.dataTransfer.getData('application/x-sequelx-folder');
+        if(source){await changeFolder('rename',source,destination?destination+'/'+source.split('/').at(-1):source.split('/').at(-1)!);return;}
+        const id=event.dataTransfer.getData('application/x-sequelx-favorite'),p=saved.find(p=>p.id===id);if(!p||p.folder===destination)return;
+        setSaving(true);try{await SaveProfile(new profiles.Profile({...p,folder:destination}));await reloadFolders();}catch(error){setNotice(String(error));}finally{setSaving(false);}
     }
 
     async function retry() {
@@ -146,22 +188,33 @@ export default function ConnectionForm({active=true, busy, onConnect, sidebarWid
 
     return <div className="connection-layout">
         <aside id={formID+"-favorites-panel"} className="favorites-sidebar" aria-label="Favorites" style={{flexBasis: `${sidebarWidth}%`}}>
-            <button className={`favorite quick ${!selected ? 'selected' : ''}`} disabled={busy || saving} onClick={() => choose('')}><span className="quick-symbol">ϟ</span> QUICK CONNECT</button>
+            <button className={`favorite quick ${!selected ? 'selected' : ''}`} disabled={busy || saving} onClick={() => {setSelectedFolder('');choose('');}}><span className="quick-symbol">ϟ</span> QUICK CONNECT</button>
             <h2>FAVORITES</h2>
             <div className="favorites-list" role="list" aria-label="Saved connections">
-                {folders.length>0&&<label className="favorites-folder-filter">Folder<select aria-label="Filter favorite folder" value={folderFilter} onChange={e=>setFolderFilter(e.target.value)}><option value="">All folders</option><option value="@unfiled">Unfiled</option>{folders.map(f=><option key={f} value={`folder:${f}`}>{f}</option>)}</select></label>}
-                {[...new Set([...folders,...saved.map(p=>p.folder??'')])].sort().map(group=>{if(folderFilter && (folderFilter==='@unfiled'?group!=='':group!==folderFilter.slice(7)&&!group.startsWith(folderFilter.slice(7)+'/')))return null;if(collapsed.some(parent=>group!==parent&&group.startsWith(parent+'/')))return null;const entries=saved.filter(p=>(p.folder??'')===group).sort((a,b)=>a.name.localeCompare(b.name));return <div key={group}>{group&&<h3 className="favorite-folder"><button aria-label={`Toggle favorite folder ${group}`} aria-expanded={!collapsed.includes(group)} onClick={()=>setCollapsed(old=>old.includes(group)?old.filter(f=>f!==group):[...old,group])}>{collapsed.includes(group)?'▸':'▾'} {group}</button></h3>}{!collapsed.includes(group)&&entries.map(p=><div role="listitem" key={p.id}><button title={`${p.host}:${p.port}`} className={`favorite ${selected === p.id ? 'selected' : ''}`} disabled={busy || saving || loading} onClick={()=>choose(p.id)}><ToolbarIcon name="database"/><span style={{borderLeft:p.color&&p.color!=='none'?`3px solid ${p.color}`:undefined,paddingLeft:4}}>{p.name}</span></button></div>)}</div>;})}
+                <div className="favorite-tree" onDragOver={e=>e.preventDefault()} onDrop={e=>void dropFavorite(e,'')}>
+                {[...new Set([...folders,...saved.map(p=>p.folder??'')])].sort().map(group=>{
+                    if(collapsed.some(parent=>group!==parent&&group.startsWith(parent+'/')))return null;
+                    const depth=group?group.split('/').length:0;
+                    return <div key={group}>
+                        {group&&<div className={`favorite-folder-row ${selectedFolder===group?'selected':''}`} style={{paddingLeft:(depth-1)*16}} draggable={!saving&&!busy&&editingFolder===null} onDragStart={e=>e.dataTransfer.setData('application/x-sequelx-folder',group)} onDragOver={e=>e.preventDefault()} onDrop={e=>void dropFavorite(e,group)} onContextMenu={e=>{e.preventDefault();setSelectedFolder(group);setFolderMenu(true);}}>
+                            <button aria-label={`Toggle favorite folder ${group}`} aria-expanded={!collapsed.includes(group)} onClick={()=>setCollapsed(old=>old.includes(group)?old.filter(f=>f!==group):[...old,group])}>{collapsed.includes(group)?'▸':'▾'}</button>
+                            {editingFolder===group?<input aria-label="Folder name" autoFocus value={folderName} onFocus={e=>e.target.select()} onChange={e=>setFolderName(e.target.value)} onBlur={()=>void renameFolder()} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();void renameFolder();}if(e.key==='Escape'){e.preventDefault();setEditingFolder(null);}}}/>:<button className="favorite-folder-name" aria-label={`Folder ${group.split('/').at(-1)}`} onClick={()=>{setSelectedFolder(group);setFolder(group);}} onDoubleClick={()=>{setEditingFolder(group);setFolderName(group.split('/').at(-1)!);}}><img src={favoriteFolderIcon} alt="" draggable={false}/><span>{group.split('/').at(-1)}</span></button>}
+                        </div>}
+                        {!collapsed.includes(group)&&saved.filter(p=>(p.folder??'')===group).sort((a,b)=>a.name.localeCompare(b.name)).map(p=><div role="listitem" key={p.id} style={{paddingLeft:depth*16}} draggable={!busy&&!saving} onDragStart={e=>e.dataTransfer.setData('application/x-sequelx-favorite',p.id)}><button title={`${p.host}:${p.port}`} className={`favorite ${selected===p.id&&!selectedFolder?'selected':''}`} disabled={busy||saving||loading} onClick={()=>{setSelectedFolder('');choose(p.id);}}><ToolbarIcon name="database"/><span style={{borderLeft:p.color&&p.color!=='none'?`3px solid ${p.color}`:undefined,paddingLeft:4}}>{p.name}</span></button></div>)}
+                    </div>;
+                })}
+                </div>
 
             </div>
             <div className="sidebar-bottom">
-                <button aria-label="New connection" title="New connection" disabled={busy || saving} onClick={() => choose('')}>＋</button>
-                <button type="button" className="favorite-folders-button" disabled={busy||saving||!!storageError} onClick={()=>setShowFolders(v=>!v)}>Folders</button>
-                <button aria-label="Delete favorite" title="Delete favorite" disabled={busy || saving || !selected || !!storageError} onClick={() => setConfirmDelete(true)}>−</button>
+                <button aria-label="New connection" title="New connection" disabled={busy || saving} onClick={() => {setSelectedFolder('');choose('');}}>＋</button>
+                <button type="button" aria-label="New Folder" title="New Folder" disabled={busy||saving||!!storageError} onClick={()=>void newFolder()} className="new-favorite-folder"><img src={favoriteFolderIcon} alt=""/><span>+</span></button><div className="favorite-actions" ref={folderActionsRef}><button type="button" aria-label="Favorite actions" title="Favorite actions" aria-haspopup="menu" aria-expanded={folderMenu} disabled={busy||saving||!!storageError} onClick={()=>setFolderMenu(v=>!v)}><ToolbarIcon name="more"/><svg aria-hidden="true" viewBox="0 0 12 12" className="favorite-menu-chevron"><path d="m3 4 3 3 3-3"/></svg></button>{folderMenu&&<div className="favorite-actions-menu" role="menu"><button role="menuitem" onClick={()=>void newFolder()}>New Folder</button><button role="menuitem" disabled={!selectedFolder} onClick={()=>{setFolderMenu(false);setEditingFolder(selectedFolder);setFolderName(selectedFolder.split('/').at(-1)!);}}>Rename Folder</button><button role="menuitem" disabled={!selectedFolder} onClick={()=>{setFolderMenu(false);requestDeleteFolder();}}>Delete Folder…</button></div>}</div>
+                <button aria-label="Delete favorite" title="Delete favorite" disabled={busy || saving || (!selected&&!selectedFolder) || !!storageError} onClick={() => selectedFolder?requestDeleteFolder():setConfirmDelete(true)}>−</button>
             </div>
         </aside>
         <Splitter label="Favorites sidebar width" controls={formID+"-favorites-panel"} axis="x" value={sidebarWidth} min={15} max={35} onChange={onSidebarResize} />
         <section className="connection-pane">
-            {showFolders&&<SAFavoriteFolders folders={folders} disabled={busy||saving} onReload={reloadFolders} onBusyChange={setSaving} onClose={()=>setShowFolders(false)}/>}
+            {showFolders&&<SADialog title={`Delete folder '${selectedFolder.split('/').at(-1)}'?`} onCancel={()=>setShowFolders(false)}><p>All folders and saved connections within this folder will also be deleted. This operation cannot be undone.</p><button onClick={()=>void deleteFolder()}>Delete</button><button autoFocus data-dialog-focus onClick={()=>setShowFolders(false)}>Cancel</button></SADialog>}
             <h1>Enter connection details below, or choose a favorite</h1>
 
             <form onSubmit={e => void connect(e)} className="connection-form">
@@ -210,8 +263,8 @@ export default function ConnectionForm({active=true, busy, onConnect, sidebarWid
  {auth==='vault'&&<><label>Vault HTTPS address<input value={vaultAddress} onChange={e=>setVaultAddress(e.target.value)}/></label><label>Vault database mount<input value={vaultMount} onChange={e=>setVaultMount(e.target.value)}/></label><label>Vault role<input value={vaultRole} onChange={e=>setVaultRole(e.target.value)}/></label><label>Vault namespace<input value={vaultNamespace} onChange={e=>setVaultNamespace(e.target.value)}/></label><label>Vault token<input type="password" autoComplete="off" value={vaultToken} onChange={e=>setVaultToken(e.target.value)}/></label><p>Dynamic credentials are issued at connection time. Vault leases are managed by the server; automatic renewal and OIDC login are not included.</p></>}
 <SANativeImport disabled={busy || saving} onReload={retry} onSession={state=>{applyProfile(state.profile);setNativeState(state);setInitialDatabase(state.database);setNotice(state.notice);}}/>
                 </details>
-                {storageError && <div role="alert" className="notice">Profil tidak dapat dimuat: {storageError}. Koneksi tanpa profil tetap tersedia. <button type="button" disabled={loading} onClick={() => void retry()}>Coba lagi</button></div>}
-                {confirmDelete && <div className="notice" role="group" aria-label="Delete favorite confirmation">Hapus profil tersimpan ini? <button type="button" disabled={saving} onClick={() => void remove()}>Ya, hapus profil</button> <button type="button" disabled={saving} onClick={() => setConfirmDelete(false)}>Batal</button></div>}
+                {storageError && <div role="alert" className="notice">Connections could not be loaded: {storageError}. You can still connect without a saved connection. <button type="button" disabled={loading} onClick={() => void retry()}>Retry</button></div>}
+                {confirmDelete && <div className="notice" role="group" aria-label="Delete favorite confirmation">Delete this saved connection? <button type="button" disabled={saving} onClick={() => void remove()}>Delete connection</button> <button type="button" disabled={saving} onClick={() => setConfirmDelete(false)}>Cancel</button></div>}
                 {notice && <p role="status" className="form-notice">{notice}</p>}
             </form>
         </section>

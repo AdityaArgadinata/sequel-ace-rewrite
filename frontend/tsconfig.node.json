@@ -1,8 +1,12 @@
 {
   "compilerOptions": {
     "composite": true,
+    "target": "ESNext",
+    "lib": ["ESNext"],
+    "types": ["node"],
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
     "allowSyntheticDefaultImports": true
   },
   "include": [

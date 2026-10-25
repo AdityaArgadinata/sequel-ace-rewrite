@@ -94,3 +94,16 @@ func TestImportModeTransitions(t *testing.T) {
 		t.Fatal("expression mode changes must remain unrecognized", result, err)
 	}
 }
+
+func TestSessionReadClassification(t *testing.T) {
+	for _, query := range []string{"SELECT 1", "select(1)", "/* ordinary */ SELECT * FROM sample", "# note\nSHOW TABLES", "-- note\nDESC sample", "DESCRIBE sample"} {
+		if !IsSessionRead(query) {
+			t.Fatalf("read not recognized: %q", query)
+		}
+	}
+	for _, query := range []string{"", "SELECTED", "SELECT_thing", "START TRANSACTION", "SET autocommit=0", "CALL sample()", "WITH c AS (SELECT 1) SELECT * FROM c", "/*! START TRANSACTION */ SELECT 1", "/*M! START TRANSACTION */ SELECT 1"} {
+		if IsSessionRead(query) {
+			t.Fatalf("unknown SQL treated as read: %q", query)
+		}
+	}
+}

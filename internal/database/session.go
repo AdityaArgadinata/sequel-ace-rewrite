@@ -14,6 +14,7 @@ import (
 	"net"
 	"path/filepath"
 	"sequel-rewrite/internal/authproviders"
+	"sequel-rewrite/internal/sqlscript"
 	"sequel-rewrite/internal/tunnel"
 	"strconv"
 	"strings"
@@ -378,6 +379,7 @@ func (s *Session) executeWithRowLimit(statement string, args []any, emit func(Ba
 	if err := s.allowManagedStatement(statement); !metadata && err != nil {
 		return Result{}, err
 	}
+	confirmRead := !metadata && !s.transaction && !s.txUnverified && sqlscript.IsSessionRead(statement)
 	if !s.transaction && !metadata {
 		s.txUnverified = true
 	}
@@ -487,6 +489,13 @@ func (s *Session) executeWithRowLimit(statement string, args []any, emit func(Ba
 	flush()
 	if err := ctx.Err(); err != nil {
 		return Result{}, s.queryError(err)
+	}
+	if confirmRead && !result.SessionClosed {
+		var autocommit int
+		if err := s.conn.QueryRowContext(ctx, "SELECT @@session.autocommit").Scan(&autocommit); err != nil {
+			return Result{}, s.queryError(err)
+		}
+		s.txUnverified = autocommit != 1
 	}
 	return result, nil
 }

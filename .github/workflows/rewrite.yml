@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Optional draft release version, e.g. v0.1.0-alpha.1'
+        description: 'Optional release version; stable tags publish, prerelease tags create drafts'
         required: false
         type: string
 
@@ -243,7 +243,7 @@ jobs:
           path: dist/*
 
   release:
-    name: Create draft distribution release
+    name: Publish distribution release
     needs: [prepare, desktop, database-integration]
     if: needs.prepare.outputs.tag != ''
     runs-on: ubuntu-24.04
@@ -272,14 +272,14 @@ jobs:
           cd dist
           sha256sum -- *.zip *.dmg *.exe *.tar.gz > SHA256SUMS.txt
           sha256sum --check SHA256SUMS.txt
-      - name: Create draft release with all packages
+      - name: Create release with all packages
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
         run: |
-          flags=(--draft)
-          if [[ "$RELEASE_TAG" == *-* ]]; then flags+=(--prerelease); fi
+          flags=(--latest)
+          if [[ "$RELEASE_TAG" == *-* ]]; then flags=(--draft --prerelease); fi
           gh release create "$RELEASE_TAG" dist/* --target "$GITHUB_SHA" "${flags[@]}" --title "sequelx $RELEASE_TAG" --notes-file docs/release-notes.md
 
   database-integration:

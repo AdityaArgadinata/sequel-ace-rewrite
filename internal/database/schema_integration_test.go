@@ -219,6 +219,10 @@ func TestSchemaEditingIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	run(&s, "SELECT 1")
+	if _, err := s.PrepareSchemaChange(request); err != nil {
+		t.Fatal("read-only SQL blocked schema editing", err)
+	}
+	run(&s, "SET @sequelx_unknown_state=1")
 	if _, err := s.PrepareSchemaChange(request); err == nil {
 		t.Fatal("unverified transaction accepted")
 	}
@@ -364,5 +368,81 @@ func TestInlineColumnLifecycleIntegration(t *testing.T) {
 		if row[0].Value == "parent_id" {
 			t.Fatal("related field was not dropped")
 		}
+	}
+}
+
+func TestMoveColumnAfterManualReadIntegration(t *testing.T) {
+	text := os.Getenv("SEQUEL_TEST_PORT")
+	if text == "" {
+		t.Skip("disposable database not configured")
+	}
+	port, err := strconv.Atoi(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	connection := Connection{Host: "127.0.0.1", Port: port, User: "root", Password: os.Getenv("SEQUEL_TEST_PASSWORD")}
+	var s, setup Session
+	for _, session := range []*Session{&s, &setup} {
+		if err := session.Connect(connection); err != nil {
+			t.Fatal(err)
+		}
+		defer session.Shutdown()
+	}
+	run := func(session *Session, query string) Result {
+		t.Helper()
+		r, err := session.Query(query)
+		if err != nil {
+			t.Fatal(query, err)
+		}
+		return r
+	}
+	db := fmt.Sprintf("sequel_rewrite_test_read_move_%d", time.Now().UnixNano())
+	target := quoteIdentifier(db) + ".`sample`"
+	run(&setup, "CREATE DATABASE "+quoteIdentifier(db))
+	defer run(&setup, "DROP DATABASE "+quoteIdentifier(db))
+	run(&setup, "CREATE TABLE "+target+" (id INT PRIMARY KEY, label VARCHAR(30) DEFAULT 'keep' COMMENT 'preserved') ENGINE=InnoDB")
+	run(&setup, "INSERT INTO "+target+" VALUES (1,'original')")
+	run(&s, "/* manual query */ SELECT * FROM "+target)
+	if s.TransactionStatus() != "idle" {
+		t.Fatal(s.TransactionStatus())
+	}
+	move := SASchemaChange{Database: db, Table: "sample", Kind: "column", Action: "edit", Original: "label", Name: "label", ColumnEdits: map[string]string{}, First: true}
+	plan, err := s.PrepareSchemaChange(move)
+	if err != nil {
+		t.Fatal("manual SELECT blocked drag", err)
+	}
+	if _, err := s.ApplySchemaChange(plan.Token); err != nil {
+		t.Fatal(err)
+	}
+	schema, err := s.Structure(db, "sample")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if schema.Columns.Rows[0][0].Value != "label" {
+		t.Fatal("field was not moved", schema.Columns)
+	}
+	definition := schema.Definition.Rows[0][1].Value
+	if !strings.Contains(definition, "DEFAULT 'keep'") || !strings.Contains(definition, "COMMENT 'preserved'") {
+		t.Fatal("move changed attributes", definition)
+	}
+	if got := run(&s, "SELECT label FROM "+target).Rows[0][0].Value; got != "original" {
+		t.Fatal("move changed data", got)
+	}
+	run(&s, "START TRANSACTION")
+	run(&s, "UPDATE "+target+" SET label='pending' WHERE id=1")
+	run(&s, "SELECT * FROM "+target)
+	move.First = false
+	move.After = "id"
+	if _, err := s.PrepareSchemaChange(move); err == nil {
+		t.Fatal("schema move accepted an explicit transaction")
+	}
+	if got := run(&setup, "SELECT label FROM "+target).Rows[0][0].Value; got != "original" {
+		t.Fatal("schema guard committed pending data", got)
+	}
+	if err := s.Transaction("rollback"); err != nil {
+		t.Fatal(err)
+	}
+	if got := run(&s, "SELECT label FROM "+target).Rows[0][0].Value; got != "original" {
+		t.Fatal("pending data was not rolled back", got)
 	}
 }

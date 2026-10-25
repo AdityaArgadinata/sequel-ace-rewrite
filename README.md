@@ -430,10 +430,13 @@ implemented. Database TLS verification remains enabled independently of SSH.
   `sql_quote_show_create=1`. Windows/Linux native desktop QA remains open.
 
 - **Sessions and transactions:** the sidebar connection-actions menu opens a new
-  query tab, disconnects, and exposes Begin/Commit/Rollback. Each tab has its own
-  database session, up to 16 tabs. A single session hides the tab strip. Closing
-  a session discards uncommitted transactional work. Manual SQL may leave
-  transaction state unverified; resolve it with Commit/Rollback.
+  connection chooser, disconnects, and exposes Begin/Commit/Rollback. Each tab has
+  its own database session, up to 16 tabs. Closing a session discards uncommitted
+  transactional work. Successful SELECT/SHOW/DESC/DESCRIBE from a known idle
+  session preserve idle status after verifying autocommit is enabled. They never
+  clear an existing active/unverified transaction. Unknown commands, CTEs,
+  executable leading comments, errors and imported SQL remain conservative;
+  resolve an unverified transaction explicitly with Commit/Rollback.
 - **SQL editor:** syntax highlighting, line numbers, undo/search and schema completion
   (Ctrl+Space). Refresh completion after schema changes. Table names use the loaded
   catalog; column completion reads at most 2,000 columns from the active database.
@@ -825,3 +828,15 @@ menu offers server/system defaults, IANA time zones, and a Custom entry for offs
 Fresh connections start in Content with an empty striped grid. Data controls stay
 disabled until a table is selected; the SQL editor opens through Query. Imported
 SPF sessions still restore their saved SQL/view instead of using this default.
+
+### Favorite folder sidebar
+
+Create folders using the folder-plus button or Favorite actions → New Folder.
+Rename a folder by double-clicking its name. Drag favorites or folders onto a
+folder to move them; drop onto empty sidebar space to move to the root. Folder
+ordering is alphabetical. Empty folders delete immediately; deleting a populated
+folder requires confirmation and removes its saved connections and credentials.
+Partial failures are reported and are not automatically retried. New password-based
+connections leave Require SSL unchecked; existing saved TLS settings are retained.
+Stable version tags publish distribution packages after all CI checks pass;
+prerelease tags create draft releases.

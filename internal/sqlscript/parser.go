@@ -268,3 +268,18 @@ func withoutLeadingComments(text string) string {
 func IsLiteralModeChange(source string) bool {
 	return literalMode.MatchString(withoutLeadingComments(source))
 }
+
+// IsSessionRead recognizes statements that cannot open an explicit transaction.
+// Executable comments, CTEs and unknown commands remain conservative.
+func IsSessionRead(source string) bool {
+	text := withoutLeadingComments(source)
+	end := 0
+	for end < len(text) && ((text[end] >= 'a' && text[end] <= 'z') || (text[end] >= 'A' && text[end] <= 'Z') || (text[end] >= '0' && text[end] <= '9') || strings.ContainsRune("_$", rune(text[end]))) {
+		end++
+	}
+	switch strings.ToUpper(text[:end]) {
+	case "SELECT", "SHOW", "DESC", "DESCRIBE":
+		return true
+	}
+	return false
+}
