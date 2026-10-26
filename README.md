@@ -832,7 +832,7 @@ SPF sessions still restore their saved SQL/view instead of using this default.
 ### Favorite folder sidebar
 
 Create folders using the folder-plus button or Favorite actions → New Folder.
-Rename a folder by double-clicking its name. Drag favorites or folders onto a
+Click a folder to expand/collapse it. Right-click a folder and choose Rename Folder to rename it. Drag favorites or folders onto a
 folder to move them; drop onto empty sidebar space to move to the root. Folder
 ordering is alphabetical. Empty folders delete immediately; deleting a populated
 folder requires confirmation and removes its saved connections and credentials.
